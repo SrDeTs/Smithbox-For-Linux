@@ -16,3 +16,6 @@ Or simply run `./Smithbox` directly.
 For any issues or errors, please report to the official repository:
 
 https://github.com/vawser/Smithbox?tab=contributing-ov-file
+## Note
+
+This is a Linux-only build.
