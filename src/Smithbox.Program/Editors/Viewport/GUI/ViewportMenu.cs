@@ -1,0 +1,825 @@
+﻿using Hexa.NET.ImGui;
+using StudioCore.Application;
+using StudioCore.Editors.Common;
+using StudioCore.Editors.MapEditor;
+using StudioCore.Editors.ModelEditor;
+using StudioCore.Keybinds;
+using StudioCore.Renderer;
+using StudioCore.Utilities;
+using System;
+using Veldrid;
+
+namespace StudioCore.Editors.Viewport;
+
+public class ViewportMenu
+{
+    public IUniverse Owner;
+    public VulkanViewport Parent;
+
+    public ViewportMenu(VulkanViewport parent)
+    {
+        Parent = parent;
+        Owner = parent.Owner;
+    }
+
+    public void Draw()
+    {
+        ImGui.BeginMenuBar();
+
+        SettingsMenu();
+        OverlayMenu();
+        CameraMenu();
+        RenderMenu();
+        FilterMenu();
+        GizmoMenu();
+        SelectionMenu();
+
+        ImGui.EndMenuBar();
+    }
+
+    public void SceneParamsGui()
+    {
+        ImGui.SliderFloat4("Light Direction", ref Parent.ViewPipeline.SceneParams.LightDirection, -1, 1);
+        ImGui.SliderFloat("Direct Light Mult", ref Parent.ViewPipeline.SceneParams.DirectLightMult, 0, 3);
+        ImGui.SliderFloat("Indirect Light Mult", ref Parent.ViewPipeline.SceneParams.IndirectLightMult, 0, 3);
+        ImGui.SliderFloat("Brightness", ref Parent.ViewPipeline.SceneParams.SceneBrightness, 0, 5);
+    }
+
+    public void OverlayMenu()
+    {
+        if (ImGui.BeginMenu("Overlay"))
+        {
+            if (ImGui.MenuItem("Controls"))
+            {
+                CFG.Current.Viewport_DisplayControls = !CFG.Current.Viewport_DisplayControls;
+                Parent.DelayPicking();
+            }
+            UIHelper.ShowActiveStatus(CFG.Current.Viewport_DisplayControls);
+            UIHelper.Tooltip($"Toggle the display of the Control instructions in the top-left corner.");
+
+            if (ImGui.MenuItem("Profiling"))
+            {
+                CFG.Current.Viewport_Display_Profiling = !CFG.Current.Viewport_Display_Profiling;
+                Parent.DelayPicking();
+            }
+            UIHelper.ShowActiveStatus(CFG.Current.Viewport_Display_Profiling);
+            UIHelper.Tooltip($"Toggle the display of the Profiling information in the top-left corner.");
+
+            if (Owner is MapUniverse mapUniverse)
+            {
+                if (ImGui.MenuItem("Position Increment"))
+                {
+                    CFG.Current.Viewport_DisplayPositionIncrement = !CFG.Current.Viewport_DisplayPositionIncrement;
+                    Parent.DelayPicking();
+                }
+                UIHelper.ShowActiveStatus(CFG.Current.Viewport_DisplayPositionIncrement);
+                UIHelper.Tooltip($"Toggle the display of the current Position Increment in the top-left corner.");
+
+                if (ImGui.MenuItem("Rotation Increment"))
+                {
+                    CFG.Current.Viewport_DisplayRotationIncrement = !CFG.Current.Viewport_DisplayRotationIncrement;
+                    Parent.DelayPicking();
+                }
+                UIHelper.ShowActiveStatus(CFG.Current.Viewport_DisplayRotationIncrement);
+                UIHelper.Tooltip($"Toggle the display of the current Rotation Increment in the top-left corner.");
+
+                if (ImGui.MenuItem("Quick View Tooltip"))
+                {
+                    CFG.Current.QuickView_DisplayTooltip = !CFG.Current.QuickView_DisplayTooltip;
+                    Parent.DelayPicking();
+                }
+                UIHelper.ShowActiveStatus(CFG.Current.QuickView_DisplayTooltip);
+                UIHelper.Tooltip($"Toggle the display of the Quick View tooltip on hover.");
+
+                if (ImGui.MenuItem("Placement Orb"))
+                {
+                    CFG.Current.DisplayPlacementOrb = !CFG.Current.DisplayPlacementOrb;
+                    Parent.DelayPicking();
+                }
+                UIHelper.ShowActiveStatus(CFG.Current.DisplayPlacementOrb);
+                UIHelper.Tooltip($"Toggle the display of the placement orb within the viewport.");
+            }
+
+            ImGui.EndMenu();
+        }
+    }
+
+    public void CameraMenu()
+    {
+        if (ImGui.BeginMenu("Camera"))
+        {
+            UIHelper.SimpleHeader("View Mode", "");
+
+            if (ImGui.BeginCombo("##inputValue", Parent.ViewportCamera.ViewMode.GetDisplayName()))
+            {
+                foreach (var entry in Enum.GetValues(typeof(ViewMode)))
+                {
+                    var type = (ViewMode)entry;
+
+                    if (ImGui.Selectable(type.GetDisplayName()))
+                    {
+                        Parent.ViewportCamera.SetProjectionType((ViewMode)entry);
+                    }
+                }
+                ImGui.EndCombo();
+            }
+
+            UIHelper.SimpleHeader("Parameters", "");
+
+            // Perspective
+            if (Parent.ViewportCamera.ViewMode is ViewMode.Perspective)
+            {
+                // Near Clipping Distance
+                var nearClip = CFG.Current.Viewport_Perspective_Near_Clip;
+                if (ImGui.SliderFloat("Near Clip", ref nearClip, 0.01f, 100.0f))
+                {
+                    if (nearClip < 0.01f)
+                    {
+                        nearClip = 0.01f;
+                    }
+                    if (nearClip > 1000000.0f)
+                    {
+                        nearClip = 1000000.0f;
+                    }
+
+                    CFG.Current.Viewport_Perspective_Near_Clip = nearClip;
+                }
+                UIHelper.Tooltip("Set the minimum distance at which entities will be rendered within the viewport.");
+
+                // Far Clipping Distance
+                var farClip = CFG.Current.Viewport_Perspective_Far_Clip;
+                if (ImGui.SliderFloat("Far Clip", ref farClip, 0.01f, 1000000.0f))
+                {
+                    if (farClip < 0.01f)
+                    {
+                        farClip = 0.01f;
+                    }
+                    if (farClip > 1000000.0f)
+                    {
+                        farClip = 1000000.0f;
+                    }
+
+                    CFG.Current.Viewport_Perspective_Far_Clip = farClip;
+                }
+                UIHelper.Tooltip("Set the maximum distance at which entities will be rendered within the viewport.");
+
+                // FOV
+                var cam_fov = CFG.Current.Viewport_Camera_FOV;
+                if (ImGui.SliderFloat("Camera FOV", ref cam_fov, 40.0f, 140.0f))
+                {
+                    if (cam_fov < 0.0f)
+                    {
+                        cam_fov = 1.0f;
+                    }
+                    if (cam_fov > 360f)
+                    {
+                        cam_fov = 360f;
+                    }
+
+                    CFG.Current.Viewport_Camera_FOV = cam_fov;
+                }
+
+                UIHelper.Tooltip("Set the field of view used by the camera.");
+
+                // Sensitivity
+                var cam_sensitivity = CFG.Current.Viewport_Camera_Sensitivity;
+                if (ImGui.SliderFloat("Camera sensitivity", ref cam_sensitivity, 0.0f, 0.1f))
+                {
+                    if (cam_sensitivity < 0.0f)
+                    {
+                        cam_sensitivity = 0.0f;
+                    }
+                    if (cam_sensitivity > 1f)
+                    {
+                        cam_sensitivity = 1f;
+                    }
+
+                    CFG.Current.Viewport_Camera_Sensitivity = cam_sensitivity;
+                }
+                UIHelper.Tooltip("Mouse sensitivty for turning the camera.");
+
+                // Camera Speed (Slow)
+                if (ImGui.SliderFloat("Camera speed (slow)", ref Parent.ViewportCamera.CameraMoveSpeed_Slow, 0.1f, 9999.0f))
+                {
+                    CFG.Current.Viewport_Camera_MoveSpeed_Slow = Parent.ViewportCamera.CameraMoveSpeed_Slow;
+                }
+                if (ImGui.IsItemDeactivatedAfterEdit())
+                {
+                    if (CFG.Current.Viewport_Camera_MoveSpeed_Slow < 0.0f)
+                    {
+                        CFG.Current.Viewport_Camera_MoveSpeed_Slow = 0.0f;
+                    }
+                    if (CFG.Current.Viewport_Camera_MoveSpeed_Slow > 9999.0f)
+                    {
+                        CFG.Current.Viewport_Camera_MoveSpeed_Slow = 9999.0f;
+                    }
+                }
+                UIHelper.Tooltip("Set the speed at which the camera will move when the Left or Right Shift key is pressed whilst moving.");
+
+                // Camera Speed (Normal
+                if (ImGui.SliderFloat("Camera speed (normal)", ref Parent.ViewportCamera.CameraMoveSpeed_Normal, 0.1f, 9999.0f))
+                {
+                    CFG.Current.Viewport_Camera_MoveSpeed_Normal = Parent.ViewportCamera.CameraMoveSpeed_Normal;
+                }
+                if (ImGui.IsItemDeactivatedAfterEdit())
+                {
+                    if (CFG.Current.Viewport_Camera_MoveSpeed_Normal < 0.0f)
+                    {
+                        CFG.Current.Viewport_Camera_MoveSpeed_Normal = 0.0f;
+                    }
+                    if (CFG.Current.Viewport_Camera_MoveSpeed_Normal > 9999.0f)
+                    {
+                        CFG.Current.Viewport_Camera_MoveSpeed_Normal = 9999.0f;
+                    }
+                }
+                UIHelper.Tooltip("Set the speed at which the camera will move whilst moving normally.");
+
+                // Camera Speed (Fast)
+                if (ImGui.SliderFloat("Camera speed (fast)", ref Parent.ViewportCamera.CameraMoveSpeed_Fast, 0.1f, 9999.0f))
+                {
+                    CFG.Current.Viewport_Camera_MoveSpeed_Fast = Parent.ViewportCamera.CameraMoveSpeed_Fast;
+                }
+                if (ImGui.IsItemDeactivatedAfterEdit())
+                {
+                    if (CFG.Current.Viewport_Camera_MoveSpeed_Fast < 0.0f)
+                    {
+                        CFG.Current.Viewport_Camera_MoveSpeed_Fast = 0.0f;
+                    }
+                    if (CFG.Current.Viewport_Camera_MoveSpeed_Fast > 9999.0f)
+                    {
+                        CFG.Current.Viewport_Camera_MoveSpeed_Fast = 9999.0f;
+                    }
+                }
+                UIHelper.Tooltip("Set the speed at which the camera will move when the Left or Right Control key is pressed whilst moving.");
+            }
+
+            // Orthographic / Oblique
+            if (Parent.ViewportCamera.ViewMode is ViewMode.Orthographic or ViewMode.Oblique)
+            {
+                // Near Clipping Distance
+                var nearClip = CFG.Current.Viewport_Orthographic_Near_Clip;
+                if (ImGui.SliderFloat("Near Clip##orthoNearClip", ref nearClip, -1000000.0f, 1000000.0f))
+                {
+                    if (nearClip < -1000000.0f)
+                    {
+                        nearClip = -1000000.0f;
+                    }
+                    if (nearClip > 1000000.0f)
+                    {
+                        nearClip = 1000000.0f;
+                    }
+
+                    CFG.Current.Viewport_Orthographic_Near_Clip = nearClip;
+                }
+                UIHelper.Tooltip("Set the minimum distance at which entities will be rendered within the viewport.");
+
+                // Far Clipping Distance
+                var farClip = CFG.Current.Viewport_Orthographic_Far_Clip;
+                if (ImGui.SliderFloat("Far Clip##orthoFarClip", ref farClip, -1000000.0f, 1000000.0f))
+                {
+                    if (farClip < -1000000.0f)
+                    {
+                        farClip = -1000000.0f;
+                    }
+                    if (farClip > 1000000.0f)
+                    {
+                        farClip = 1000000.0f;
+                    }
+
+                    CFG.Current.Viewport_Orthographic_Far_Clip = farClip;
+                }
+                UIHelper.Tooltip("Set the maximum distance at which entities will be rendered within the viewport.");
+
+                // Orthographic Size
+                ImGui.SliderFloat("Pan Sensitivity", ref Parent.ViewportCamera.PanSensitivity, 1.0f, 100.0f);
+                if (ImGui.IsItemDeactivatedAfterEdit())
+                {
+                    if (Parent.ViewportCamera.PanSensitivity < 1.0f)
+                        Parent.ViewportCamera.PanSensitivity = 1.0f;
+
+                    if (Parent.ViewportCamera.PanSensitivity > 100.0f)
+                        Parent.ViewportCamera.PanSensitivity = 100.0f;
+
+                    // Update the default
+                    CFG.Current.Viewport_MousePan_Sensitivity = Parent.ViewportCamera.PanSensitivity;
+                }
+                UIHelper.Tooltip("The sensitivity of the mouse panning.");
+            }
+
+            // Orthographic
+            if (Parent.ViewportCamera.ViewMode is ViewMode.Orthographic)
+            {
+                // Orthographic Size
+                ImGui.SliderFloat("Size", ref Parent.ViewportCamera.OrthographicSize, 0.1f, 1000.0f);
+                if(ImGui.IsItemDeactivatedAfterEdit())
+                {
+                    if (Parent.ViewportCamera.OrthographicSize < 0.1f)
+                        Parent.ViewportCamera.OrthographicSize = 0.1f;
+
+                    if (Parent.ViewportCamera.OrthographicSize > 1000.0f)
+                        Parent.ViewportCamera.OrthographicSize = 1000.0f;
+
+                    // Update the default
+                    CFG.Current.Viewport_DefaultOrthographicSize = Parent.ViewportCamera.OrthographicSize;
+                }
+                UIHelper.Tooltip("Set the height of the view in world units.");
+            }
+
+            // Oblique
+            if (Parent.ViewportCamera.ViewMode is ViewMode.Oblique)
+            {
+                // Oblique Angle
+                ImGui.SliderFloat("Angle", ref Parent.ViewportCamera.ObliqueAngle, 0.0f, 90.0f);
+                if (ImGui.IsItemDeactivatedAfterEdit())
+                {
+                    if (Parent.ViewportCamera.ObliqueAngle < 0.0f)
+                        Parent.ViewportCamera.ObliqueAngle = 0.0f;
+
+                    if (Parent.ViewportCamera.ObliqueAngle > 90.0f)
+                        Parent.ViewportCamera.ObliqueAngle = 90.0f;
+
+                    // Update the default
+                    CFG.Current.Viewport_DefaultObliqueAngle = Parent.ViewportCamera.ObliqueAngle;
+                }
+                UIHelper.Tooltip("Set the angle of the view.");
+
+                // Oblique Scaling
+                ImGui.SliderFloat("Scaling", ref Parent.ViewportCamera.ObliqueScaling, 0.0f, 1.0f);
+                if (ImGui.IsItemDeactivatedAfterEdit())
+                {
+                    if (Parent.ViewportCamera.ObliqueScaling < 0.0f)
+                        Parent.ViewportCamera.ObliqueScaling = 0.0f;
+
+                    if (Parent.ViewportCamera.ObliqueScaling > 1.0f)
+                        Parent.ViewportCamera.ObliqueScaling = 1.0f;
+
+                    // Update the default
+                    CFG.Current.Viewport_DefaultObliqueScaling = Parent.ViewportCamera.ObliqueScaling;
+                }
+                UIHelper.Tooltip("Set the scaling of the view.");
+            }
+
+            if (ImGui.Selectable("Reset camera settings"))
+            {
+                CFG.Current.Viewport_Camera_FOV = CFG.Default.Viewport_Camera_FOV;
+                CFG.Current.Viewport_Camera_Sensitivity = CFG.Default.Viewport_Camera_Sensitivity;
+
+                CFG.Current.Viewport_Perspective_Near_Clip = CFG.Default.Viewport_Perspective_Near_Clip;
+                CFG.Current.Viewport_Perspective_Far_Clip = CFG.Default.Viewport_Perspective_Far_Clip;
+
+                CFG.Current.Viewport_Camera_MoveSpeed_Slow = CFG.Default.Viewport_Camera_MoveSpeed_Slow;
+                CFG.Current.Viewport_Camera_Sensitivity = CFG.Default.Viewport_Camera_Sensitivity;
+                CFG.Current.Viewport_Camera_MoveSpeed_Normal = CFG.Default.Viewport_Camera_MoveSpeed_Normal;
+                CFG.Current.Viewport_Camera_MoveSpeed_Fast = CFG.Default.Viewport_Camera_MoveSpeed_Fast;
+
+                CFG.Current.Viewport_Orthographic_Near_Clip = CFG.Default.Viewport_Orthographic_Near_Clip;
+                CFG.Current.Viewport_Orthographic_Far_Clip = CFG.Default.Viewport_Orthographic_Far_Clip;
+
+                CFG.Current.Viewport_MousePan_Sensitivity = CFG.Default.Viewport_MousePan_Sensitivity;
+
+                CFG.Current.Viewport_DefaultObliqueAngle = CFG.Default.Viewport_DefaultObliqueAngle;
+                CFG.Current.Viewport_DefaultObliqueScaling = CFG.Default.Viewport_DefaultObliqueScaling;
+
+            }
+
+            ImGui.EndMenu();
+        }
+    }
+
+    public void RenderMenu()
+    {
+        if (ImGui.BeginMenu("Render"))
+        {
+            if (ImGui.BeginMenu("Scene Lighting"))
+            {
+                SceneParamsGui();
+
+                ImGui.EndMenu();
+            }
+
+            // Map Editor
+            if (Owner is MapUniverse mapUniverse)
+            {
+                if (ImGui.BeginMenu("Environment Map"))
+                {
+                    if (ImGui.MenuItem("Default"))
+                    {
+                        Parent.SetEnvMap(0);
+                        Parent.DelayPicking();
+                    }
+
+                    ImGui.EndMenu();
+                }
+            }
+
+            ImGui.EndMenu();
+        }
+    }
+
+    public void FilterMenu()
+    {
+        // Map Editor
+        if (Owner is MapUniverse mapUniverse)
+        {
+            mapUniverse.View.Editor.FilterMenu();
+        }
+
+        // Model Editor
+        if (Owner is ModelUniverse modelUniverse)
+        {
+            modelUniverse.View.ViewportFilters.Display();
+        }
+    }
+
+    public void GizmoMenu()
+    {
+        if (ImGui.BeginMenu("Gizmos"))
+        {
+            GizmoState.OnMenu(Parent);
+
+            ImGui.EndMenu();
+        }
+    }
+
+    public void SelectionMenu()
+    {
+        if (ImGui.BeginMenu("Selection"))
+        {
+            if (ImGui.MenuItem("Enable Box Selection"))
+            {
+                CFG.Current.Viewport_Enable_Box_Selection = !CFG.Current.Viewport_Enable_Box_Selection;
+                Parent.DelayPicking();
+            }
+            UIHelper.ShowActiveStatus(CFG.Current.Viewport_Enable_Box_Selection);
+            UIHelper.Tooltip($"Toggle the usage of box selection.\nHold Ctrl, Alt and left click to make a box selection.");
+
+            UIHelper.SimpleHeader("Box Selection Targets", "Which map objects will be selected by the box select.");
+
+            if (ImGui.MenuItem("Map Pieces"))
+            {
+                CFG.Current.Viewport_Enable_Box_Selection_MapPiece = !CFG.Current.Viewport_Enable_Box_Selection_MapPiece;
+                Parent.DelayPicking();
+            }
+            UIHelper.ShowActiveStatus(CFG.Current.Viewport_Enable_Box_Selection_MapPiece);
+
+            var name = "Objects";
+            if(Smithbox.Orchestrator.SelectedProject.Descriptor.ProjectType is ProjectType.ER or ProjectType.AC6 or ProjectType.NR)
+            {
+                name = "Assets";
+            }
+
+            if (ImGui.MenuItem(name))
+            {
+                CFG.Current.Viewport_Enable_Box_Selection_Asset = !CFG.Current.Viewport_Enable_Box_Selection_Asset;
+                Parent.DelayPicking();
+            }
+            UIHelper.ShowActiveStatus(CFG.Current.Viewport_Enable_Box_Selection_Asset);
+
+            if (ImGui.MenuItem("Enemy"))
+            {
+                CFG.Current.Viewport_Enable_Box_Selection_Enemy = !CFG.Current.Viewport_Enable_Box_Selection_Enemy;
+                Parent.DelayPicking();
+            }
+            UIHelper.ShowActiveStatus(CFG.Current.Viewport_Enable_Box_Selection_Enemy);
+
+            if (ImGui.MenuItem("Player"))
+            {
+                CFG.Current.Viewport_Enable_Box_Selection_Player = !CFG.Current.Viewport_Enable_Box_Selection_Player;
+                Parent.DelayPicking();
+            }
+            UIHelper.ShowActiveStatus(CFG.Current.Viewport_Enable_Box_Selection_Player);
+
+            if (ImGui.MenuItem("Collision"))
+            {
+                CFG.Current.Viewport_Enable_Box_Selection_Collision = !CFG.Current.Viewport_Enable_Box_Selection_Collision;
+                Parent.DelayPicking();
+            }
+            UIHelper.ShowActiveStatus(CFG.Current.Viewport_Enable_Box_Selection_Collision);
+
+            if (ImGui.MenuItem("Light"))
+            {
+                CFG.Current.Viewport_Enable_Box_Selection_Light = !CFG.Current.Viewport_Enable_Box_Selection_Light;
+                Parent.DelayPicking();
+            }
+            UIHelper.ShowActiveStatus(CFG.Current.Viewport_Enable_Box_Selection_Light);
+
+            if (ImGui.MenuItem("Region"))
+            {
+                CFG.Current.Viewport_Enable_Box_Selection_Region = !CFG.Current.Viewport_Enable_Box_Selection_Region;
+                Parent.DelayPicking();
+            }
+            UIHelper.ShowActiveStatus(CFG.Current.Viewport_Enable_Box_Selection_Region);
+
+
+            ImGui.EndMenu();
+        }
+    }
+
+    public void SettingsMenu()
+    {
+        if (ImGui.BeginMenu("Settings"))
+        {
+            if (ImGui.MenuItem("Enable rendering", CFG.Current.Viewport_Enable_Rendering))
+            {
+                CFG.Current.Viewport_Enable_Rendering = !CFG.Current.Viewport_Enable_Rendering;
+                Parent.DelayPicking();
+            }
+            UIHelper.Tooltip($"Whether to render objects in the viewport.");
+
+            if (ImGui.MenuItem("Enable texturing", CFG.Current.Viewport_Enable_Texturing))
+            {
+                CFG.Current.Viewport_Enable_Texturing = !CFG.Current.Viewport_Enable_Texturing;
+                Parent.DelayPicking();
+            }
+            UIHelper.Tooltip($"Whether to render textures in the viewport.");
+
+            if (ImGui.MenuItem("Enable culling", CFG.Current.Viewport_Enable_Culling))
+            {
+                CFG.Current.Viewport_Enable_Culling = !CFG.Current.Viewport_Enable_Culling;
+                Parent.DelayPicking();
+            }
+            UIHelper.Tooltip($"Whether to cull objects in the viewport outside of the camera frustum.");
+
+            if (Owner is MapUniverse mapUniverse)
+            {
+                if (ImGui.MenuItem("Enable model masks", CFG.Current.Viewport_Enable_Model_Masks))
+                {
+                    CFG.Current.Viewport_Enable_Model_Masks = !CFG.Current.Viewport_Enable_Model_Masks;
+                    Parent.DelayPicking();
+                }
+                UIHelper.Tooltip($"Whether to attempt to hide model masks based on entity NpcParam flags.");
+
+                ImGui.Separator();
+
+                MapModelLoadMenu();
+                MapTextureLoadMenu();
+
+                ImGui.Separator();
+
+                if (ImGui.BeginMenu("Quick View"))
+                {
+                    mapUniverse.View.AutomaticPreviewTool.HandleQuickViewProperties();
+
+                    ImGui.EndMenu();
+                }
+
+                if (ImGui.BeginMenu("Placement Orb"))
+                {
+                    ImGui.DragFloat("Orb Distance", ref CFG.Current.PlacementOrb_Distance, 0.1f, 1f, 100f);
+                    UIHelper.Tooltip($"Determines the distance in front of the camera the placement orb is.");
+
+                    ImGui.EndMenu();
+                }
+            }
+
+            if (Owner is ModelUniverse modelUniverse)
+            {
+                ImGui.Separator();
+
+                ModelModelLoadMenu();
+                ModelTextureLoadMenu();
+
+                ImGui.Separator();
+
+                if (ImGui.BeginMenu("Display Nodes"))
+                {
+                    ImGui.DragFloat("Dummy Size", ref CFG.Current.DummyMeshSize, 0.1f, 0.0001f, 1f);
+                    UIHelper.Tooltip($"Determines the radius of the dummy polygon mesh.");
+                    if(ImGui.IsItemDeactivatedAfterEdit())
+                    {
+                        RenderableHelper.UpdateProxySizes();
+                        modelUniverse.View.ViewportWindow.UpdateDisplayNodes();
+                    }
+
+                    ImGui.DragFloat("Node Size", ref CFG.Current.NodeMeshSize, 0.1f, 0.0001f, 1f);
+                    UIHelper.Tooltip($"Determines the radius of the node mesh.");
+                    if (ImGui.IsItemDeactivatedAfterEdit())
+                    {
+                        RenderableHelper.UpdateProxySizes();
+                        modelUniverse.View.ViewportWindow.UpdateDisplayNodes();
+                    }
+
+                    ImGui.EndMenu();
+                }
+            }
+
+            ImGui.EndMenu();
+        }
+    }
+
+    public void MapModelLoadMenu()
+    {
+        if (ImGui.BeginMenu("Model Load"))
+        {
+            if (ImGui.MenuItem("Map Pieces"))
+            {
+                CFG.Current.MapEditor_ModelLoad_MapPieces = !CFG.Current.MapEditor_ModelLoad_MapPieces;
+                Parent.DelayPicking();
+            }
+            UIHelper.ShowActiveStatus(CFG.Current.MapEditor_ModelLoad_MapPieces);
+
+            var name = "Objects";
+
+            if (Owner is MapUniverse mapUniverse)
+            {
+                if (mapUniverse.Project.Descriptor.ProjectType is ProjectType.ER or ProjectType.AC6 or ProjectType.NR)
+                {
+                    name = "Assets";
+                }
+            }
+
+            if (ImGui.MenuItem(name))
+            {
+                CFG.Current.MapEditor_ModelLoad_Objects = !CFG.Current.MapEditor_ModelLoad_Objects;
+                Parent.DelayPicking();
+            }
+            UIHelper.ShowActiveStatus(CFG.Current.MapEditor_ModelLoad_MapPieces);
+
+
+            if (ImGui.MenuItem("Characters"))
+            {
+                CFG.Current.MapEditor_ModelLoad_Characters = !CFG.Current.MapEditor_ModelLoad_Characters;
+                Parent.DelayPicking();
+            }
+            UIHelper.ShowActiveStatus(CFG.Current.MapEditor_ModelLoad_Characters);
+
+            if (ImGui.MenuItem("Collisions"))
+            {
+                CFG.Current.MapEditor_ModelLoad_Collisions = !CFG.Current.MapEditor_ModelLoad_Collisions;
+                Parent.DelayPicking();
+            }
+            UIHelper.ShowActiveStatus(CFG.Current.MapEditor_ModelLoad_Collisions);
+
+            if (ImGui.MenuItem("Navmeshes"))
+            {
+                CFG.Current.MapEditor_ModelLoad_Navmeshes = !CFG.Current.MapEditor_ModelLoad_Navmeshes;
+                Parent.DelayPicking();
+            }
+            UIHelper.ShowActiveStatus(CFG.Current.MapEditor_ModelLoad_Navmeshes);
+
+
+            ImGui.EndMenu();
+        }
+        UIHelper.Tooltip("Toggle which models are loaded during a map load.");
+    }
+
+    public void MapTextureLoadMenu()
+    {
+        if (ImGui.BeginMenu("Texture Load"))
+        {
+            if (ImGui.MenuItem("Map Pieces"))
+            {
+                CFG.Current.MapEditor_TextureLoad_MapPieces = !CFG.Current.MapEditor_TextureLoad_MapPieces;
+                Parent.DelayPicking();
+            }
+            UIHelper.ShowActiveStatus(CFG.Current.MapEditor_TextureLoad_MapPieces);
+
+            var name = "Objects";
+
+            if (Owner is MapUniverse mapUniverse)
+            {
+                if (mapUniverse.Project.Descriptor.ProjectType is ProjectType.ER or ProjectType.AC6 or ProjectType.NR)
+                {
+                    name = "Assets";
+                }
+            }
+
+            if (ImGui.MenuItem(name))
+            {
+                CFG.Current.MapEditor_TextureLoad_Objects = !CFG.Current.MapEditor_TextureLoad_Objects;
+                Parent.DelayPicking();
+            }
+            UIHelper.ShowActiveStatus(CFG.Current.MapEditor_TextureLoad_Objects);
+
+            if (ImGui.MenuItem("Characters"))
+            {
+                CFG.Current.MapEditor_TextureLoad_Characters = !CFG.Current.MapEditor_TextureLoad_Characters;
+                Parent.DelayPicking();
+            }
+            UIHelper.ShowActiveStatus(CFG.Current.MapEditor_TextureLoad_Characters);
+
+            if (ImGui.MenuItem("Miscellaneous"))
+            {
+                CFG.Current.MapEditor_TextureLoad_Misc = !CFG.Current.MapEditor_TextureLoad_Misc;
+                Parent.DelayPicking();
+            }
+            UIHelper.ShowActiveStatus(CFG.Current.MapEditor_TextureLoad_Misc);
+
+            ImGui.EndMenu();
+        }
+        UIHelper.Tooltip("Toggle which textures are loaded during a map load.");
+    }
+
+    public void ModelModelLoadMenu()
+    {
+        if (ImGui.BeginMenu("Model Load"))
+        {
+            if (ImGui.MenuItem("Map Pieces"))
+            {
+                CFG.Current.ModelEditor_ModelLoad_MapPieces = !CFG.Current.ModelEditor_ModelLoad_MapPieces;
+                Parent.DelayPicking();
+            }
+            UIHelper.ShowActiveStatus(CFG.Current.ModelEditor_ModelLoad_MapPieces);
+
+            var name = "Objects";
+
+            if (Owner is MapUniverse mapUniverse)
+            {
+                if (mapUniverse.Project.Descriptor.ProjectType is ProjectType.ER or ProjectType.AC6 or ProjectType.NR)
+                {
+                    name = "Assets";
+                }
+            }
+
+            if (ImGui.MenuItem(name))
+            {
+                CFG.Current.ModelEditor_ModelLoad_Objects = !CFG.Current.ModelEditor_ModelLoad_Objects;
+                Parent.DelayPicking();
+            }
+            UIHelper.ShowActiveStatus(CFG.Current.ModelEditor_ModelLoad_MapPieces);
+
+            if (ImGui.MenuItem("Characters"))
+            {
+                CFG.Current.ModelEditor_ModelLoad_Characters = !CFG.Current.ModelEditor_ModelLoad_Characters;
+                Parent.DelayPicking();
+            }
+            UIHelper.ShowActiveStatus(CFG.Current.ModelEditor_ModelLoad_Characters);
+
+            if (ImGui.MenuItem("Parts"))
+            {
+                CFG.Current.ModelEditor_ModelLoad_Parts = !CFG.Current.ModelEditor_ModelLoad_Parts;
+                Parent.DelayPicking();
+            }
+            UIHelper.ShowActiveStatus(CFG.Current.ModelEditor_ModelLoad_Parts);
+
+            //if (ImGui.MenuItem("Collisions"))
+            //{
+            //    CFG.Current.ModelEditor_ModelLoad_Collisions = !CFG.Current.ModelEditor_ModelLoad_Collisions;
+            //}
+            //UIHelper.ShowActiveStatus(CFG.Current.ModelEditor_ModelLoad_Collisions);
+
+            //if (ImGui.MenuItem("Navmeshes"))
+            //{
+            //    CFG.Current.ModelEditor_ModelLoad_Navmeshes = !CFG.Current.ModelEditor_ModelLoad_Navmeshes;
+            //}
+            //UIHelper.ShowActiveStatus(CFG.Current.ModelEditor_ModelLoad_Navmeshes);
+
+            ImGui.EndMenu();
+        }
+        UIHelper.Tooltip("Toggle which models are loaded during a map load.");
+    }
+
+    public void ModelTextureLoadMenu()
+    {
+        if (ImGui.BeginMenu("Texture Load"))
+        {
+            if (ImGui.MenuItem("Map Pieces"))
+            {
+                CFG.Current.ModelEditor_TextureLoad_MapPieces = !CFG.Current.ModelEditor_TextureLoad_MapPieces;
+                Parent.DelayPicking();
+            }
+            UIHelper.ShowActiveStatus(CFG.Current.ModelEditor_TextureLoad_MapPieces);
+
+            var name = "Objects";
+
+            if (Owner is MapUniverse mapUniverse)
+            {
+                if (mapUniverse.Project.Descriptor.ProjectType is ProjectType.ER or ProjectType.AC6 or ProjectType.NR)
+                {
+                    name = "Assets";
+                }
+            }
+
+            if (ImGui.MenuItem(name))
+            {
+                CFG.Current.ModelEditor_TextureLoad_Objects = !CFG.Current.ModelEditor_TextureLoad_Objects;
+                Parent.DelayPicking();
+            }
+            UIHelper.ShowActiveStatus(CFG.Current.ModelEditor_TextureLoad_Objects);
+
+            if (ImGui.MenuItem("Characters"))
+            {
+                CFG.Current.ModelEditor_TextureLoad_Characters = !CFG.Current.ModelEditor_TextureLoad_Characters;
+                Parent.DelayPicking();
+            }
+            UIHelper.ShowActiveStatus(CFG.Current.ModelEditor_TextureLoad_Characters);
+
+            if (ImGui.MenuItem("Parts"))
+            {
+                CFG.Current.ModelEditor_TextureLoad_Parts = !CFG.Current.ModelEditor_TextureLoad_Parts;
+                Parent.DelayPicking();
+            }
+            UIHelper.ShowActiveStatus(CFG.Current.ModelEditor_TextureLoad_Parts);
+
+            if (ImGui.MenuItem("Miscellaneous"))
+            {
+                CFG.Current.ModelEditor_TextureLoad_Misc = !CFG.Current.ModelEditor_TextureLoad_Misc;
+                Parent.DelayPicking();
+            }
+            UIHelper.ShowActiveStatus(CFG.Current.ModelEditor_TextureLoad_Misc);
+
+            ImGui.EndMenu();
+        }
+        UIHelper.Tooltip("Toggle which textures are loaded during a map load.");
+    }
+}

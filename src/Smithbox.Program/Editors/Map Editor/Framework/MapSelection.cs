@@ -1,0 +1,58 @@
+﻿using StudioCore.Application;
+using System.Linq;
+
+namespace StudioCore.Editors.MapEditor;
+
+public class MapSelection
+{
+    public MapEditorView View;
+    public ProjectEntry Project;
+
+    public string SelectedMapID;
+    public MapContainer SelectedMapContainer;
+
+    public MapSelection(MapEditorView view, ProjectEntry project)
+    {
+        View = view;
+        Project = project;
+    }
+
+    public bool IsAnyMapLoaded()
+    {
+        var check = false;
+
+        foreach (var entry in Project.Handler.MapData.PrimaryBank.Maps)
+        {
+            if (entry.Value.MapContainer != null)
+            {
+                check = true;
+            }
+        }
+
+        return check;
+    }
+
+    public MapContainer GetMapContainerFromMapID(string mapID)
+    {
+        var targetMap = Project.Handler.MapData.PrimaryBank.Maps.FirstOrDefault(e => e.Key.Filename == mapID);
+
+        if (targetMap.Value != null && targetMap.Value.MapContainer != null)
+        {
+            return targetMap.Value.MapContainer;
+        }
+
+        return null;
+    }
+
+    public FileDictionaryEntry GetFileEntryFromMapID(string mapID)
+    {
+        var targetMap = Project.Handler.MapData.PrimaryBank.Maps.FirstOrDefault(e => e.Key.Filename == mapID);
+
+        if (targetMap.Value != null)
+        {
+            return targetMap.Key;
+        }
+
+        return null;
+    }
+}

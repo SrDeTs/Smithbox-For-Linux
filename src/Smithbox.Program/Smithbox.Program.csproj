@@ -1,0 +1,143 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <LangVersion>12</LangVersion>
+    <Configurations>
+      Debug-win;Release-win;Debug-linux;Release-linux;Debug-osx;Release-osx;Debug;Release</Configurations>
+    <RootNamespace>StudioCore</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(Configuration.StartsWith('Debug'))">
+    <DefineConstants>DEBUG</DefineConstants>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>1701;1702;0169</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(Configuration.StartsWith('Release'))">
+    <DefineConstants>RELEASE</DefineConstants>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DebugType>embedded</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <NoWarn>1701;1702;0169</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(Configuration.EndsWith('-win')) Or !$(Configuration.Contains('-'))">
+    <DefineConstants>$(DefineConstants);WINDOWS</DefineConstants>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(Configuration.EndsWith('-linux'))">
+    <DefineConstants>$(DefineConstants);LINUX</DefineConstants>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(Configuration.EndsWith('-osx'))">
+    <DefineConstants>$(DefineConstants);OSX</DefineConstants>
+    <PlatformTargets>arm64;x64</PlatformTargets>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Editors\File Browser\Data\Enums\**" />
+    <Compile Remove="Editors\File Browser\Data\Models\**" />
+    <Compile Remove="Editors\Gparam Editor\Data\Models\**" />
+    <Compile Remove="Editors\Map Editor\Enums\**" />
+    <Compile Remove="Editors\Model Editor\Data\Models\**" />
+    <EmbeddedResource Remove="Editors\File Browser\Data\Enums\**" />
+    <EmbeddedResource Remove="Editors\File Browser\Data\Models\**" />
+    <EmbeddedResource Remove="Editors\Gparam Editor\Data\Models\**" />
+    <EmbeddedResource Remove="Editors\Map Editor\Enums\**" />
+    <EmbeddedResource Remove="Editors\Model Editor\Data\Models\**" />
+    <None Remove="Editors\File Browser\Data\Enums\**" />
+    <None Remove="Editors\File Browser\Data\Models\**" />
+    <None Remove="Editors\Gparam Editor\Data\Models\**" />
+    <None Remove="Editors\Map Editor\Enums\**" />
+    <None Remove="Editors\Model Editor\Data\Models\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="Editors\Map Editor\Enums\EditorVisibilityState.cs" />
+    <Compile Include="Editors\Map Editor\Enums\EditorVisibilityType.cs" />
+    <Compile Include="Editors\Map Editor\Enums\EntityFilterType.cs" />
+    <Compile Include="Editors\Map Editor\Enums\EntityIdBlockSeperatorType.cs" />
+    <Compile Include="Editors\Map Editor\Enums\EntityNameDisplayType.cs" />
+    <Compile Include="Editors\Map Editor\Enums\FileSelectionType.cs" />
+    <Compile Include="Editors\Map Editor\Enums\GameVisibilityState.cs" />
+    <Compile Include="Editors\Map Editor\Enums\GameVisibilityType.cs" />
+    <Compile Include="Editors\Map Editor\Enums\MapConnectionRelationType.cs" />
+    <Compile Include="Editors\Map Editor\Enums\MapContentLoadState.cs" />
+    <Compile Include="Editors\Map Editor\Enums\MapContentViewType.cs" />
+    <Compile Include="Editors\Map Editor\Enums\MapDuplicateToMapType.cs" />
+    <Compile Include="Editors\Map Editor\Enums\MapEditorContext.cs" />
+    <Compile Include="Editors\Map Editor\Enums\MapValidationType.cs" />
+    <Compile Include="Editors\Map Editor\Enums\MsbEntityType.cs" />
+    <Compile Include="Editors\Map Editor\Enums\QueryMapListType.cs" />
+    <Compile Include="Editors\Map Editor\Enums\QuerySelectionConditionLogic.cs" />
+    <Compile Include="Editors\Map Editor\Enums\ReplicateSquareSideType.cs" />
+    <Compile Include="Editors\Map Editor\Enums\TargetMapGridType.cs" />
+    <Compile Include="Editors\Map Editor\Enums\ViewportGridRootAxis.cs" />
+    <Compile Include="Editors\Map Editor\Enums\ViewportTargetGridType.cs" />
+    <Compile Include="Editors\Map Editor\Enums\WorldMapImageSource.cs" />
+    <Compile Include="Editors\Map Editor\Enums\WorldMapTileType.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.HighPerformance" Version="8.4.0" />
+    <PackageReference Include="CsvHelper" Version="33.1.0" />
+    <PackageReference Include="DirectXTexNet" Version="1.0.7" />
+    <PackageReference Include="DotNext.IO" Version="5.26.3" />
+    <PackageReference Include="Hexa.NET.DirectXTex" Version="2.0.4" />
+    <PackageReference Include="NativeFileDialogSharp" Version="0.6.0-alpha" />
+    <PackageReference Include="Octokit" Version="14.0.0" />
+    <PackageReference Include="Pfim" Version="0.11.4" />
+    <PackageReference Include="ProcessMemoryUtilities.Net" Version="1.3.4" />
+    <PackageReference Include="Silk.NET.OpenGL" Version="2.21.0" />
+    <PackageReference Include="Silk.NET.SDL" Version="2.22.0" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
+    <PackageReference Include="System.Drawing.Common" Version="10.0.3" />
+    <PackageReference Include="System.Text.Json" Version="10.0.3" />
+    <PackageReference Include="System.Threading.Tasks.Dataflow" Version="10.0.3" />
+    <PackageReference Include="Veldrid.ImageSharp" Version="4.9.0" />
+    <PackageReference Include="Vortice.Vulkan" Version="1.8.12" />
+    <PackageReference Include="Vortice.VulkanMemoryAllocator" Version="1.4.6" />
+    <PackageReference Include="Hexa.NET.ImGuizmo" Version="2.2.7" />
+    <PackageReference Include="Hexa.NET.ImGui" Version="2.2.7" />
+    <PackageReference Include="Hexa.NET.ImNodes" Version="2.2.7" />
+    <PackageReference Include="Hexa.NET.ImPlot" Version="2.2.7" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Andre\Andre.IO\Andre.IO.csproj" />
+    <ProjectReference Include="..\Havok\HKLib.Reflection\Havok.HKLib.Reflection.csproj" />
+    <ProjectReference Include="..\Havok\HKLib.Serialization\Havok.HKLib.Serialization.csproj" />
+    <ProjectReference Include="..\Havok\HKLib\Havok.HKLib.csproj" />
+    <ProjectReference Include="..\Havok\HKX2\Havok.HKX2.csproj" />
+    <ProjectReference Include="..\Andre\SoapstoneLib\SoapstoneLib\Andre.SoapstoneLib.csproj" />
+    <ProjectReference Include="..\Andre\Andre.Formats\Andre.Formats.csproj" />
+    <ProjectReference Include="..\Andre\SoulsFormats\SoulsFormats\Andre.SoulsFormats.csproj" />
+    <ProjectReference Include="..\Veldrid\Veldrid.RenderDoc\Veldrid.RenderDoc.csproj" />
+    <ProjectReference Include="..\Veldrid\Veldrid.SDL2\Veldrid.SDL2.csproj" />
+    <ProjectReference Include="..\Veldrid\Veldrid.SPIRV\Veldrid.SPIRV.csproj" />
+    <ProjectReference Include="..\Veldrid\Veldrid.StartupUtilities\Veldrid.StartupUtilities.csproj" />
+    <ProjectReference Include="..\Veldrid\Veldrid.Utilities\Veldrid.Utilities.csproj" />
+    <ProjectReference Include="..\Veldrid\Veldrid\Veldrid.csproj" />
+    <ProjectReference Include="..\Tracy\Tracy.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Editors\Animation Editor\Actions\Behavior\" />
+    <Folder Include="Editors\Animation Editor\Actions\TAE\" />
+    <Folder Include="Editors\Animation Editor\Data\TAE\" />
+    <Folder Include="Editors\Animation Editor\Enums\" />
+    <Folder Include="Editors\Animation Editor\Framework\TAE\" />
+    <Folder Include="Editors\Animation Editor\Tools\Behavior\" />
+    <Folder Include="Editors\Animation Editor\Tools\TAE\" />
+    <Folder Include="Editors\File Browser\Actions\" />
+    <Folder Include="Editors\File Browser\Data\" />
+    <Folder Include="Editors\File Browser\Utils\" />
+    <Folder Include="Editors\File Browser\Tools\" />
+    <Folder Include="Editors\Gparam Editor\Tools\" />
+    <Folder Include="Editors\Material Editor\Tools\" />
+  </ItemGroup>
+
+</Project>

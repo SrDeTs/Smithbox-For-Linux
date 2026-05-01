@@ -1,0 +1,58 @@
+﻿using StudioCore.Application;
+using StudioCore.Editors.Common;
+using System.Collections.Generic;
+
+namespace StudioCore.Editors.MapEditor;
+
+public class MapEditorUtils
+{
+    /// <summary>
+    /// Update the model state for all loaded entities.
+    /// </summary>
+    /// <param name="baseEditor"></param>
+    /// <param name="projectEntry"></param>
+    public static void UpdateAllEntityModels(ProjectEntry projectEntry)
+    {
+        var ents = GetAllEntities(projectEntry);
+
+        var mapEditor = projectEntry.Handler.MapEditor;
+        var activeView = mapEditor.ViewHandler.ActiveView;
+
+        foreach (var ent in ents)
+        {
+            if(ent is MsbEntity entity)
+            {
+                entity.UpdateEntityModel();
+            }
+        }
+
+        activeView.Universe.ScheduleTextureRefresh();
+    }
+
+    /// <summary>
+    /// Get the list of entities from all maps that have been loaded.
+    /// </summary>
+    /// <param name="baseEditor"></param>
+    /// <param name="projectEntry"></param>
+    /// <returns></returns>
+    public static List<Entity> GetAllEntities(ProjectEntry projectEntry)
+    {
+        var entities = new List<Entity>();
+
+        foreach (var entry in projectEntry.Handler.MapData.PrimaryBank.Maps)
+        {
+            var wrapper = entry.Value;
+
+            if (wrapper.MapContainer == null)
+                continue;
+
+            foreach (var ent in wrapper.MapContainer.Objects)
+            {
+                entities.Add(ent);
+            }
+        }
+
+        return entities;
+    }
+
+}

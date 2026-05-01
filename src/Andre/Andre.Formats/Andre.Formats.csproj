@@ -1,0 +1,59 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>12</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Configurations>Debug-win;Release-win;Debug-linux;Release-linux;Debug-osx;Release-osx;Debug;Release</Configurations>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(Configuration.StartsWith('Debug'))">
+    <DefineConstants>DEBUG</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(Configuration.StartsWith('Release'))">
+    <DefineConstants>RELEASE</DefineConstants>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(Configuration.EndsWith('-win')) Or !$(Configuration.Contains('-'))">
+    <DefineConstants>$(DefineConstants);WINDOWS</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(Configuration.EndsWith('-linux'))">
+    <DefineConstants>$(DefineConstants);LINUX</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(Configuration.EndsWith('-osx'))">
+    <DefineConstants>$(DefineConstants);OSX</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SoulsFormats\SoulsFormats\Andre.SoulsFormats.csproj" />
+    <ProjectReference Include="..\Andre.Core\Andre.Core.csproj" />
+    <None Remove="bhd5_decrypt_rust.dll" />
+    <AdditionalFiles Include="bhd5_decrypt_rust.dll">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </AdditionalFiles>
+  </ItemGroup>
+
+  <!-- Copies the Rust dll from the cargo target dir to the base dir, if it exists -->
+  <Target Name="CopyRustDllIfPresent" BeforeTargets="Build">
+    <PropertyGroup>
+      <RustTargetDir>native\bhd5-decrypt-rust\target\release\</RustTargetDir>
+      <RustDllPath>$(RustTargetDir)bhd5_decrypt_rust.dll</RustDllPath>
+    </PropertyGroup>
+    
+    <ItemGroup>
+      <RustDll Include="$(RustDllPath)" Condition="Exists('$(RustDllPath)')" />
+    </ItemGroup>
+    
+    <Copy
+      SourceFiles="@(RustDll)"
+      DestinationFolder="$(MSBuildProjectDirectory)"
+      SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>

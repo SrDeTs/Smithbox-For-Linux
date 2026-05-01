@@ -1,0 +1,40 @@
+//------------------------------------------------
+//--- 010 Editor v15.0.2 Binary Template
+//
+//      File: MSB/MSB.bt
+//   Authors: TKGP
+//   Version: 
+//   Purpose: 
+//  Category: 
+// File Mask: 
+//  ID Bytes: 
+//   History: 
+//------------------------------------------------
+
+typedef struct {
+    char magic[4]; Assert(magic == "MSB ");
+    int unk04; Assert(unk04 == 1);
+    int unk08; Assert(unk08 == 0x10);
+    byte bigEndian; Assert(bigEndian == 0);
+    byte bitBigEndian; Assert(bitBigEndian == 0);
+    byte textEncoding; Assert(textEncoding == 1);
+    byte is64Bit; Assert(is64Bit == -1);
+} Header <bgcolor=cLtRed>;
+
+
+typedef struct {
+    int version;
+    int count; Assert(count >= 1);
+    quad nameOffset <format=hex>;
+    if (count - 1) {
+        quad offsets[count - 1] <format=hex>;
+    }
+    quad nextParamOffset <format=hex>;
+    
+    FSeek(nameOffset);
+    wstring name;
+} ParamHeader <read=ReadParamHeader, bgcolor=cWhite, fgcolor=cBlack>;
+
+wstring ReadParamHeader(ParamHeader &header) {
+    return Str("[%4d] ", header.count - 1) + header.name + Str(" v%d", header.version);
+}
