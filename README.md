@@ -5,7 +5,6 @@ This is a Linux build of Smithbox, a modding tool for Elden Ring and other FromS
 ## Running
 
 ```bash
-cd publish/linux-x64
 ./smithbox
 ```
 
