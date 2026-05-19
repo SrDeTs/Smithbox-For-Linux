@@ -59,7 +59,7 @@ public class TexContainerList
         {
             ImGui.BeginChild($"texSourceList_{title}");
 
-            var filteredEntries = new Dictionary<FileDictionaryEntry, BinderContents>();
+            var filteredEntries = new List<KeyValuePair<FileDictionaryEntry, BinderContents>>();
 
             // Helper to get alias with caching
             string GetAlias(string rawName)
@@ -89,10 +89,7 @@ public class TexContainerList
                 {
                     if (entry.Key.Path.Contains(fileType))
                     {
-                        if (!filteredEntries.ContainsKey(entry.Key))
-                        {
-                            isValidCategory = true;
-                        }
+                        isValidCategory = true;
                     }
                 }
 
@@ -117,7 +114,7 @@ public class TexContainerList
 
                 if (addEntry)
                 {
-                    filteredEntries.Add(entry.Key, entry.Value);
+                    filteredEntries.Add(entry);
                 }
             }
 
@@ -128,7 +125,7 @@ public class TexContainerList
             {
                 for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++)
                 {
-                    var entry = filteredEntries.ElementAt(i);
+                    var entry = filteredEntries[i];
                     var rawName = entry.Key.Filename.ToLower();
                     var aliasName = GetAlias(rawName);
 
@@ -203,29 +200,43 @@ public class TexContainerList
 
         if (LoadTextureBinder)
         {
-            Parent.Selection.ResetSelection();
-
-            if (TargetTextureBinderEntry.Extension == "tpfbhd")
-            {
-                Task<bool> loadTask = Project.Handler.TextureData.PrimaryBank.LoadPackedTextureBinder(TargetTextureBinderEntry);
-                Task.WaitAll(loadTask);
-            }
-            else
-            {
-                Task<bool> loadTask = Project.Handler.TextureData.PrimaryBank.LoadTextureBinder(TargetTextureBinderEntry);
-                Task.WaitAll(loadTask);
-            }
-
-            var targetBinder = TargetDict.FirstOrDefault(e => e.Key.Path == TargetTextureBinderEntry.Path);
-
-            if (targetBinder.Key != null)
-            {
-                Parent.Selection.SelectTextureFile(targetBinder.Key, targetBinder.Value);
-            }
-
             LoadTextureBinder = false;
-            Parent.Selection.AutoSelectTpf = true;
+            var targetEntry = TargetTextureBinderEntry;
+            var targetDict = TargetDict;
+            TargetTextureBinderEntry = null;
+            TargetDict = null;
+
+            Parent.Selection.ResetSelection();
+            _ = LoadTextureBinderAsync(targetEntry, targetDict);
         }
+    }
+
+    private async Task LoadTextureBinderAsync(
+        FileDictionaryEntry targetEntry,
+        Dictionary<FileDictionaryEntry, BinderContents> targetDict)
+    {
+        bool loaded;
+
+        if (targetEntry.Extension == "tpfbhd")
+        {
+            loaded = await Project.Handler.TextureData.PrimaryBank.LoadPackedTextureBinder(targetEntry);
+        }
+        else
+        {
+            loaded = await Project.Handler.TextureData.PrimaryBank.LoadTextureBinder(targetEntry);
+        }
+
+        if (!loaded)
+            return;
+
+        var targetBinder = targetDict.FirstOrDefault(e => e.Key.Path == targetEntry.Path);
+
+        if (targetBinder.Key != null)
+        {
+            Parent.Selection.SelectTextureFile(targetBinder.Key, targetBinder.Value);
+        }
+
+        Parent.Selection.AutoSelectTpf = true;
     }
 
     /// <summary>
