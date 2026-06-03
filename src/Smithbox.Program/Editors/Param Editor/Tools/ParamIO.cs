@@ -2,6 +2,7 @@
 using SoulsFormats;
 using StudioCore.Application;
 using StudioCore.Editors.Common;
+using System.Globalization;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -145,7 +146,7 @@ public class ParamIO
                     }
                     else
                     {
-                        var newval = Convert.ChangeType(v, row.Get((ParamEditorPseudoColumn.None, col)).GetType());
+                        var newval = Convert.ChangeType(v, row.Get((ParamEditorPseudoColumn.None, col)).GetType(), CultureInfo.InvariantCulture);
 
                         if (newval == null)
                         {
@@ -320,7 +321,7 @@ public class ParamIO
                     }
                     else
                     {
-                        var newval = Convert.ChangeType(value, row.Get((ParamEditorPseudoColumn.None, col)).GetType());
+                        var newval = Convert.ChangeType(value, row.Get((ParamEditorPseudoColumn.None, col)).GetType(), CultureInfo.InvariantCulture);
                         if (newval == null)
                         {
                             return ($@"Could not assign {value} to field {col.Def.InternalName}", null);

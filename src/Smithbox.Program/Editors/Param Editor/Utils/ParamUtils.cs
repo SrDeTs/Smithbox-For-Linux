@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Linq;
+using System.Globalization;
 
 namespace StudioCore.Editors.ParamEditor;
 
@@ -287,7 +288,9 @@ public static class ParamUtils
 
     public static string ToParamEditorString(this object val)
     {
-        return val.GetType() == typeof(byte[]) ? Dummy8Write((byte[])val) : val.ToString();
+        return val.GetType() == typeof(byte[])
+            ? Dummy8Write((byte[])val)
+            : Convert.ToString(val, CultureInfo.InvariantCulture)!;
     }
 
     public static object Get(this Param.Row row, (ParamEditorPseudoColumn, Param.Column) col)

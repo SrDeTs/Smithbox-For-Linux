@@ -1,6 +1,7 @@
 ﻿using StudioCore.Utilities;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 
 namespace StudioCore.Application;
 
@@ -29,7 +30,7 @@ public static class ModEngineHandler
         }
 
         var projectName = $"{curProject.Descriptor.ProjectName}-{curProject.Descriptor.ProjectGUID}";
-        var absPath = $"{curProject.Descriptor.ProjectPath}".Replace(@"\", "/"); // Correct backslash to forward slash
+        var absPath = NormalizeME3SourcePath(curProject.Descriptor.ProjectPath);
         var gametype = "nr";
 
         if (curProject.Descriptor.ProjectType is ProjectType.ER)
@@ -57,6 +58,22 @@ public static class ModEngineHandler
         var writePath = $"{CFG.Current.Project_ME3_Profile_Directory}/{projectName}.me3";
 
         File.WriteAllText(writePath, profileString);
+    }
+
+    private static string NormalizeME3SourcePath(string projectPath)
+    {
+        var normalizedPath = projectPath.Replace('\\', '/');
+
+        // Mod Engine 3 expects a Windows-style path when Smithbox runs natively on Linux.
+        // Wine/Proton exposes the host filesystem through Z:, so map absolute POSIX paths there.
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) &&
+            normalizedPath.StartsWith('/') &&
+            !normalizedPath.StartsWith("Z:/", System.StringComparison.OrdinalIgnoreCase))
+        {
+            normalizedPath = $"Z:{normalizedPath}";
+        }
+
+        return normalizedPath;
     }
 
     public static bool ME3ProfileExists(ProjectEntry curProject)
