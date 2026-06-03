@@ -381,6 +381,8 @@ public class ParamEditorScreen : EditorScreen
         {
             SaveLock = true;
 
+            activeView?.FieldInputHandler.FlushPendingChange();
+
             if (CFG.Current.ParamEditor_ManualSave_IncludePARAM)
             {
                 activeView.ParamTableWindow.WriteTableGroupNames();
@@ -403,6 +405,8 @@ public class ParamEditorScreen : EditorScreen
 
         try
         {
+            activeView?.FieldInputHandler.FlushPendingChange();
+
             var saved = await activeView.GetPrimaryBank().Save();
             if (saved)
             {

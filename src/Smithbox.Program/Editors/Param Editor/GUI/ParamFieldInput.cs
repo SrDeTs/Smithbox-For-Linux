@@ -335,6 +335,30 @@ public class ParamFieldInput
         _committedCache = true;
     }
 
+    public bool FlushPendingChange()
+    {
+        if (!_changedCache || _committedCache)
+        {
+            return false;
+        }
+
+        if (_editedObjCache == null || _editedTypeCache == null)
+        {
+            return false;
+        }
+
+        _committedCache = true;
+        ChangeProperty(_editedTypeCache, _editedObjCache, _editedPropCache, ref _committedCache);
+
+        _changedCache = false;
+        _committedCache = false;
+        _editedPropCache = null;
+        _editedTypeCache = null;
+        _editedObjCache = null;
+
+        return true;
+    }
+
     public bool UpdateProperty(object obj, PropertyInfo prop, object oldval,
         int arrayindex = -1)
     {
