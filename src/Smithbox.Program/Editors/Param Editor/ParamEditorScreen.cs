@@ -403,8 +403,16 @@ public class ParamEditorScreen : EditorScreen
 
         try
         {
-            await activeView.GetPrimaryBank().Save();
-            Smithbox.Log(this, $"Params saved.");
+            var saved = await activeView.GetPrimaryBank().Save();
+            if (saved)
+            {
+                Smithbox.Log(this, $"Params saved.");
+            }
+            else
+            {
+                Smithbox.LogError(this, $"Param save failed.");
+            }
+            return saved;
         }
         catch (SavingFailedException e)
         {
@@ -415,7 +423,7 @@ public class ParamEditorScreen : EditorScreen
             Smithbox.LogError(this, e.Message, e);
         }
 
-        return true;
+        return false;
     }
 
     public async void SaveAll()

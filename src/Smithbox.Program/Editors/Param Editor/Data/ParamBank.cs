@@ -1538,7 +1538,7 @@ public class ParamBank : IDisposable
 
         OverwriteParamsER(regParams);
 
-        ProjectUtils.WriteWithBackup(Project, sourceFs, writeFs, @"regulation.bin", regParams, ProjectType.ER);
+        successfulSave &= ProjectUtils.WriteWithBackup(Project, sourceFs, writeFs, @"regulation.bin", regParams, ProjectType.ER);
 
         var sysParam = Path.Join("param", "systemparam", "systemparam.parambnd.dcx");
 
@@ -1555,7 +1555,7 @@ public class ParamBank : IDisposable
             {
                 using var sysParams = BND4.Read(sysParamF.GetData());
                 OverwriteParamsER(sysParams);
-                ProjectUtils.WriteWithBackup(Project, sourceFs, writeFs, Path.Join("param", "systemparam", "systemparam.parambnd.dcx"), sysParams);
+                successfulSave &= ProjectUtils.WriteWithBackup(Project, sourceFs, writeFs, Path.Join("param", "systemparam", "systemparam.parambnd.dcx"), sysParams);
             }
         }
         if (CFG.Current.ParamEditor_Row_Name_Strip_ER)

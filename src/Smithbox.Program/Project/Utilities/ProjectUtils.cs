@@ -305,14 +305,14 @@ public class ProjectUtils
         }
     }
 
-    public static void WriteWithBackup<T>(ProjectEntry curProject, string assetPath, T item,
+    public static bool WriteWithBackup<T>(ProjectEntry curProject, string assetPath, T item,
         params object[] writeparms) where T : SoulsFile<T>, new()
     {
-        WriteWithBackup(curProject, curProject.VFS.FS, curProject.VFS.ProjectFS, assetPath, item,
+        return WriteWithBackup(curProject, curProject.VFS.FS, curProject.VFS.ProjectFS, assetPath, item,
             curProject.Descriptor.ProjectType, writeparms);
     }
 
-    public static void WriteWithBackup<T>(ProjectEntry curProject, VirtualFileSystem vanillaFs, VirtualFileSystem toFs, string assetPath,
+    public static bool WriteWithBackup<T>(ProjectEntry curProject, VirtualFileSystem vanillaFs, VirtualFileSystem toFs, string assetPath,
         T item, ProjectType gameType = ProjectType.Undefined, params object[] writeparms) where T : SoulsFile<T>, new()
     {
         try
@@ -408,7 +408,7 @@ public class ProjectUtils
 
                 toFs.Move(bhdPath + ".temp", bhdPath);
 
-                return;
+                return true;
             }
             else
             {
@@ -438,10 +438,12 @@ public class ProjectUtils
                 }
             }
             toFs.Move(assetPath + ".temp", assetPath);
+            return true;
         }
         catch (Exception e)
         {
             Smithbox.Log<ProjectUtils>($"[Project] Failed to save: {Path.GetFileName(assetPath)} - {e}");
+            return false;
         }
     }
 
