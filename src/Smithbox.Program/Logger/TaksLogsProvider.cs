@@ -28,7 +28,7 @@ namespace StudioCore.Logger
             _getScopes = getScopes;
         }
 
-        public IDisposable BeginScope<TState>(TState state)
+        public IDisposable BeginScope<TState>(TState state) where TState : notnull
         {
             var scopes = _getScopes();
             return scopes?.Push(state) ?? NullScope.Instance;
