@@ -103,9 +103,7 @@ public class Smithbox
             SbLoggerFactory = LoggerFactory.Create(builder =>
             {
                 builder.AddProvider(LogsProvider);
-#if DEBUG
                 builder.AddConsole();
-#endif
             });
             SbLogger = SbLoggerFactory.CreateLogger<Smithbox>();
             SoulsFormats.Util.Logging.LoggerFactory = SbLoggerFactory;
