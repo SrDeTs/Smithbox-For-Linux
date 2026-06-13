@@ -60,7 +60,7 @@ clean:
 	@find . \
 		\( -path './.git' -o -path './.venv' \) -prune -o \
 		-type d \( -name bin -o -name obj \) -print0 | xargs -0r rm -rf
-	rm -rf "$(PUBLISH_DIR)" artifacts linux-x64 publish src/native/linux-x64
+	rm -rf "$(PUBLISH_DIR)" artifacts linux-x64 publish
 
 clobber: clean
 
