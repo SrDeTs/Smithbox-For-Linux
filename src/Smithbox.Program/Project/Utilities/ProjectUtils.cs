@@ -273,7 +273,25 @@ public class ProjectUtils
     {
         return string.IsNullOrWhiteSpace(path)
             ? null
-            : path.Trim().Replace('\\', '/'); // normalize separators and trim
+            : ExpandHomePath(path.Trim()).Replace('\\', '/'); // normalize separators and trim
+    }
+
+    public static string ExpandHomePath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return path;
+
+        if (path.StartsWith("~") &&
+            (path.Length == 1 || path[1] == '/' || path[1] == '\\'))
+        {
+            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            if (path.Length == 1)
+                return home;
+
+            return Path.Combine(home, path[2..]);
+        }
+
+        return path;
     }
 
     /// <summary>

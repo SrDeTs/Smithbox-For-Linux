@@ -605,6 +605,8 @@ public class ProjectOrchestrator : IDisposable
     {
         if (curProject != null)
         {
+            curProject.Descriptor.NormalizePaths();
+
             var folder = ProjectUtils.GetProjectsFolder();
             var file = Path.Combine(folder, $"{curProject.Descriptor.ProjectGUID}.json");
 
@@ -657,6 +659,7 @@ public class ProjectOrchestrator : IDisposable
                     {
                         var newProject = new ProjectEntry();
                         newProject.Descriptor = curProjectDescriptor;
+                        newProject.Descriptor.NormalizePaths();
 
                         Projects.Add(newProject);
                     }
@@ -695,6 +698,7 @@ public class ProjectOrchestrator : IDisposable
     {
         var newProject = new ProjectEntry();
         newProject.Descriptor = new ProjectDescriptor(newProjectDescriptor);
+        newProject.Descriptor.NormalizePaths();
 
         Projects.Add(newProject);
 
@@ -709,6 +713,7 @@ public class ProjectOrchestrator : IDisposable
     public void UpdateProject(ProjectEntry project, ProjectDescriptor newProjectDescriptor)
     {
         project.Descriptor = newProjectDescriptor;
+        project.Descriptor.NormalizePaths();
 
         SaveProject(project);
 
@@ -720,6 +725,7 @@ public class ProjectOrchestrator : IDisposable
         var oldProject = SelectedProject;
 
         Smithbox.Instance.SetProgramName(curProject);
+        curProject.Descriptor.NormalizePaths();
 
         CreateLegacyProjectJSON(curProject);
 
@@ -818,6 +824,7 @@ public class ProjectOrchestrator : IDisposable
         var oldProject = SelectedProject;
 
         Smithbox.Instance.SetProgramName(curProject);
+        curProject.Descriptor.NormalizePaths();
 
         CreateLegacyProjectJSON(curProject);
 
@@ -868,6 +875,8 @@ public class ProjectOrchestrator : IDisposable
     /// <param name="curProject"></param>
     public void CreateLegacyProjectJSON(ProjectEntry curProject, bool firstTime = false)
     {
+        curProject.Descriptor.NormalizePaths();
+
         var jsonPath = Path.Combine(curProject.Descriptor.ProjectPath, "project.json");
 
         // Only create this if it doesn't already exist

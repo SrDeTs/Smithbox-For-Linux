@@ -110,6 +110,8 @@ public class ProjectEntry
 
     public async Task<bool> Init(Action<ProjectLoadProgress> reportProgress, bool silent = false, ProjectInitType initType = ProjectInitType.ProjectDefined)
     {
+        Descriptor.NormalizePaths();
+
         // Sanity checks
         if(Descriptor.ProjectType is ProjectType.Undefined)
         {

@@ -113,6 +113,12 @@ public class ProjectDescriptor
 
         FolderTag = "";
     }
+
+    public void NormalizePaths()
+    {
+        ProjectPath = ProjectUtils.NormalizePath(ProjectPath) ?? "";
+        DataPath = ProjectUtils.NormalizePath(DataPath) ?? "";
+    }
 }
 
 public class LegacyProjectDescriptor
