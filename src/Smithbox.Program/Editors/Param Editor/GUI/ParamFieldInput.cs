@@ -337,11 +337,6 @@ public class ParamFieldInput
 
     public bool FlushPendingChange()
     {
-        if (!_changedCache || _committedCache)
-        {
-            return false;
-        }
-
         if (_editedObjCache == null || _editedTypeCache == null)
         {
             return false;
@@ -350,11 +345,7 @@ public class ParamFieldInput
         _committedCache = true;
         ChangeProperty(_editedTypeCache, _editedObjCache, _editedPropCache, ref _committedCache);
 
-        _changedCache = false;
-        _committedCache = false;
-        _editedPropCache = null;
-        _editedTypeCache = null;
-        _editedObjCache = null;
+        ClearPendingChange();
 
         return true;
     }
@@ -372,13 +363,21 @@ public class ParamFieldInput
             _changedCache = true;
         }
 
-        if (_changedCache)
+        if (_editedObjCache == null || _editedTypeCache == null || _editedPropCache == null)
+        {
+            return false;
+        }
+
+        if (_committedCache)
         {
             ChangeProperty(_editedTypeCache, _editedObjCache, _editedPropCache, ref _committedCache,
                 arrayindex);
+            ClearPendingChange();
+
+            return true;
         }
 
-        return _changedCache && _committedCache;
+        return false;
     }
 
     private void ChangeProperty(object prop, object obj, object newval,
@@ -425,5 +424,14 @@ public class ParamFieldInput
 
             ParentView.Editor.ActionManager.ExecuteAction(action);
         }
+    }
+
+    private void ClearPendingChange()
+    {
+        _changedCache = false;
+        _committedCache = false;
+        _editedPropCache = null;
+        _editedTypeCache = null;
+        _editedObjCache = null;
     }
 }
