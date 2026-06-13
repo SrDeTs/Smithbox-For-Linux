@@ -19,6 +19,9 @@ public class ParamFieldInput
     private object _editedObjCache;
     private bool _changedCache;
     private bool _committedCache;
+    private object _changingProperty;
+    private object _changingObject;
+    private EditorAction _lastUncommittedAction;
 
     public ParamFieldInput(ParamEditorScreen editor, ProjectEntry project, ParamEditorView curView)
     {
@@ -337,14 +340,17 @@ public class ParamFieldInput
 
     public bool FlushPendingChange()
     {
-        if (_editedObjCache == null || _editedTypeCache == null || _editedPropCache == null)
+        if (_lastUncommittedAction == null &&
+            _editedObjCache == null &&
+            _editedTypeCache == null &&
+            _editedPropCache == null &&
+            !_changedCache &&
+            !_committedCache)
         {
             return false;
         }
 
-        _committedCache = true;
-        ChangeProperty(_editedTypeCache, _editedObjCache, _editedPropCache, ref _committedCache);
-        ClearPendingChange();
+        FinalizePendingChange();
         return true;
     }
 
@@ -357,46 +363,41 @@ public class ParamFieldInput
             _changedCache = true;
         }
 
-        if (_changedCache)
+        // Only apply a value that changed in the current frame; stale state is cleared on commit/save.
+        if (!_changedCache)
         {
-            _editedObjCache = obj;
-            _editedTypeCache = prop;
-        }
-        else if (_editedPropCache != null && _editedPropCache != oldval)
-        {
-            _changedCache = true;
-            _editedObjCache = obj;
-            _editedTypeCache = prop;
+            if (_committedCache && _lastUncommittedAction != null)
+            {
+                FinalizePendingChange();
+                return true;
+            }
+
+            return false;
         }
 
-        if (_editedObjCache == null || _editedTypeCache == null || _editedPropCache == null)
+        if (_editedPropCache == null)
         {
             return false;
         }
 
-        if (_committedCache)
+        _editedObjCache = obj;
+        _editedTypeCache = prop;
+
+        if (_lastUncommittedAction != null && Equals(prop, _changingProperty) &&
+            Equals(obj, _changingObject) &&
+            ParentView.Editor.ActionManager.PeekUndoAction() == _lastUncommittedAction)
         {
-            ChangeProperty(_editedTypeCache, _editedObjCache, _editedPropCache, ref _committedCache,
-                arrayindex);
-            ClearPendingChange();
-            return true;
+            ParentView.Editor.ActionManager.UndoAction();
         }
-
-        return false;
-    }
-
-    private void ChangeProperty(object prop, object obj, object newval,
-        ref bool committed, int arrayindex = -1)
-    {
-        if (!committed)
+        else
         {
-            return;
+            _lastUncommittedAction = null;
         }
 
         PropertiesChangedAction action;
         if (arrayindex != -1)
         {
-            action = new PropertiesChangedAction((PropertyInfo)prop, arrayindex, obj, newval);
+            action = new PropertiesChangedAction((PropertyInfo)prop, arrayindex, obj, _editedPropCache);
             action.SetPostExecutionAction(undo =>
             {
                 var curParam = ParentView.Selection.GetActiveParam();
@@ -410,7 +411,7 @@ public class ParamFieldInput
         }
         else
         {
-            action = new PropertiesChangedAction((PropertyInfo)prop, obj, newval);
+            action = new PropertiesChangedAction((PropertyInfo)prop, obj, _editedPropCache);
             action.SetPostExecutionAction(undo =>
             {
                 var curParam = ParentView.Selection.GetActiveParam();
@@ -424,14 +425,27 @@ public class ParamFieldInput
         }
 
         ParentView.Editor.ActionManager.ExecuteAction(action);
+        _lastUncommittedAction = action;
+        _changingProperty = prop;
+        _changingObject = obj;
+
+        if (_committedCache)
+        {
+            FinalizePendingChange();
+        }
+
+        return true;
     }
 
-    private void ClearPendingChange()
+    private void FinalizePendingChange()
     {
         _changedCache = false;
         _committedCache = false;
         _editedPropCache = null;
         _editedTypeCache = null;
         _editedObjCache = null;
+        _changingProperty = null;
+        _changingObject = null;
+        _lastUncommittedAction = null;
     }
 }
