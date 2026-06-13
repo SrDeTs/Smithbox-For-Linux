@@ -19,9 +19,6 @@ public class ParamFieldInput
     private object _editedObjCache;
     private bool _changedCache;
     private bool _committedCache;
-    private object _changingProperty;
-    private object _changingObject;
-    private EditorAction _lastUncommittedAction;
 
     public ParamFieldInput(ParamEditorScreen editor, ProjectEntry project, ParamEditorView curView)
     {
@@ -340,57 +337,60 @@ public class ParamFieldInput
 
     public bool FlushPendingChange()
     {
-        if (_lastUncommittedAction == null &&
-            _editedObjCache == null &&
-            _editedTypeCache == null &&
-            _editedPropCache == null)
+        if (_editedObjCache == null || _editedTypeCache == null || _editedPropCache == null)
         {
             return false;
         }
 
-        FinalizePendingChange();
+        _committedCache = true;
+        ChangeProperty(_editedTypeCache, _editedObjCache, _editedPropCache, ref _committedCache);
+        ClearPendingChange();
         return true;
     }
 
     public bool UpdateProperty(object obj, PropertyInfo prop, object oldval, object newval,
         int arrayindex = -1)
     {
-        if (newval == null)
+        if (newval != null)
+        {
+            _editedPropCache = newval;
+            _changedCache = true;
+        }
+
+        if (_changedCache)
+        {
+            _editedObjCache = obj;
+            _editedTypeCache = prop;
+        }
+        else if (_editedPropCache != null && _editedPropCache != oldval)
+        {
+            _changedCache = true;
+            _editedObjCache = obj;
+            _editedTypeCache = prop;
+        }
+
+        if (_editedObjCache == null || _editedTypeCache == null || _editedPropCache == null)
         {
             return false;
         }
 
-        // Apply the edit immediately so the model is already mutated before save.
-        ChangeProperty(prop, obj, newval, arrayindex);
+        if (_committedCache)
+        {
+            ChangeProperty(_editedTypeCache, _editedObjCache, _editedPropCache, ref _committedCache,
+                arrayindex);
+            ClearPendingChange();
+            return true;
+        }
 
-        _changedCache = false;
-        _committedCache = false;
-        _editedPropCache = null;
-        _editedTypeCache = null;
-        _editedObjCache = null;
-
-        return true;
+        return false;
     }
 
     private void ChangeProperty(object prop, object obj, object newval,
-        int arrayindex = -1)
+        ref bool committed, int arrayindex = -1)
     {
-        if (newval == null)
+        if (!committed)
         {
-            // Safety check warned to user, should have proper crash handler instead
-            // Smithbox.Log(this, "ParamEditorCommon: Property changed was null", LogLevel.Warning);
             return;
-        }
-
-        if (_lastUncommittedAction != null && Equals(prop, _changingProperty) &&
-            Equals(obj, _changingObject) &&
-            ParentView.Editor.ActionManager.PeekUndoAction() == _lastUncommittedAction)
-        {
-            ParentView.Editor.ActionManager.UndoAction();
-        }
-        else
-        {
-            _lastUncommittedAction = null;
         }
 
         PropertiesChangedAction action;
@@ -424,20 +424,14 @@ public class ParamFieldInput
         }
 
         ParentView.Editor.ActionManager.ExecuteAction(action);
-        _lastUncommittedAction = action;
-        _changingProperty = prop;
-        _changingObject = obj;
     }
 
-    private void FinalizePendingChange()
+    private void ClearPendingChange()
     {
         _changedCache = false;
         _committedCache = false;
         _editedPropCache = null;
         _editedTypeCache = null;
         _editedObjCache = null;
-        _changingProperty = null;
-        _changingObject = null;
-        _lastUncommittedAction = null;
     }
 }
