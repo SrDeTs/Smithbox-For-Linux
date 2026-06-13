@@ -1282,12 +1282,9 @@ public class ParamFieldWindow
         }
 
         // Context Menu Shortcuts
-        if (ParamReferenceHelper.Shortcut(ParentView, metaContext, row, oldval, ref newval))
-        {
-            ParentView.FieldInputHandler.SetLastPropertyManual(newval);
-        }
+        ParamReferenceHelper.Shortcut(ParentView, metaContext, row, oldval, ref newval);
 
-        var committed = ParentView.FieldInputHandler.UpdateProperty(nullableCell != null ? nullableCell : row, proprow, oldval);
+        var committed = ParentView.FieldInputHandler.UpdateProperty(nullableCell != null ? nullableCell : row, proprow, oldval, newval);
 
         if (committed)
         {
@@ -1524,10 +1521,7 @@ public class ParamFieldWindow
             ImGui.Separator();
             ImGui.PushStyleColor(ImGuiCol.Text, UI.Current.ImGui_AliasName_Text);
 
-            if (ParentView.FieldDecorators.HandleContextMenu(metaContext, row, oldval, ref newval))
-            {
-                ParentView.FieldInputHandler.SetLastPropertyManual(newval);
-            }
+            ParentView.FieldDecorators.HandleContextMenu(metaContext, row, oldval, ref newval);
 
             ImGui.PopStyleColor();
         }

@@ -19,6 +19,9 @@ public class ParamFieldInput
     private object _editedObjCache;
     private bool _changedCache;
     private bool _committedCache;
+    private object _changingProperty;
+    private object _changingObject;
+    private EditorAction _lastUncommittedAction;
 
     public ParamFieldInput(ParamEditorScreen editor, ProjectEntry project, ParamEditorView curView)
     {
@@ -337,101 +340,104 @@ public class ParamFieldInput
 
     public bool FlushPendingChange()
     {
-        if (_editedObjCache == null || _editedTypeCache == null)
+        if (_lastUncommittedAction == null &&
+            _editedObjCache == null &&
+            _editedTypeCache == null &&
+            _editedPropCache == null)
         {
             return false;
         }
 
-        _committedCache = true;
-        ChangeProperty(_editedTypeCache, _editedObjCache, _editedPropCache, ref _committedCache);
+        FinalizePendingChange();
+        return true;
+    }
 
-        ClearPendingChange();
+    public bool UpdateProperty(object obj, PropertyInfo prop, object oldval, object newval,
+        int arrayindex = -1)
+    {
+        if (newval == null)
+        {
+            return false;
+        }
+
+        // Apply the edit immediately so the model is already mutated before save.
+        ChangeProperty(prop, obj, newval, arrayindex);
+
+        _changedCache = false;
+        _committedCache = false;
+        _editedPropCache = null;
+        _editedTypeCache = null;
+        _editedObjCache = null;
 
         return true;
     }
 
-    public bool UpdateProperty(object obj, PropertyInfo prop, object oldval,
+    private void ChangeProperty(object prop, object obj, object newval,
         int arrayindex = -1)
     {
-        if (_changedCache)
+        if (newval == null)
         {
-            _editedObjCache = obj;
-            _editedTypeCache = prop;
-        }
-        else if (_editedPropCache != null && _editedPropCache != oldval)
-        {
-            _changedCache = true;
+            // Safety check warned to user, should have proper crash handler instead
+            // Smithbox.Log(this, "ParamEditorCommon: Property changed was null", LogLevel.Warning);
+            return;
         }
 
-        if (_editedObjCache == null || _editedTypeCache == null || _editedPropCache == null)
+        if (_lastUncommittedAction != null && Equals(prop, _changingProperty) &&
+            Equals(obj, _changingObject) &&
+            ParentView.Editor.ActionManager.PeekUndoAction() == _lastUncommittedAction)
         {
-            return false;
+            ParentView.Editor.ActionManager.UndoAction();
+        }
+        else
+        {
+            _lastUncommittedAction = null;
         }
 
-        if (_committedCache)
+        PropertiesChangedAction action;
+        if (arrayindex != -1)
         {
-            ChangeProperty(_editedTypeCache, _editedObjCache, _editedPropCache, ref _committedCache,
-                arrayindex);
-            ClearPendingChange();
+            action = new PropertiesChangedAction((PropertyInfo)prop, arrayindex, obj, newval);
+            action.SetPostExecutionAction(undo =>
+            {
+                var curParam = ParentView.Selection.GetActiveParam();
 
-            return true;
+                if (ParentView.ParamTableWindow.IsInTableGroupMode(curParam))
+                {
+                    var curGroup = ParentView.ParamTableWindow.CurrentTableGroup;
+                    ParentView.ParamTableWindow.UpdateTableGroupSelection(curGroup);
+                }
+            });
+        }
+        else
+        {
+            action = new PropertiesChangedAction((PropertyInfo)prop, obj, newval);
+            action.SetPostExecutionAction(undo =>
+            {
+                var curParam = ParentView.Selection.GetActiveParam();
+
+                if (ParentView.ParamTableWindow.IsInTableGroupMode(curParam))
+                {
+                    var curGroup = ParentView.ParamTableWindow.CurrentTableGroup;
+                    ParentView.ParamTableWindow.UpdateTableGroupSelection(curGroup);
+                }
+            });
         }
 
-        return false;
+        ParentView.Editor.ActionManager.ExecuteAction(action);
+        _lastUncommittedAction = action;
+        _changingProperty = prop;
+        _changingObject = obj;
     }
 
-    private void ChangeProperty(object prop, object obj, object newval,
-        ref bool committed, int arrayindex = -1)
-    {
-        if (committed)
-        {
-            if (newval == null)
-            {
-                // Safety check warned to user, should have proper crash handler instead
-                // Smithbox.Log(this, "ParamEditorCommon: Property changed was null", LogLevel.Warning);
-                return;
-            }
-
-            PropertiesChangedAction action;
-            if (arrayindex != -1)
-            {
-                action = new PropertiesChangedAction((PropertyInfo)prop, arrayindex, obj, newval);
-                action.SetPostExecutionAction(undo =>
-                {
-                    var curParam = ParentView.Selection.GetActiveParam();
-
-                    if (ParentView.ParamTableWindow.IsInTableGroupMode(curParam))
-                    {
-                        var curGroup = ParentView.ParamTableWindow.CurrentTableGroup;
-                        ParentView.ParamTableWindow.UpdateTableGroupSelection(curGroup);
-                    }
-                });
-            }
-            else
-            {
-                action = new PropertiesChangedAction((PropertyInfo)prop, obj, newval);
-                action.SetPostExecutionAction(undo =>
-                {
-                    var curParam = ParentView.Selection.GetActiveParam();
-
-                    if (ParentView.ParamTableWindow.IsInTableGroupMode(curParam))
-                    {
-                        var curGroup = ParentView.ParamTableWindow.CurrentTableGroup;
-                        ParentView.ParamTableWindow.UpdateTableGroupSelection(curGroup);
-                    }
-                });
-            }
-
-            ParentView.Editor.ActionManager.ExecuteAction(action);
-        }
-    }
-
-    private void ClearPendingChange()
+    private void FinalizePendingChange()
     {
         _changedCache = false;
         _committedCache = false;
         _editedPropCache = null;
         _editedTypeCache = null;
         _editedObjCache = null;
+        _changingProperty = null;
+        _changingObject = null;
+        _lastUncommittedAction = null;
     }
 }

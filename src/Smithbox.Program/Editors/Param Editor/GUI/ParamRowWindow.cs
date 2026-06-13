@@ -570,7 +570,7 @@ public class ParamRowWindow
                 ParentView.FieldInputHandler.DisplayFieldInput(metaContext, compareCol.ValueType, c.Value, ref newval);
 
                 if (ParentView.FieldInputHandler.UpdateProperty(c, compareColProp,
-                        c.Value))
+                        c.Value, newval))
                 {
                     Editor.Project.Handler.ParamData.PrimaryBank.RefreshParamRowDiffs(Editor, r, activeParam);
                 }
