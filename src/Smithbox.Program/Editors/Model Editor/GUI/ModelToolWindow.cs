@@ -7,13 +7,27 @@ namespace StudioCore.Editors.ModelEditor;
 
 public class ModelToolWindow
 {
-    public ModelEditorScreen Editor;
+    public ModelEditorView View;
     public ProjectEntry Project;
 
-    public ModelToolWindow(ModelEditorScreen editor, ProjectEntry project)
+    public ModelDataTransferTool DataTransferTool;
+
+    public ModelToolWindow(ModelEditorView view, ProjectEntry project)
     {
-        Editor = editor;
+        View = view;
         Project = project;
+
+        DataTransferTool = new(view, project);
+    }
+
+    public void DisplayDropdown()
+    {
+        if (ImGui.BeginMenu("Tools"))
+        {
+            DataTransferTool.DisplayDropdown();
+
+            ImGui.EndMenu();
+        }
     }
 
     public void Display()
@@ -24,92 +38,94 @@ public class ModelToolWindow
         if (!CFG.Current.Interface_ModelEditor_ToolWindow)
             return;
 
-        var activeView = Editor.ViewHandler.ActiveView;
-
-        if (activeView == null)
-            return;
-
-        if (ImGui.Begin("Tool Window##modelEditorTools", UIHelper.GetMainWindowFlags() & ~(ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)))
+        if (ImGui.BeginMenuBar())
         {
-            FocusManager.SetFocus(EditorFocusContext.ModelEditor_Tools);
+            ViewMenu();
 
-            if (ImGui.BeginMenuBar())
-            {
-                ViewMenu();
-
-                ImGui.EndMenuBar();
-            }
-
-            if (CFG.Current.Interface_ModelEditor_Tool_CreateAction)
-            {
-                activeView.CreateAction.OnToolWindow();
-            }
-
-            if (CFG.Current.Interface_ModelEditor_Tool_ModelGridConfiguration)
-            {
-                activeView.ModelGridTool.OnToolWindow();
-            }
-
-            if (CFG.Current.Interface_ModelEditor_Tool_ModelInsight)
-            {
-                activeView.ModelInsightMenu.OnToolWindow();
-            }
-
-            if (CFG.Current.Interface_ModelEditor_Tool_ModelInstanceFinder)
-            {
-                activeView.ModelInstanceFinder.OnToolWindow();
-            }
-
-            if (CFG.Current.Interface_ModelEditor_Tool_ModelMaskToggler)
-            {
-                activeView.ModelMaskToggler.OnToolWindow();
-            }
+            ImGui.EndMenuBar();
         }
 
-        ImGui.End();
+        //if (CFG.Current.MaterialEditor_Tool_Data_Transfer)
+        //{
+        //    if (ImGui.CollapsingHeader("Data Transfer"))
+        //    {
+        //        DataTransferTool.Display();
+        //    }
+        //}
+
+        if (CFG.Current.Interface_ModelEditor_Tool_CreateAction)
+        {
+            View.CreateAction.OnToolWindow();
+        }
+
+        if (CFG.Current.Interface_ModelEditor_Tool_ModelGridConfiguration)
+        {
+            View.ModelGridTool.OnToolWindow();
+        }
+
+        if (CFG.Current.Interface_ModelEditor_Tool_ModelInsight)
+        {
+            //View.ModelInsightMenu.OnToolWindow();
+        }
+
+        if (CFG.Current.Interface_ModelEditor_Tool_ModelInstanceFinder)
+        {
+            View.ModelInstanceFinder.OnToolWindow();
+        }
+
+        if (CFG.Current.Interface_ModelEditor_Tool_ModelMaskToggler)
+        {
+            View.ModelMaskToggler.OnToolWindow();
+        }
+
+        if (CFG.Current.Interface_ModelEditor_Tool_ResourceMonitor)
+        {
+            View.ResourceListTool.Display("modelEditor", View.Universe);
+        }
     }
 
     public void ViewMenu()
     {
         if (ImGui.BeginMenu("View"))
         {
+            if (ImGui.MenuItem("Data Transfer"))
+            {
+                CFG.Current.MaterialEditor_Tool_Data_Transfer = !CFG.Current.MaterialEditor_Tool_Data_Transfer;
+            }
+            GUI.ShowActiveStatus(CFG.Current.MaterialEditor_Tool_Data_Transfer);
+
             if (ImGui.MenuItem("Create"))
             {
                 CFG.Current.Interface_ModelEditor_Tool_CreateAction = !CFG.Current.Interface_ModelEditor_Tool_CreateAction;
             }
-            UIHelper.ShowActiveStatus(CFG.Current.Interface_ModelEditor_Tool_CreateAction);
+            GUI.ShowActiveStatus(CFG.Current.Interface_ModelEditor_Tool_CreateAction);
 
             if (ImGui.MenuItem("Model Grid Configuration"))
             {
                 CFG.Current.Interface_ModelEditor_Tool_ModelGridConfiguration = !CFG.Current.Interface_ModelEditor_Tool_ModelGridConfiguration;
             }
-            UIHelper.ShowActiveStatus(CFG.Current.Interface_ModelEditor_Tool_ModelGridConfiguration);
+            GUI.ShowActiveStatus(CFG.Current.Interface_ModelEditor_Tool_ModelGridConfiguration);
 
             if (ImGui.MenuItem("Model Insight"))
             {
                 CFG.Current.Interface_ModelEditor_Tool_ModelInsight = !CFG.Current.Interface_ModelEditor_Tool_ModelInsight;
             }
-            UIHelper.ShowActiveStatus(CFG.Current.Interface_ModelEditor_Tool_ModelInsight);
+            GUI.ShowActiveStatus(CFG.Current.Interface_ModelEditor_Tool_ModelInsight);
 
             if (ImGui.MenuItem("Model Instance Finder"))
             {
                 CFG.Current.Interface_ModelEditor_Tool_ModelInstanceFinder = !CFG.Current.Interface_ModelEditor_Tool_ModelInstanceFinder;
             }
-            UIHelper.ShowActiveStatus(CFG.Current.Interface_ModelEditor_Tool_ModelInstanceFinder);
+            GUI.ShowActiveStatus(CFG.Current.Interface_ModelEditor_Tool_ModelInstanceFinder);
 
             if (ImGui.MenuItem("Model Mask Toggler"))
             {
                 CFG.Current.Interface_ModelEditor_Tool_ModelMaskToggler = !CFG.Current.Interface_ModelEditor_Tool_ModelMaskToggler;
             }
-            UIHelper.ShowActiveStatus(CFG.Current.Interface_ModelEditor_Tool_ModelMaskToggler);
+            GUI.ShowActiveStatus(CFG.Current.Interface_ModelEditor_Tool_ModelMaskToggler);
 
             ImGui.EndMenu();
         }
-    }
-
-    public void OnMenubar()
-    {
-
     }
 }
 

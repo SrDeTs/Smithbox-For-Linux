@@ -10,7 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace StudioCore.Editors.ParamEditor;
-public class ParamFieldUtils
+public static class ParamFieldUtils
 {
     public static string ImGui_InputFloatFormat(float f, int min = 3, int max = 6)
     {
@@ -34,7 +34,7 @@ public class ParamFieldUtils
             ImGui.TextColored(new Vector4(1.0f, 0.7f, 0.4f, 1.0f), Utils.ImGuiEscape(fieldName, "", true));
         }
 
-        if (CFG.Current.ParamEditor_Field_Context_Split && !printType)
+        if (!printType)
         {
             return;
         }

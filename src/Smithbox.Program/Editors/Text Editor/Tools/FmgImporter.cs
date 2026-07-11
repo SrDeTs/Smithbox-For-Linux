@@ -19,104 +19,54 @@ public class FmgImporter
 
     public Dictionary<string, StoredFmgContainer> ImportSources = new();
 
+    private bool _wrappersLoaded = false;
+
     public FmgImporter(TextEditorView view, ProjectEntry project)
     {
         Parent = view;
         Project = project;
     }
+    public void InvalidateWrapperCache() => _wrappersLoaded = false;
 
-    /// <summary>
-    /// Context Menu options in the Container list
-    /// </summary>
-    public void MenubarOptions()
+    public void ContainerDropdownOptions()
     {
-        if (ImGui.BeginMenu("Import"))
+        if (ImGui.BeginMenu($"{LOC.Get("TEXT_Importer_Header_Import_Text")}##importMenuHeader_Container"))
         {
-            if (ImGui.BeginMenu("File", Parent.Selection.SelectedContainerWrapper != null))
-            {
-                DisplayImportList(ImportType.Container);
-
-                ImGui.EndMenu();
-            }
-            UIHelper.Tooltip("Import the selected text file on the container level, replacing all FMGs and their associated entries (if applicable).");
-
-            if (ImGui.BeginMenu("Text File", Parent.Selection.SelectedFmgWrapper != null))
-            {
-                DisplayImportList(ImportType.FMG);
-
-                ImGui.EndMenu();
-            }
-            UIHelper.Tooltip("Import the selected text file on the FMG level, replacing all associated entries (if applicable).");
-
-            if (ImGui.BeginMenu("Text Entry", Parent.Selection._selectedFmgEntry != null))
-            {
-                DisplayImportList(ImportType.FMG_Entries);
-
-                ImGui.EndMenu();
-            }
-            UIHelper.Tooltip("Import the selected text file on the FMG Entry level, replacing all matching entries.");
+            DisplayImportList(FmgImportType.Container);
 
             ImGui.EndMenu();
         }
     }
 
-    /// <summary>
-    /// Context Menu options in the Container list
-    /// </summary>
-    public void FileContextMenuOptions()
+    public void TextFileDropdownOptions()
     {
-        if (ImGui.BeginMenu("Import Text"))
+        if (ImGui.BeginMenu($"{LOC.Get("TEXT_Importer_Header_Import_Text")}##importMenuHeader_TextFile"))
         {
-            DisplayImportList(ImportType.Container);
+            DisplayImportList(FmgImportType.FMG);
 
             ImGui.EndMenu();
         }
     }
 
-    /// <summary>
-    /// Context Menu options in the FMG list
-    /// </summary>
-    public void FmgContextMenuOptions()
+    public void TextEntryDropdownOptions()
     {
-        if (ImGui.BeginMenu("Import Text"))
+        if (ImGui.BeginMenu($"{LOC.Get("TEXT_Importer_Header_Import_Text")}##importMenuHeader_TextEntry"))
         {
-            DisplayImportList(ImportType.FMG);
+            DisplayImportList(FmgImportType.FMG_Entries);
 
             ImGui.EndMenu();
         }
-    }
-
-    /// <summary>
-    /// Context Menu options in the FMG Entry list
-    /// </summary>
-    public void FmgEntryContextMenuOptions()
-    {
-        if (ImGui.BeginMenu("Import Text"))
-        {
-            DisplayImportList(ImportType.FMG_Entries);
-
-            ImGui.EndMenu();
-        }
-    }
-
-    /// <summary>
-    /// Get the FMG Wrapper sources on project load
-    /// </summary>
-    public void OnProjectChanged()
-    {
-        LoadWrappers();
     }
 
     /// <summary>
     /// Display the possible import sources for the user to select from
     /// </summary>
-    public void DisplayImportList(ImportType importType)
+    public void DisplayImportList(FmgImportType importType)
     {
-        LoadWrappers();
-
-        if(ImGui.BeginMenu("Append"))
+        // Append
+        if(ImGui.BeginMenu($"{LOC.Get("TEXT_Importer_Header_Append")}##appendMenuHeader"))
         {
-            if (ImGui.Selectable($"From external file"))
+            if (ImGui.Selectable($"{LOC.Get("TEXT_Importer_Action_From_External_File")}##fromExternalFileAppend"))
             {
                 PromptExternalTextImport(ImportBehavior.Append);
             }
@@ -135,16 +85,17 @@ public class FmgImporter
             }
             else
             {
-                ImGui.Text("No exported text exists yet.");
+                ImGui.Text(LOC.Get("TEXT_Importer_No_Exported_Text"));
             }
 
             ImGui.EndMenu();
         }
-        UIHelper.Tooltip("The selected stored text will be added to the current File.\n\nExisting entries will be NOT modified by the contents of the stored text.");
+        GUI.Tooltip(LOC.Get("TEXT_Importer_Header_Append_TT"));
 
-        if (ImGui.BeginMenu("Replace"))
+        // Replace
+        if (ImGui.BeginMenu($"{LOC.Get("TEXT_Importer_Header_Replace")}##replaceMenuHeader"))
         {
-            if (ImGui.Selectable($"From external file"))
+            if (ImGui.Selectable($"{LOC.Get("TEXT_Importer_Action_From_External_File")}##fromExternalFileReplace"))
             {
                 PromptExternalTextImport(ImportBehavior.Replace);
             }
@@ -163,79 +114,75 @@ public class FmgImporter
             }
             else
             {
-                ImGui.Text("No exported text exists yet.");
+                ImGui.Text(LOC.Get("TEXT_Importer_No_Exported_Text"));
             }
 
             ImGui.EndMenu();
         }
-        UIHelper.Tooltip("The selected stored text will be added to the current Text file.\n\nExisting entries WILL be modified by the contents of the stored text.");
+        GUI.Tooltip(LOC.Get("TEXT_Importer_Header_Replace_TT"));
     }
 
     private List<EditorAction> ImportActions;
 
-    private void ImportText(StoredFmgContainer containerWrapper, ImportBehavior importBehavior)
+    public void ImportText(StoredFmgContainer containerWrapper, ImportBehavior importBehavior)
     {
-        if(containerWrapper.FmgWrappers == null)
-        {
+        if (containerWrapper.FmgWrappers == null) 
             return;
-        }
 
         ImportActions = new List<EditorAction>();
 
         var targetContainer = Parent.Selection.SelectedContainerWrapper;
-
-        if (targetContainer == null)
+        if (targetContainer == null) 
             return;
+
+        // Index stored wrappers by ID once
+        var storedWrapperMap = containerWrapper.FmgWrappers.ToDictionary(w => w.ID);
 
         foreach (var fmgWrapper in targetContainer.FmgWrappers)
         {
-            foreach (var storedFmgWrapper in containerWrapper.FmgWrappers)
+            if (storedWrapperMap.TryGetValue(fmgWrapper.ID, out var storedFmgWrapper))
             {
-                if (fmgWrapper.ID == storedFmgWrapper.ID)
-                {
-                    ProcessFmg(targetContainer, fmgWrapper, storedFmgWrapper, importBehavior);
-                }
+                ProcessFmg(targetContainer, fmgWrapper, storedFmgWrapper, importBehavior);
             }
         }
 
         var groupAction = new FmgGroupedAction(ImportActions);
         Parent.ActionManager.ExecuteAction(groupAction);
     }
+
     private void ProcessFmg(
         TextContainerWrapper containerWrapper, 
         TextFmgWrapper fmgWrapper, 
         StoredFmgWrapper storedWrapper, 
         ImportBehavior importBehavior)
     {
-        var targetEntries = fmgWrapper.File.Entries;
+        var targetEntryMap = fmgWrapper.File.Entries.ToDictionary(e => e.ID);
 
         foreach (var storedEntry in storedWrapper.Fmg.Entries)
         {
             storedEntry.Parent = fmgWrapper.File;
 
-            // New entry
-            if (!targetEntries.Any(e => e.ID == storedEntry.ID))
+            if (!targetEntryMap.TryGetValue(storedEntry.ID, out var targetEntry))
             {
-                ImportActions.Add(new AddFmgEntry(Parent, containerWrapper, storedEntry, storedEntry, storedEntry.ID));
+                ImportActions.Add(new AddFmgEntry(Parent, containerWrapper, storedEntry, storedEntry, storedEntry.ID, true));
             }
-            // Existing entry
-            else if(targetEntries.Any(e => e.ID == storedEntry.ID) && importBehavior is not ImportBehavior.Append)
+            else if (importBehavior is not ImportBehavior.Append)
             {
-                var targetEntry = targetEntries.Where(e => e.ID == storedEntry.ID).FirstOrDefault();
-
-                if (targetEntry != null)
-                {
-                    ImportActions.Add(new ChangeFmgEntryText(Parent, containerWrapper, targetEntry, storedEntry.Text));
-                }
+                ImportActions.Add(new ChangeFmgEntryText(Parent, containerWrapper, targetEntry, storedEntry.Text, false, true));
             }
         }
     }
 
-    /// <summary>
-    /// Load the wrappers into the FmgWrapper object and fill the ImportSources dictionary
-    /// </summary>
-    private void LoadWrappers()
+    public void OnGui()
     {
+        LoadWrappers();
+    }
+
+    public void LoadWrappers()
+    {
+        if (_wrappersLoaded) 
+            return;
+
         ImportSources = new();
 
         var wrapperPathList = TextUtils.GetStoredContainerWrappers(Project);
@@ -268,13 +215,30 @@ public class FmgImporter
                 }
                 else
                 {
-                    Smithbox.Log(this, $"Attempted to add stored text with existing key: {filename}");
+                    Smithbox.LogError(this, LOC.Get("TEXT_Importer_Stored_Text_Key_Collision", filename));
                 }
             }
         }
+
+        _wrappersLoaded = true;
     }
 
-    private StoredFmgContainer GenerateStoredFmgContainer(string path)
+    public StoredFmgContainer GenerateStoredFmgContainerFromJson(string jsonString)
+    {
+        var wrapper = new StoredFmgContainer();
+        try
+        {
+            wrapper = JsonSerializer.Deserialize(jsonString, StoredContainerWrapperSerializationContext.Default.StoredFmgContainer);
+        }
+        catch (Exception e)
+        {
+            Smithbox.LogError(this, LOC.Get("TEXT_Importer_Failed_JSON_String_Deserialization"), e);
+        }
+
+        return wrapper;
+    }
+
+    public StoredFmgContainer GenerateStoredFmgContainerFromFile(string path)
     {
         var filename = Path.GetFileName(path);
         var wrapper = new StoredFmgContainer();
@@ -289,7 +253,7 @@ public class FmgImporter
                 }
                 catch(Exception e)
                 {
-                    Smithbox.Log(this, $"Failed to read JSON file: {filename} at {path}\n{e.Message}", LogLevel.Warning);
+                    Smithbox.LogError(this, LOC.Get("TEXT_Importer_Failed_JSON_String_Deserialization", path), e);
                 }
 
                 return wrapper;
@@ -301,17 +265,15 @@ public class FmgImporter
 
     private void PromptExternalTextImport(ImportBehavior type)
     {
-        if (PlatformUtils.Instance.OpenFileDialog("Select stored text JSON", ["json"], out var path))
+        if (PlatformUtils.Instance.OpenFileDialog(LOC.Get("TEXT_Importer_Select_Stored_JSON"), ["json"], out var path))
         {
             if (!File.Exists(path))
             {
-                DialogResult message = PlatformUtils.Instance.MessageBox(
-                    "Selected file is invalid.", "Error",
-                    MessageBoxButtons.OK);
+                Smithbox.LogError(this, LOC.Get("TEXT_Importer_Invalid_Selected_File", path));
                 return;
             }
 
-            var generatedStoredFmgContainer = GenerateStoredFmgContainer(path);
+            var generatedStoredFmgContainer = GenerateStoredFmgContainerFromFile(path);
             if (generatedStoredFmgContainer != null)
             {
                 ImportText(generatedStoredFmgContainer, type);

@@ -104,7 +104,7 @@ public class ResourceJob
                     }
                     catch (Exception e)
                     {
-                        Smithbox.Log<ResourceJob>($"Failed to load TPF:\nFile path: {action._filePath}\nVirtual path: {action._virtualPath}\nAccess Level: {action._accessLevel}\n{e}", LogLevel.Warning, LogPriority.Normal);
+                        Smithbox.LogError<ResourceJob>(LOC.Get("REND_TPF_Load_Failed", action._filePath, action._virtualPath, action._accessLevel), e);
 
                         return new LoadTPFTextureResourceRequest[] { };
                     }
@@ -122,7 +122,7 @@ public class ResourceJob
                     }
                     catch (Exception e)
                     {
-                        Smithbox.Log<ResourceJob>($"Failed to load TPF:\nFile path: {action._filePath}\nVirtual path: {action._virtualPath}\nAccess Level: {action._accessLevel}\n{e}", LogLevel.Warning, LogPriority.Normal);
+                        Smithbox.LogError<ResourceJob>(LOC.Get("REND_TPF_Load_Failed", action._filePath, action._virtualPath, action._accessLevel), e);
 
                         return new LoadTPFTextureResourceRequest[] { };
                     }
@@ -185,7 +185,6 @@ public class ResourceJob
                     // PIPELINE: add request to pipeline action block
                     pipeline.LoadByteResourceBlock.Post(request);
 
-
                     action._job.IncrementEstimateTaskSize(1);
 
                 }
@@ -208,27 +207,25 @@ public class ResourceJob
                     catch (Exception e)
                     {
 
-                        Smithbox.Log<ResourceJob>("" +
-                            $"Failed to load TPF:\nName: {tpfName}" +
-                            $"\nBinder Path: {action.BinderRelativePath}" +
-                            $"\nBinder Virtual Path: {action.BinderVirtualPath}" +
-                            $"\nAccess Level: {action.AccessLevel}" +
-                            $"\n{e}",
-                            LogLevel.Warning, LogPriority.Normal);
-
+                        Smithbox.LogError<ResourceJob>(
+                            LOC.Get("REND_Binder_TPF_Load_Failed",
+                            tpfName, 
+                            action.BinderRelativePath, 
+                            action.BinderVirtualPath, 
+                            action.AccessLevel), e);
+                        
                         i--;
                     }
-
                 }
             }
         }
         catch (Exception e)
         {
-            Smithbox.Log<ResourceJob>($"Failed to load binder: {action.BinderVirtualPath}" +
-                            $"\nBinder Virtual Path: {action.BinderVirtualPath}" +
-                            $"\nAccess Level: {action.AccessLevel}" +
-                            $"\n{e}",
-                            LogLevel.Warning, LogPriority.Normal);
+            Smithbox.LogError<ResourceJob>(
+                LOC.Get("REND_Binder_Load_Failed",
+                action.BinderRelativePath,
+                action.BinderVirtualPath,
+                action.AccessLevel), e);
         }
 
         action.PendingResources.Clear();
@@ -236,30 +233,34 @@ public class ResourceJob
     }
     #endregion
 
-    public void ProcessLoadedResources()
+    internal const int MaxResourceCommitsPerFrame = 64;
+
+    public int ProcessLoadedResources()
     {
-        if (_processedResources.TryReceiveAll(out IList<ResourceLoadedReply> processed))
+        int committed = 0;
+
+        while (committed < MaxResourceCommitsPerFrame &&
+               _processedResources.TryReceive(out ResourceLoadedReply p))
         {
-            Progress += processed.Count;
+            var lPath = p.VirtualPath.ToLower();
 
-            foreach (ResourceLoadedReply p in processed)
+            if (!ResourceManager.ResourceDatabase.ContainsKey(lPath))
             {
-                var lPath = p.VirtualPath.ToLower();
-
-                if (!ResourceManager.ResourceDatabase.ContainsKey(lPath))
-                {
-                    ResourceManager.ResourceDatabase.Add(
-                        lPath,
-                        ResourceManager.ConstructHandle(
-                            p.Resource.GetType(),
-                            p.VirtualPath)
-                        );
-                }
-
-                IResourceHandle reg = ResourceManager.ResourceDatabase[lPath];
-                reg._ResourceLoaded(p.Resource, p.AccessLevel);
+                ResourceManager.ResourceDatabase.Add(
+                    lPath,
+                    ResourceManager.ConstructHandle(
+                        p.Resource.GetType(),
+                        p.VirtualPath)
+                    );
             }
+
+            IResourceHandle reg = ResourceManager.ResourceDatabase[lPath];
+            reg._ResourceLoaded(p.Resource, p.AccessLevel);
+            committed++;
         }
+
+        Progress += committed;
+        return committed;
     }
 
     public Task Complete()
@@ -304,7 +305,7 @@ public class ResourceJob
             // TPF
             TPFTextureLoadPipeline.LoadTPFTextureResourceRequest.Completion.Wait();
 
-            Smithbox.Log(this, $"Job: {Name} - Finished");
+            Smithbox.Log(this, LOC.Get("REND_Job_Finished", Name));
             Finished = true;
         });
     }

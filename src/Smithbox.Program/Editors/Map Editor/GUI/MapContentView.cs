@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Text.RegularExpressions;
 
 namespace StudioCore.Editors.MapEditor;
 
@@ -30,28 +31,45 @@ public class MapContentView
         Project = project;
     }
 
+    public void OnMapUnloaded()
+    {
+        _treeOpenEntities.Clear();
+        _pendingClick = null;
+    }
+
     /// <summary>
     /// Handles the update for each frame
     /// </summary>
     public void Display(float width, float height)
     {
-        UIHelper.SimpleHeader("Contents", "");
+        GUI.SimpleHeader("Contents", "");
 
-        ImGui.BeginChild("MapContents", new System.Numerics.Vector2(width, height), ImGuiChildFlags.Borders);
+        DisplaySearchbar();
+
+        ImGui.BeginChild("MapContents", new Vector2(0, 0), ImGuiChildFlags.Borders);
 
         if (View.Selection.SelectedMapContainer != null)
         {
             var map = View.Selection.SelectedMapContainer;
-
-            View.MapContentFilter.DisplaySearch(map);
-
-            DisplayQuickActionButtons(map);
 
             // Reset this every frame, otherwise the map object selectables won't work correctly
             treeImGuiId = 0;
 
             DisplayContentTree(map);
         }
+
+        ImGui.EndChild();
+    }
+
+    public void DisplaySearchbar()
+    {
+        var map = View.Selection.SelectedMapContainer;
+
+        var searchHeight = new Vector2(0, 36) * DPI.UIScale();
+        ImGui.BeginChild($"framedListFilter_mapContentTree", searchHeight, ImGuiChildFlags.Borders);
+
+        View.MapContentFilter.DisplaySearch(map);
+        DisplayQuickActionButtons(map);
 
         ImGui.EndChild();
     }
@@ -67,31 +85,99 @@ public class MapContentView
         ImGui.SameLine();
         if (ImGui.Button($"{Icons.Eye}", DPI.IconButtonSize))
         {
-            foreach (var entry in map.Objects)
+            if (map != null)
             {
-                entry.EditorVisible = true;
+                foreach (var entry in map.Objects)
+                {
+                    entry.EditorVisible = true;
+                }
             }
         }
-        UIHelper.Tooltip("Force all map objects within this map to be shown.");
+        GUI.Tooltip("Force all map objects within this map to be shown.");
 
         // Hide All
         ImGui.SameLine();
         if (ImGui.Button($"{Icons.EyeSlash}", DPI.IconButtonSize))
         {
-            foreach (var entry in map.Objects)
+            if (map != null)
             {
-                entry.EditorVisible = false;
+                foreach (var entry in map.Objects)
+                {
+                    entry.EditorVisible = false;
+                }
             }
         }
-        UIHelper.Tooltip("Force all map objects within this map to be hidden.");
+        GUI.Tooltip("Force all map objects within this map to be hidden.");
+
+        // Toggle Name Display Type
+        var curNameDisplayType = CFG.Current.MapEditor_MapObjectName_DisplayType;
+
+        ImGui.SameLine();
+        if (ImGui.Button($"{Icons.List}", DPI.IconButtonSize))
+        {
+            if (curNameDisplayType is MapObjectNameDisplayType.Internal)
+            {
+                CFG.Current.MapEditor_MapObjectName_DisplayType = MapObjectNameDisplayType.Community;
+            }
+            else if (curNameDisplayType is MapObjectNameDisplayType.Community)
+            {
+                CFG.Current.MapEditor_MapObjectName_DisplayType = MapObjectNameDisplayType.Internal_Community;
+            }
+            else if (curNameDisplayType is MapObjectNameDisplayType.Internal_Community)
+            {
+                CFG.Current.MapEditor_MapObjectName_DisplayType = MapObjectNameDisplayType.Internal_FMG;
+            }
+            else if (curNameDisplayType is MapObjectNameDisplayType.Internal_FMG)
+            {
+                CFG.Current.MapEditor_MapObjectName_DisplayType = MapObjectNameDisplayType.Community_FMG;
+            }
+            else if (curNameDisplayType is MapObjectNameDisplayType.Community_FMG)
+            {
+                CFG.Current.MapEditor_MapObjectName_DisplayType = MapObjectNameDisplayType.Internal_Community_FMG;
+            }
+            else if (curNameDisplayType is MapObjectNameDisplayType.Internal_Community_FMG)
+            {
+                CFG.Current.MapEditor_MapObjectName_DisplayType = MapObjectNameDisplayType.Internal;
+            }
+        }
+
+        var tooltipTop = "Determines how the map object name(s) are displayed:\n";
+        var tooltip = "";
+
+        if (curNameDisplayType is MapObjectNameDisplayType.Internal)
+        {
+            tooltip = "Raw";
+        }
+        else if (curNameDisplayType is MapObjectNameDisplayType.Community)
+        {
+            tooltip = "Community";
+        }
+        else if (curNameDisplayType is MapObjectNameDisplayType.Internal_Community)
+        {
+            tooltip = "Raw (Community)";
+        }
+        else if (curNameDisplayType is MapObjectNameDisplayType.Internal_FMG)
+        {
+            tooltip = "Raw (FMG)";
+        }
+        else if (curNameDisplayType is MapObjectNameDisplayType.Community_FMG)
+        {
+            tooltip = "Community (FMG)";
+        }
+        else if (curNameDisplayType is MapObjectNameDisplayType.Internal_Community_FMG)
+        {
+            tooltip = "Raw (Community) [FMG]";
+        }
+
+        GUI.Tooltip($"{tooltipTop}{tooltip}");
 
         // Refresh Textures
-        ImGui.SameLine();
-        if (ImGui.Button($"{Icons.Refresh}", DPI.IconButtonSize))
-        {
-            MapEditorUtils.UpdateAllEntityModels(Smithbox.Orchestrator.SelectedProject);
-        }
-        UIHelper.Tooltip("Update all map object meshes and textures.");
+        //ImGui.SameLine();
+        //if (ImGui.Button($"{Icons.Refresh}", DPI.IconButtonSize))
+        //{
+        //    MapEditorUtils.UpdateAllEntityModels(Smithbox.Orchestrator.SelectedProject);
+        //}
+        //UIHelper.Tooltip("Update all map object meshes and textures.");
     }
 
     /// <summary>
@@ -128,7 +214,7 @@ public class MapContentView
             nodeopen = ImGui.TreeNodeEx(treeNodeName, treeflags, treeNodeNameFormat);
 
             var mapName = AliasHelper.GetMapNameAlias(View.Project, map.Name);
-            UIHelper.DisplayAlias(mapName, CFG.Current.Interface_Alias_Wordwrap_Map_Editor);
+            GUI.DisplayAlias(mapName, CFG.Current.Interface_Alias_Wordwrap_Map_Editor);
         }
 
         ImGui.EndGroup();
@@ -243,12 +329,9 @@ public class MapContentView
                 var mapName = AliasHelper.GetMapNameAlias(View.Project, map.Name);
                 PlatformUtils.Instance.SetClipboardText(mapName);
             }
-            if (View.GlobalSearchTool.IsOpen)
+            if (ImGui.Selectable("Add to Map Filter"))
             {
-                if (ImGui.Selectable("Add to Map Filter"))
-                {
-                    View.GlobalSearchTool.AddMapFilterInput(map.Name);
-                }
+                View.GlobalSearchTool.AddMapFilterInput(map.Name);
             }
 
             ImGui.EndPopup();
@@ -268,6 +351,7 @@ public class MapContentView
             View.DuplicateAction.OnContext();
             View.DeleteAction.OnContext();
             View.DuplicateToMapAction.OnContext();
+            View.TranslateAction.OnContext();
             View.RotateAction.OnContext();
             View.ScrambleAction.OnContext(ent);
             View.ReplicateAction.OnContext(ent);
@@ -282,10 +366,6 @@ public class MapContentView
 
             View.EditorVisibilityAction.OnContext();
             View.GameVisibilityAction.OnContext();
-
-            ImGui.Separator();
-
-            View.SelectionGroupTool.OnContext();
 
             ImGui.Separator();
 
@@ -500,7 +580,7 @@ public class MapContentView
             ImGui.PushStyleColor(ImGuiCol.ButtonHovered, Vector4.Zero);
             ImGui.PushStyleColor(ImGuiCol.ButtonActive, Vector4.Zero);
             ImGui.PushStyleColor(ImGuiCol.Border, Vector4.Zero);
-            if (ImGui.Button($"{icon}##mapObject{key}", DPI.InlineIconButtonSize))
+            if (ImGui.Button($"{icon}##mapObject{key}{index}", DPI.InlineIconButtonSize))
             {
                 if (InputManager.IsPressed(KeybindID.Apply_to_All))
                 {
@@ -526,7 +606,7 @@ public class MapContentView
             ImGui.PopItemFlag();
             ImGui.SameLine();
 
-            UIHelper.Tooltip("Toggle visibility state of this map object.");
+            GUI.Tooltip("Toggle visibility state of this map object.");
         }
 
         if (hierarchial && e.Children.Count > 0)
@@ -560,28 +640,23 @@ public class MapContentView
             var selectableFlags = ImGuiSelectableFlags.AllowDoubleClick | ImGuiSelectableFlags.AllowOverlap;
 
             var displayName = key;
+            var displayType = CFG.Current.MapEditor_MapObjectName_DisplayType;
 
-            if (e.SupportsName && e.PrettyName != null && e.PrettyName != "null")
+            if (e.SupportsName && e.PrettyName != null && e.PrettyName != "null" && e.PrettyName != "")
             {
-                if (CFG.Current.MapEditor_MapContentList_EntryNameDisplayType is EntityNameDisplayType.Internal or EntityNameDisplayType.Internal_FMG or EntityNameDisplayType.Internal_Community)
+                switch (displayType)
                 {
-                    displayName = e.PrettyName;
-                }
-                else if (CFG.Current.MapEditor_MapContentList_EntryNameDisplayType is EntityNameDisplayType.Community or EntityNameDisplayType.Community_FMG)
-                {
-                    displayName = e.PrettyName;
+                    case MapObjectNameDisplayType.Internal:
+                    case MapObjectNameDisplayType.Internal_FMG:
+                    case MapObjectNameDisplayType.Internal_Community:
+                    case MapObjectNameDisplayType.Internal_Community_FMG:
+                        displayName = e.PrettyName;
+                        break;
 
-                    var nameListEntry = Project.Handler.MapData.MapObjectNameLists.FirstOrDefault(entry => entry.Key == View.Selection.SelectedMapID);
-
-                    if (nameListEntry.Value != null)
-                    {
-                        var match = nameListEntry.Value.Entries.FirstOrDefault(entry => entry.ID == e.Name);
-
-                        if (match != null)
-                        {
-                            displayName = match.Name;
-                        }
-                    }
+                    case MapObjectNameDisplayType.Community:
+                    case MapObjectNameDisplayType.Community_FMG:
+                        displayName = Project.Handler.MapData.GetMapObjectName(View.Selection.SelectedMapID, key);
+                        break;
                 }
             }
 
@@ -608,31 +683,43 @@ public class MapContentView
                 }
             }
 
-            if (CFG.Current.MapEditor_MapContentList_EntryNameDisplayType is EntityNameDisplayType.Internal_FMG or EntityNameDisplayType.Community_FMG)
+            switch (displayType)
             {
-                var alias = AliasHelper.GetEntityAliasName(View.Project, e);
-                if (ImGui.IsItemVisible())
-                {
-                    UIHelper.DisplayAlias(alias);
-                }
-            }
-            else if (CFG.Current.MapEditor_MapContentList_EntryNameDisplayType is EntityNameDisplayType.Internal_Community)
-            {
-                var nameListEntry = Project.Handler.MapData.MapObjectNameLists.FirstOrDefault(entry => entry.Key == View.Selection.SelectedMapID);
+                case MapObjectNameDisplayType.Internal_FMG:
+                case MapObjectNameDisplayType.Community_FMG:
+                    var fmgName = AliasHelper.GetEntityAliasName(View.Project, e);
 
-                if (nameListEntry.Value != null)
-                {
-                    var match = nameListEntry.Value.Entries.FirstOrDefault(entry => entry.ID == e.Name);
-
-                    if (match != null)
+                    if (ImGui.IsItemVisible())
                     {
-                        if (ImGui.IsItemVisible())
+                        GUI.DisplayAlias(fmgName);
+                    }
+                    break;
+
+                case MapObjectNameDisplayType.Internal_Community:
+                    var communityName = Project.Handler.MapData.GetMapObjectName(View.Selection.SelectedMapID, key);
+
+                    if (ImGui.IsItemVisible())
+                    {
+                        GUI.DisplayAlias(communityName);
+                    }
+                    break;
+
+                case MapObjectNameDisplayType.Internal_Community_FMG:
+                    fmgName = AliasHelper.GetEntityAliasName(View.Project, e);
+                    communityName = Project.Handler.MapData.GetMapObjectName(View.Selection.SelectedMapID, key);
+
+                    if (ImGui.IsItemVisible())
+                    {
+                        if (fmgName != "")
                         {
-                            UIHelper.DisplayAlias(match.Name);
+                            GUI.DisplayAlias($"{communityName} [{fmgName}]");
+                        }
+                        else
+                        {
+                            GUI.DisplayAlias($"{communityName}");
                         }
                     }
-                }
-
+                    break;
             }
 
             DisplayMapObjectContextMenu(map, e, treeImGuiId);

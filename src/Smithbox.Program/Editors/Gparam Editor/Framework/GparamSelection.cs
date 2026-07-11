@@ -1,6 +1,10 @@
-﻿using Hexa.NET.ImGui;
+﻿using Google.Protobuf.WellKnownTypes;
+using Hexa.NET.ImGui;
 using SoulsFormats;
 using StudioCore.Application;
+using StudioCore.Editors.Common;
+using StudioCore.Keybinds;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace StudioCore.Editors.GparamEditor;
@@ -15,20 +19,27 @@ public class GparamSelection
     public GPARAM _selectedGparam;
     public string _selectedGparamKey;
 
-    public GPARAM.Param _selectedParamGroup;
-    public int _selectedParamGroupKey;
+    public string _selectedParamGroupKey;
+    public int _selectedParamGroupIndex;
 
-    public GPARAM.IField _selectedParamField;
-    public int _selectedParamFieldKey;
+    public string _selectedParamFieldKey;
+    public int _selectedParamFieldIndex;
 
-    public GPARAM.IFieldValue _selectedFieldValue = null;
     public int _selectedFieldValueKey;
+    public int _selectedFieldValueIndex;
 
-    public int _duplicateValueRowId = 0;
+    public SortedDictionary<int, GPARAM.IFieldValue> SelectedFieldValues = new();
+
+    public int DuplicateValueID = 0;
+    public int DuplicateValueOffset = 0;
 
     public bool SelectGparamFile = false;
     public bool SelectGparamGroup = false;
     public bool SelectGparamField = false;
+
+    public bool FocusFile = false;
+    public bool FocusGroup = false;
+    public bool FocusField = false;
 
     public GparamSelection(GparamEditorView view, ProjectEntry project)
     {
@@ -36,40 +47,59 @@ public class GparamSelection
         Project = project;
     }
 
+    public void ResetSelection()
+    {
+        ResetGparamFileSelection();
+        ResetGparamGroupSelection();
+        ResetGparamFieldSelection();
+        ResetGparamFieldValueSelection();
+
+        SelectedFieldValues.Clear();
+    }
+
     public bool CanAffectSelection()
     {
         if(IsFileSelected() && 
             IsGparamGroupSelected() && 
             IsGparamFieldSelected() && 
-            IsGparamFieldValueSelected())
+            HasValidFieldValueSelection())
         {
             return true;
         }
 
         return false;
     }
+
     public void ResetGparamFileSelection()
     {
         _selectedGparam = null;
         _selectedGparamKey = "";
+
+        SelectedFieldValues.Clear();
     }
 
     public void ResetGparamGroupSelection()
     {
-        _selectedParamGroup = null;
-        _selectedParamGroupKey = -1;
+        _selectedParamGroupKey = null;
+        _selectedParamGroupIndex = -1;
+
+        SelectedFieldValues.Clear();
     }
 
     public void ResetGparamFieldSelection()
     {
-        _selectedParamField = null;
-        _selectedParamFieldKey = -1;
+        _selectedParamFieldKey = null;
+        _selectedParamFieldIndex = -1;
+
+        SelectedFieldValues.Clear();
     }
 
     public void ResetGparamFieldValueSelection()
     {
-        _selectedFieldValue = null;
         _selectedFieldValueKey = -1;
+        _selectedFieldValueIndex = -1;
+
+        SelectedFieldValues.Clear();
     }
 
     /// <summary>
@@ -98,7 +128,7 @@ public class GparamSelection
 
         SelectedFileEntry = entry;
         var targetEntry = Project.Handler.GparamData.PrimaryBank.Entries.FirstOrDefault(e => e.Key.Filename
-         == entry.Filename);
+         == entry.Filename && e.Key.Extension == entry.Extension);
 
         _selectedGparamKey = targetEntry.Key.Filename;
         _selectedGparam = targetEntry.Value;
@@ -109,7 +139,7 @@ public class GparamSelection
     /// </summary>
     public bool IsGparamGroupSelected()
     {
-        if (_selectedParamGroup != null && _selectedParamGroupKey != -1)
+        if (_selectedParamGroupKey != null && _selectedParamGroupIndex != -1)
         {
             return true;
         }
@@ -125,8 +155,8 @@ public class GparamSelection
         ResetGparamFieldSelection();
         ResetGparamFieldValueSelection();
 
-        _selectedParamGroup = entry;
-        _selectedParamGroupKey = index;
+        _selectedParamGroupKey = entry.Key;
+        _selectedParamGroupIndex = index;
     }
 
     /// <summary>
@@ -134,7 +164,7 @@ public class GparamSelection
     /// </summary>
     public bool IsGparamFieldSelected()
     {
-        if (_selectedParamField != null && _selectedParamFieldKey != -1)
+        if (_selectedParamFieldKey != null && _selectedParamFieldIndex != -1)
         {
             return true;
         }
@@ -149,17 +179,38 @@ public class GparamSelection
     {
         ResetGparamFieldValueSelection();
 
-        _selectedParamField = entry;
-        _selectedParamFieldKey = index;
+        _selectedParamFieldKey = entry.Key;
+        _selectedParamFieldIndex = index;
         Parent.QuickEditHandler.targetParamField = entry;
     }
 
-    /// <summary>
-    /// Has the selected GPARAM field value.
-    /// </summary>
-    public bool IsGparamFieldValueSelected()
+    public bool HasSpecificFieldValueSelection(int index)
     {
-        if (_selectedFieldValue != null && _selectedFieldValueKey != -1)
+        return SelectedFieldValues.ContainsKey(index);
+    }
+
+    public bool HasValidFieldValueSelection()
+    {
+        if (SelectedFieldValues.Count < 1)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    public void SetGparamFieldValue(int index, GPARAM.IFieldValue entry)
+    {
+        HandleMultiselection(_selectedFieldValueIndex, index, entry);
+
+        _selectedFieldValueKey = entry.ID;
+        _selectedFieldValueIndex = index;
+        DuplicateValueID = entry.ID;
+    }
+
+    public bool IsValueSelected(int index)
+    {
+        if (HasSpecificFieldValueSelection(index) || _selectedFieldValueIndex == index)
         {
             return true;
         }
@@ -167,14 +218,84 @@ public class GparamSelection
         return false;
     }
 
-    /// <summary>
-    /// Set the selected GPARAM field value.
-    /// </summary>
-    public void SetGparamFieldValue(int index, GPARAM.IFieldValue entry)
+    public void HandleMultiselection(int currentSelectionIndex, int currentIndex, GPARAM.IFieldValue entry)
     {
-        _selectedFieldValue = entry;
-        _selectedFieldValueKey = index;
-        _duplicateValueRowId = entry.Id;
+        var fieldList = GetSelectedField();
+
+        if (fieldList == null)
+            return;
+
+        // Multi-Select: Range Select
+        if (InputManager.HasShiftDown())
+        {
+            var start = currentSelectionIndex;
+            var end = currentIndex;
+
+            if (end < start)
+            {
+                start = currentIndex;
+                end = currentSelectionIndex;
+            }
+
+            for (int k = start; k <= end; k++)
+            {
+                if (!SelectedFieldValues.ContainsKey(k) && k < fieldList.Values.Count)
+                {
+                    var curValue = fieldList.Values.ElementAt(k);
+
+                    var isMatch = EditorFilters.IsMatch(
+                        Parent.FieldValueListView.ValueListFilter,
+                        curValue.ID.ToString(),
+                        Parent.FieldValueListView.ExactValueListFilter);
+
+                    if (isMatch)
+                    {
+                        if (!SelectedFieldValues.ContainsKey(k))
+                        {
+                            SelectedFieldValues.Add(k, curValue);
+                        }
+                    }
+                }
+            }
+        }
+        // Multi-Select Mode
+        else if (InputManager.HasCtrlDown())
+        {
+            if (SelectedFieldValues.ContainsKey(currentIndex) && SelectedFieldValues.Count > 1)
+            {
+                SelectedFieldValues.Remove(currentIndex);
+            }
+            else
+            {
+                if (!SelectedFieldValues.ContainsKey(currentIndex))
+                {
+                    if (currentIndex < fieldList.Values.Count)
+                    {
+                        var curEntry = fieldList.Values[currentIndex];
+
+                        if (!SelectedFieldValues.ContainsKey(currentIndex))
+                        {
+                            SelectedFieldValues.Add(currentIndex, curEntry);
+                        }
+                    }
+                }
+            }
+        }
+        // Reset Multi-Selection if normal selection occurs
+        else
+        {
+            SelectedFieldValues.Clear();
+
+            if (currentIndex < fieldList.Values.Count)
+            {
+                var curEntry = fieldList.Values[currentIndex];
+
+                if (!SelectedFieldValues.ContainsKey(currentIndex))
+                {
+                    SelectedFieldValues.Add(currentIndex, curEntry);
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -188,39 +309,61 @@ public class GparamSelection
     /// <summary>
     /// Get currently selected GPARAM.Param
     /// </summary>
-    public GPARAM.Param GetSelectedGparamGroup()
+    public GPARAM.Param GetSelectedGroup()
     {
-        return _selectedParamGroup;
+        if (_selectedGparam != null)
+        {
+            if (_selectedGparam.Params.Any(e => e.Key == _selectedParamGroupKey))
+            {
+                return _selectedGparam.Params.First(e => e.Key == _selectedParamGroupKey);
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
     /// Get currently selected GPARAM.IField
     /// </summary>
-    public GPARAM.IField GetSelectedGparamField()
+    public GPARAM.IField GetSelectedField()
     {
-        return _selectedParamField;
+        var group = GetSelectedGroup();
+
+        if (group == null)
+            return null;
+
+        if (group.Fields.Any(e => e.Key == _selectedParamFieldKey))
+        {
+            return group.Fields.First(e => e.Key == _selectedParamFieldKey);
+        }
+
+        return null;
     }
 
     /// <summary>
     /// Get currently selected GPARAM.IFieldValue
     /// </summary>
-    public GPARAM.IFieldValue GetSelectedGparamFieldValue()
+    public GPARAM.IFieldValue GetSelectedValue()
     {
-        return _selectedFieldValue;
+        var group = GetSelectedGroup();
+        var field = GetSelectedField();
+
+        if (group == null)
+            return null;
+
+        if (field == null)
+            return null;
+        
+        if (field.Values.Any(e => e.ID == _selectedFieldValueKey))
+        {
+            return field.Values.First(e => e.ID == _selectedFieldValueKey);
+        }
+
+        return null;
     }
 
-    public GparamEditorContext CurrentWindowContext = GparamEditorContext.None;
-
-    /// <summary>
-    /// Switches the focus context to the passed value.
-    /// Use this on all windows (e.g. both Begin and BeginChild)
-    /// </summary>
-    public void SwitchWindowContext(GparamEditorContext newContext)
+    public List<GPARAM.IFieldValue> GetSelectedValues()
     {
-        if (ImGui.IsWindowHovered())
-        {
-            CurrentWindowContext = newContext;
-            //Smithbox.Log(this, $"Context: {newContext.GetDisplayName()}");
-        }
+        return SelectedFieldValues.Values.ToList();
     }
 }

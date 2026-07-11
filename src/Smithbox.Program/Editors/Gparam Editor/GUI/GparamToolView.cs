@@ -7,73 +7,71 @@ namespace StudioCore.Editors.GparamEditor;
 
 public class GparamToolView
 {
-    private GparamEditorScreen Editor;
+    private GparamEditorView View;
     private ProjectEntry Project;
 
-    public GparamToolView(GparamEditorScreen editor, ProjectEntry project)
+    public GparamDataFinder DataFinder;
+    public GparamDataTransferTool DataTransferTool;
+
+    public GparamToolView(GparamEditorView view, ProjectEntry project)
     {
-        Editor = editor;
+        View = view;
         Project = project;
+
+        DataFinder = new(view, project);
+        DataTransferTool = new(view, project);
     }
 
-    /// <summary>
-    /// The main UI for this view
-    /// </summary>
     public void Display()
     {
         if (!CFG.Current.Interface_GparamEditor_ToolWindow)
             return;
 
-        if (ImGui.Begin("Tools##ToolConfigureWindow_GparamEditor", UIHelper.GetMainWindowFlags()))
+        if (ImGui.BeginMenuBar())
         {
-            FocusManager.SetFocus(EditorFocusContext.GparamEditor_Tools);
+            ViewMenu();
 
-            var windowWidth = ImGui.GetWindowWidth();
-
-            if (ImGui.BeginMenuBar())
-            {
-                ViewMenu();
-
-                ImGui.EndMenuBar();
-            }
-
-            var activeView = Editor.ViewHandler.ActiveView;
-
-            if (activeView != null)
-            {
-                if (CFG.Current.Interface_GparamEditor_Tool_QuickEdit)
-                {
-                    if (ImGui.CollapsingHeader("Quick Edit"))
-                    {
-                        activeView.QuickEditHandler.DisplayInputWindow();
-                    }
-
-                    if (ImGui.CollapsingHeader("Quick Edit Commands"))
-                    {
-                        activeView.QuickEditHandler.DisplayCheatSheet();
-                    }
-                }
-            }
-
-            // Gparam Reloader
-            /*
-            if (GparamMemoryTools.IsGparamReloaderSupported())
-            {
-                if (ImGui.CollapsingHeader("Gparam Reloader"))
-                {
-                    UIHelper.WrappedText("");
-
-                    if (ImGui.Button("Reload Current Gparam", DPI.StandardButtonSize))
-                    {
-                        GparamMemoryTools.ReloadCurrentGparam(Screen.Selection._selectedGparamInfo);
-                    }
-                    UIHelper.ShowHoverTooltip($"{KeyBindings.Current.PARAM_ReloadParam.HintText}");
-                }
-            }
-            */
+            ImGui.EndMenuBar();
         }
 
-        ImGui.End();
+        if (CFG.Current.Interface_GparamEditor_Tool_DataTransfer)
+        {
+            if (ImGui.CollapsingHeader("Data Transfer"))
+            {
+                DataTransferTool.Display();
+            }
+        }
+
+        if (CFG.Current.Interface_GparamEditor_Tool_Finder)
+        {
+            if (ImGui.CollapsingHeader("Data Finder"))
+            {
+                DataFinder.Display();
+            }
+        }
+
+        if (CFG.Current.Interface_GparamEditor_Tool_QuickEdit)
+        {
+            if (ImGui.CollapsingHeader("Quick Edit"))
+            {
+                View.QuickEditHandler.DisplayInputWindow();
+            }
+
+            if (ImGui.CollapsingHeader("Quick Edit Commands"))
+            {
+                QuickEditCheatsheet.Display();
+            }
+        }
+    }
+
+    public void DisplayDropdown()
+    {
+        if (ImGui.BeginMenu("Tools"))
+        {
+            DataTransferTool.DisplayDropdown();
+
+            ImGui.EndMenu();
+        }
     }
 
     public void ViewMenu()
@@ -84,7 +82,13 @@ public class GparamToolView
             {
                 CFG.Current.Interface_GparamEditor_Tool_QuickEdit = !CFG.Current.Interface_GparamEditor_Tool_QuickEdit;
             }
-            UIHelper.ShowActiveStatus(CFG.Current.Interface_GparamEditor_Tool_QuickEdit);
+            GUI.ShowActiveStatus(CFG.Current.Interface_GparamEditor_Tool_QuickEdit);
+
+            if (ImGui.MenuItem("Finder"))
+            {
+                CFG.Current.Interface_GparamEditor_Tool_Finder = !CFG.Current.Interface_GparamEditor_Tool_Finder;
+            }
+            GUI.ShowActiveStatus(CFG.Current.Interface_GparamEditor_Tool_Finder);
 
             ImGui.EndMenu();
         }

@@ -1,4 +1,3 @@
-using DotNext;
 using Hexa.NET.ImGui;
 using Microsoft.Win32;
 using SoulsFormats;
@@ -407,42 +406,9 @@ public static class Utils
         return $"%.{Math.Clamp(split.Last().Length, min, max)}f";
     }
 
-    /// <summary>
-    ///     Returns string representing version of param or regulation.
-    /// </summary>
-    public static string ParseParamVersion(ulong version)
-    {
-        string verStr = version.ToString();
-        if (verStr.Length == 7 || verStr.Length == 8)
-        {
-            char major = verStr[0];
-            string minor = verStr[1..3];
-            char patch = verStr[3];
-            string rev = verStr[4..];
-            return $"{major}.{minor}.{patch}.{rev}";
-        }
-
-        return "Unknown version format";
-    }
-
     public static int ParseHexFromString(string str)
     {
         return int.Parse(str.Replace("0x", ""), System.Globalization.NumberStyles.HexNumber);
-    }
-
-    public static string ParseRegulationVersion(ulong version)
-    {
-        string verStr = version.ToString();
-        if (verStr.Length != 8)
-        {
-            return "Unknown Version";
-        }
-        char major = verStr[0];
-        string minor = verStr[1..3];
-        char patch = verStr[3];
-        string rev = verStr[4..];
-
-        return $"{major}.{minor}.{patch}.{rev}";
     }
 
 
@@ -482,27 +448,67 @@ public static class Utils
         return vec;
     }
 
-    public static int GenerateRandomInt(RandomNumberGenerator randomSource, int min, int max)
+    public static int GenerateRandomInt(Random randomSource, int min, int max)
     {
         double randomValue = randomSource.NextDouble();
 
-        Smithbox.Log(typeof(Utils), $"randomValue: {randomValue}");
+        //Smithbox.Log(typeof(Utils), $"randomValue: {randomValue}");
 
         int diff = max - min;
 
-        Smithbox.Log(typeof(Utils), $"diff: {diff}");
+        //Smithbox.Log(typeof(Utils), $"diff: {diff}");
         // In-case the order is swapped
         if (max < min)
             diff = min - max;
 
         double tResult = (diff * randomValue);
 
-        Smithbox.Log(typeof(Utils), $"tResult: {tResult}");
-        Smithbox.Log(typeof(Utils), $"tResult Rounded: {(int)Math.Round(tResult)}");
+        //Smithbox.Log(typeof(Utils), $"tResult: {tResult}");
+        //Smithbox.Log(typeof(Utils), $"tResult Rounded: {(int)Math.Round(tResult)}");
         return (int)Math.Round(tResult);
     }
 
-    public static double GenerateRandomDouble(RandomNumberGenerator randomSource, double min, double max)
+    public static long GenerateRandomLong(Random randomSource, long min, long max)
+    {
+        double randomValue = randomSource.NextDouble();
+
+        //Smithbox.Log(typeof(Utils), $"randomValue: {randomValue}");
+
+        long diff = max - min;
+
+        //Smithbox.Log(typeof(Utils), $"diff: {diff}");
+        // In-case the order is swapped
+        if (max < min)
+            diff = min - max;
+
+        double tResult = (diff * randomValue);
+
+        //Smithbox.Log(typeof(Utils), $"tResult: {tResult}");
+        //Smithbox.Log(typeof(Utils), $"tResult Rounded: {(long)Math.Round(tResult)}");
+        return (long)Math.Round(tResult);
+    }
+
+    public static ulong GenerateRandomULong(Random randomSource, ulong min, ulong max)
+    {
+        double randomValue = randomSource.NextDouble();
+
+        //Smithbox.Log(typeof(Utils), $"randomValue: {randomValue}");
+
+        ulong diff = max - min;
+
+        //Smithbox.Log(typeof(Utils), $"diff: {diff}");
+        // In-case the order is swapped
+        if (max < min)
+            diff = min - max;
+
+        double tResult = (diff * randomValue);
+
+        //Smithbox.Log(typeof(Utils), $"tResult: {tResult}");
+        //Smithbox.Log(typeof(Utils), $"tResult Rounded: {(ulong)Math.Round(tResult)}");
+        return (ulong)Math.Round(tResult);
+    }
+
+    public static double GenerateRandomDouble(Random randomSource, double min, double max)
     {
         double randomValue = randomSource.NextDouble();
 

@@ -12,7 +12,7 @@
       "Names": [
         {
           "Language": "English",
-          "Text": "Others"
+          "Text": "Blank"
         }
       ]
     },
@@ -21,7 +21,7 @@
       "Names": [
         {
           "Language": "English",
-          "Text": "Abnormal status - poison"
+          "Text": "Status Effect: Poison"
         }
       ]
     },
@@ -30,7 +30,7 @@
       "Names": [
         {
           "Language": "English",
-          "Text": "Auxiliary-Jihad"
+          "Text": "Status Effect: Bleed"
         }
       ]
     },
@@ -39,7 +39,7 @@
       "Names": [
         {
           "Language": "English",
-          "Text": "Equipment - feet"
+          "Text": "Equipment: Legs"
         }
       ]
     },
@@ -48,7 +48,7 @@
       "Names": [
         {
           "Language": "English",
-          "Text": "Equipment - Arm"
+          "Text": "Equipment: Arms"
         }
       ]
     },
@@ -57,7 +57,7 @@
       "Names": [
         {
           "Language": "English",
-          "Text": "Equipment - Torso"
+          "Text": "Equipment: Body"
         }
       ]
     },
@@ -66,7 +66,7 @@
       "Names": [
         {
           "Language": "English",
-          "Text": "Equipment-Head"
+          "Text": "Equipment: Head"
         }
       ]
     },
@@ -75,7 +75,7 @@
       "Names": [
         {
           "Language": "English",
-          "Text": "Abnormal status - deadly poison"
+          "Text": "Status Effect: Toxic"
         }
       ]
     },
@@ -84,7 +84,7 @@
       "Names": [
         {
           "Language": "English",
-          "Text": "Equipment - Ring"
+          "Text": "Equipment: Ring"
         }
       ]
     },
@@ -93,7 +93,7 @@
       "Names": [
         {
           "Language": "English",
-          "Text": "Equipment - left weapon"
+          "Text": "Equipment: Left Weapon"
         }
       ]
     },
@@ -102,7 +102,7 @@
       "Names": [
         {
           "Language": "English",
-          "Text": "Equipment - right weapon"
+          "Text": "Equipment: Right Weapon"
         }
       ]
     },
@@ -111,7 +111,7 @@
       "Names": [
         {
           "Language": "English",
-          "Text": "Both legs"
+          "Text": "Both Feet"
         }
       ]
     },
@@ -120,7 +120,7 @@
       "Names": [
         {
           "Language": "English",
-          "Text": "Abnormal status - wet"
+          "Text": "Status Effect: Wet"
         }
       ]
     },
@@ -129,7 +129,7 @@
       "Names": [
         {
           "Language": "English",
-          "Text": "Status Abnormality - Spell Seal"
+          "Text": "Status Effect: Spell Seal"
         }
       ]
     },
@@ -147,7 +147,7 @@
       "Names": [
         {
           "Language": "English",
-          "Text": "Automatic hand selection for both hands"
+          "Text": "Automatic Hand Selection for 2H Weapons"
         }
       ]
     },
@@ -156,7 +156,7 @@
       "Names": [
         {
           "Language": "English",
-          "Text": "Not set"
+          "Text": "None"
         }
       ]
     }

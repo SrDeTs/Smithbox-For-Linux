@@ -16,13 +16,13 @@ public class TexEditorView
     public TexViewSelection Selection;
 
     public TexViewerZoom ZoomState;
-    public TexFilters Filters;
 
     public TexContainerList ContainerList;
-    public TexInternalFileList InternalFileList;
-    public TexTextureFileList FileList;
+    public TexInternalFileList FileList;
+    public TexTextureFileList TextureList;
     public TexDisplayViewport DisplayViewport;
     public TexProperties Properties;
+    public TexToolView ToolView;
 
     public int ViewIndex;
 
@@ -36,46 +36,25 @@ public class TexEditorView
         Selection = new TexViewSelection(this, Project);
 
         ZoomState = new TexViewerZoom(this, Project);
-        Filters = new TexFilters(this, Project);
 
         ContainerList = new TexContainerList(this, Project);
-        InternalFileList = new TexInternalFileList(this, Project);
-        FileList = new TexTextureFileList(this, Project);
+        FileList = new TexInternalFileList(this, Project);
+        TextureList = new TexTextureFileList(this, Project);
+        ToolView = new TexToolView(this, Project);
 
         DisplayViewport = new TexDisplayViewport(this, Project);
         Properties = new TexProperties(this, Project);
     }
 
-    public void Display(bool doFocus, bool isActiveView)
+    public void Display(uint dockspaceId, int viewIndex, bool doFocus, bool isActiveView)
     {
-        DisplayMenubar();
-
-        var columnCount = 3;
-        var windowFlags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
-
-        if (!CFG.Current.Interface_TextureViewer_Properties)
+        // Container List
+        ImGui.SetNextWindowDockID(dockspaceId, ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowClass(ref GUI.DockGroup_TextureViewerView);
+        if (ImGui.Begin($@"{LOC.Get("TEXVIEW_Window_Container_List")}###textureEditor_ContainerList_{viewIndex}", GUI.GetInnerWindowFlags()))
         {
-            columnCount = 2;
-        }
-
-        if (ImGui.BeginTable("textureTable", columnCount,
-            ImGuiTableFlags.Resizable |
-            ImGuiTableFlags.SizingStretchProp |
-            ImGuiTableFlags.BordersInnerV))
-        {
-            ImGui.TableSetupColumn("##FileList", ImGuiTableColumnFlags.WidthStretch, 0.3f);
-            ImGui.TableSetupColumn("##Viewer", ImGuiTableColumnFlags.WidthStretch, 0.5f);
-
-            if (CFG.Current.Interface_TextureViewer_Properties)
-                ImGui.TableSetupColumn("##Properties", ImGuiTableColumnFlags.WidthStretch, 0.2f);
-
-            // --- Column 1 ---
-            ImGui.TableNextColumn();
-
-            float width = ImGui.GetContentRegionAvail().X;
-            float height = ImGui.GetContentRegionAvail().Y * CFG.Current.Interace_Editor_Display_Inner_Height_Percent;
-
-            ImGui.BeginChild("##FileListArea", new Vector2(0, 0), windowFlags);
+            var width = ImGui.GetContentRegionAvail().X;
+            var height = ImGui.GetContentRegionAvail().Y;
 
             if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
             {
@@ -83,16 +62,56 @@ public class TexEditorView
                 Editor.ViewHandler.ActiveView = this;
             }
 
-            ContainerList.Display(width, height * CFG.Current.TextureViewer_Display_ContainerList_Percentage);
-            InternalFileList.Display(width, height * CFG.Current.TextureViewer_Display_InternalFileList_Percentage);
-            FileList.Display(width, height * CFG.Current.TextureViewer_Display_FileList_Percentage);
+            ContainerList.Display(width, height);
+        }
 
-            ImGui.EndChild();
+        ImGui.End();
 
-            // --- Column 2 ---
-            ImGui.TableNextColumn();
+        // File List
+        ImGui.SetNextWindowDockID(dockspaceId, ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowClass(ref GUI.DockGroup_TextureViewerView);
+        if (ImGui.Begin($@"{LOC.Get("TEXVIEW_Window_File_List")}###textureEditor_FileList_{viewIndex}", GUI.GetInnerWindowFlags()))
+        {
+            var width = ImGui.GetContentRegionAvail().X;
+            var height = ImGui.GetContentRegionAvail().Y;
 
-            ImGui.BeginChild("##ViewerArea", new Vector2(0, 0), windowFlags);
+            if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
+            {
+                FocusManager.SetFocus(EditorFocusContext.TextureViewer_FileList);
+                Editor.ViewHandler.ActiveView = this;
+            }
+
+            FileList.Display(width, height);
+        }
+
+        ImGui.End();
+
+        // Texture List
+        ImGui.SetNextWindowDockID(dockspaceId, ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowClass(ref GUI.DockGroup_TextureViewerView);
+        if (ImGui.Begin($@"{LOC.Get("TEXVIEW_Window_Texture_List")}###textureEditor_TextureList_{viewIndex}", GUI.GetInnerWindowFlags()))
+        {
+            var width = ImGui.GetContentRegionAvail().X;
+            var height = ImGui.GetContentRegionAvail().Y;
+
+            if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
+            {
+                FocusManager.SetFocus(EditorFocusContext.TextureViewer_FileList);
+                Editor.ViewHandler.ActiveView = this;
+            }
+
+            TextureList.Display(width, height);
+        }
+
+        ImGui.End();
+
+        // Texture Viewport
+        ImGui.SetNextWindowDockID(dockspaceId, ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowClass(ref GUI.DockGroup_TextureViewerView);
+        if (ImGui.Begin($@"{LOC.Get("TEXVIEW_Window_Viewer")}###textureEditor_Viewer_{viewIndex}", GUI.GetTextureViewerFlags()))
+        {
+            var width = ImGui.GetContentRegionAvail().X;
+            var height = ImGui.GetContentRegionAvail().Y;
 
             if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
             {
@@ -101,84 +120,49 @@ public class TexEditorView
             }
 
             DisplayViewport.Display();
+        }
 
-            ImGui.EndChild();
+        ImGui.End();
 
-            // --- Column 3 ---
-            if (CFG.Current.Interface_TextureViewer_Properties)
+        // Properties
+        ImGui.SetNextWindowDockID(dockspaceId, ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowClass(ref GUI.DockGroup_TextureViewerView);
+        if (ImGui.Begin($@"{LOC.Get("TEXVIEW_Window_Properties")}###textureEditor_Properties_{viewIndex}", GUI.GetInnerWindowFlags()))
+        {
+            var width = ImGui.GetContentRegionAvail().X;
+            var height = ImGui.GetContentRegionAvail().Y;
+
+            if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
             {
-                ImGui.TableNextColumn();
-
-                ImGui.BeginChild("##PropertiesArea", new Vector2(0, 0), windowFlags);
-
-                if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
-                {
-                    FocusManager.SetFocus(EditorFocusContext.TextureViewer_Properties);
-                    Editor.ViewHandler.ActiveView = this;
-                }
-
-                Properties.Display();
-
-                ImGui.EndChild();
+                FocusManager.SetFocus(EditorFocusContext.TextureViewer_Properties);
+                Editor.ViewHandler.ActiveView = this;
             }
 
-            ImGui.EndTable();
+            Properties.Display();
         }
+
+        ImGui.End();
+
+        /// Tools
+        ImGui.SetNextWindowDockID(dockspaceId, ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowClass(ref GUI.DockGroup_TextureViewerView);
+        if (ImGui.Begin($@"{LOC.Get("TEXVIEW_Window_Tools")}###textureEditor_ToolWindow_{viewIndex}", GUI.GetMainWindowFlags()))
+        {
+            var width = ImGui.GetContentRegionAvail().X;
+            var height = ImGui.GetContentRegionAvail().Y;
+
+            if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
+            {
+                FocusManager.SetFocus(EditorFocusContext.TextureViewer_Tools);
+                Editor.ViewHandler.ActiveView = this;
+            }
+
+            ToolView.Display();
+        }
+
+        ImGui.End();
 
         ContainerList.Update();
-        FileList.Update();
-    }
-    public void DisplayMenubar()
-    {
-        if (ImGui.BeginMenuBar())
-        {
-            if (ImGui.BeginMenu("Options"))
-            {
-                if (ImGui.BeginMenu("Display"))
-                {
-                    ImGui.SliderFloat("Containers##containersDisplayPercentage", ref CFG.Current.TextureViewer_Display_ContainerList_Percentage, 0.01f, 0.99f);
-                    if (ImGui.IsItemDeactivatedAfterEdit())
-                    {
-                        var remainder = 1f - CFG.Current.TextureViewer_Display_ContainerList_Percentage;
-
-                        StudioMath.Redistribute(
-                            ref CFG.Current.TextureViewer_Display_InternalFileList_Percentage,
-                            ref CFG.Current.TextureViewer_Display_FileList_Percentage,
-                            remainder);
-                    }
-                    UIHelper.Tooltip("The percentage of the window the Containers section occupies.");
-
-                    ImGui.SliderFloat("Files##internalFilesDisplayPercentage", ref CFG.Current.TextureViewer_Display_InternalFileList_Percentage, 0.01f, 0.99f);
-                    if (ImGui.IsItemDeactivatedAfterEdit())
-                    {
-                        var remainder = 1f - CFG.Current.TextureViewer_Display_InternalFileList_Percentage;
-
-                        StudioMath.Redistribute(
-                            ref CFG.Current.TextureViewer_Display_ContainerList_Percentage,
-                            ref CFG.Current.TextureViewer_Display_FileList_Percentage,
-                            remainder);
-                    }
-                    UIHelper.Tooltip("The percentage of the window the Files section occupies.");
-
-                    ImGui.SliderFloat("Textures##filesDisplayPercentage", ref CFG.Current.TextureViewer_Display_FileList_Percentage, 0.01f, 0.99f);
-                    if (ImGui.IsItemDeactivatedAfterEdit())
-                    {
-                        var remainder = 1f - CFG.Current.TextureViewer_Display_FileList_Percentage;
-
-                        StudioMath.Redistribute(
-                            ref CFG.Current.TextureViewer_Display_ContainerList_Percentage,
-                            ref CFG.Current.TextureViewer_Display_InternalFileList_Percentage,
-                            remainder);
-                    }
-                    UIHelper.Tooltip("The percentage of the window the Textures section occupies.");
-
-                    ImGui.EndMenu();
-                }
-
-                ImGui.EndMenu();
-            }
-
-            ImGui.EndMenuBar();
-        }
+        TextureList.Update();
     }
 }

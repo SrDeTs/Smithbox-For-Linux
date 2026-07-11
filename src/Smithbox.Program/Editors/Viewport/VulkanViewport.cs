@@ -257,7 +257,7 @@ public class VulkanViewport : IViewport
 
         ImGui.PushStyleColor(ImGuiCol.WindowBg, new Vector4(0, 0, 0, 0)); // Transparent
 
-        if (ImGui.Begin($@"Viewport##{ID}", flags))
+        if (ImGui.Begin($@"{LOC.Get("VIEWPORT_Window_Name")}###{ID}", flags))
         {
             Visible = true;
 
@@ -351,6 +351,9 @@ public class VulkanViewport : IViewport
                 // Need to loop through since we can't easily pass in the wrapper since this is a shared class with the Model Editor
                 foreach (var wrapper in mapUniverse.View.ViewportHandler.Viewports)
                 {
+                    if (wrapper == null)
+                        continue;
+
                     if (wrapper.Viewport == this)
                     {
                         mapUniverse.View.ViewportHandler.ActiveViewport = wrapper;
@@ -379,13 +382,13 @@ public class VulkanViewport : IViewport
 
                 foreach (var wrapper in modelUniverse.View.Editor.ViewHandler.Views)
                 {
-                    if (wrapper != null)
+                    if (wrapper == null)
+                        continue;
+
+                    if (wrapper.ViewportWindow.Viewport == this)
                     {
-                        if (wrapper.ViewportWindow.Viewport == this)
-                        {
-                            modelUniverse.View.Editor.ViewHandler.ActiveView = wrapper;
-                            IsActiveViewport = true;
-                        }
+                        modelUniverse.View.Editor.ViewHandler.ActiveView = wrapper;
+                        IsActiveViewport = true;
                     }
                 }
             }

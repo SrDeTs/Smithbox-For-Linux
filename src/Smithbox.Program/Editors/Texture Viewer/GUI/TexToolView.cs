@@ -7,17 +7,17 @@ namespace StudioCore.Editors.TextureViewer;
 
 public class TexToolView
 {
-    public TextureViewerScreen Editor;
+    public TexEditorView View;
     public ProjectEntry Project;
 
     public TextureExport TextureExport;
 
-    public TexToolView(TextureViewerScreen editor, ProjectEntry project)
+    public TexToolView(TexEditorView view, ProjectEntry project)
     {
-        Editor = editor;
+        View = view;
         Project = project;
 
-        TextureExport = new TextureExport(editor, Project);
+        TextureExport = new TextureExport(view, Project);
     }
 
     public void Display()
@@ -25,38 +25,29 @@ public class TexToolView
         if (!CFG.Current.Interface_TextureViewer_ToolWindow)
             return;
 
-        if (ImGui.Begin("Tools##ToolConfigureWindow_TextureViewer", UIHelper.GetMainWindowFlags()))
+        if (ImGui.BeginMenuBar())
         {
-            FocusManager.SetFocus(EditorFocusContext.TextureViewer_Tools);
+            ViewMenu();
 
-            var windowWidth = ImGui.GetWindowWidth();
-
-            if (ImGui.BeginMenuBar())
-            {
-                ViewMenu();
-
-                ImGui.EndMenuBar();
-            }
-
-            // Export Texture
-            if (CFG.Current.Interface_TextureViewer_Tool_ExportTexture)
-            {
-                TextureExport.Display();
-            }
+            ImGui.EndMenuBar();
         }
 
-        ImGui.End();
+        // Export Texture
+        if (CFG.Current.Interface_TextureViewer_Tool_ExportTexture)
+        {
+            TextureExport.Display();
+        }
     }
 
     public void ViewMenu()
     {
-        if (ImGui.BeginMenu("View"))
+        if (ImGui.BeginMenu($"{LOC.Get("TEXVIEW_Tools_Header_View")}##viewMenuHeader"))
         {
-            if (ImGui.MenuItem("Export Texture"))
+            if (ImGui.MenuItem($"{LOC.Get("TEXVIEW_Tools_View_Export_Texture")}##exportTextureToggle"))
             {
                 CFG.Current.Interface_TextureViewer_Tool_ExportTexture = !CFG.Current.Interface_TextureViewer_Tool_ExportTexture;
             }
-            UIHelper.ShowActiveStatus(CFG.Current.Interface_TextureViewer_Tool_ExportTexture);
+            GUI.ShowActiveStatus(CFG.Current.Interface_TextureViewer_Tool_ExportTexture);
 
             ImGui.EndMenu();
         }
@@ -64,13 +55,13 @@ public class TexToolView
 
     public void DisplayMenubar()
     {
-        if (ImGui.BeginMenu("Tools"))
+        if (ImGui.BeginMenu($"{LOC.Get("TEXVIEW_Tools_Header_Tools")}##toolsMenuHeader"))
         {
-            if (ImGui.MenuItem("Export Texture", InputManager.GetHint(KeybindID.TextureViewer_Export_Texture)))
+            if (ImGui.MenuItem($"{LOC.Get("TEXVIEW_Tools_Action_Export_Texture")}##exportTextureAction", InputManager.GetHint(KeybindID.TextureViewer_Export_Texture)))
             {
                 TextureExport.ExportTextureHandler();
             }
-            UIHelper.Tooltip($"Export currently selected texture.");
+            GUI.Tooltip(LOC.Get("TEXVIEW_Tools_Action_Export_Texture_TT"));
 
             ImGui.EndMenu();
         }

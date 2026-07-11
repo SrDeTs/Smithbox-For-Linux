@@ -53,6 +53,9 @@ public class SoulsMemoryHandler
     {
         NativeWrapper.CloseHandle(memoryHandle);
         memoryHandle = 0;
+        // Clean up the static offset cache for this process.
+        // Once the process handle is closed, cached offsets are no longer valid.
+        ProcessOffsetBank.Remove(gameProcess.Id);
     }
 
     [DllImport("kernel32", EntryPoint = "ReadProcessMemory")]
@@ -137,7 +140,7 @@ public class SoulsMemoryHandler
             }
         }
 
-        Smithbox.Log(this, $"Unable to find AOB in memory for {offsetName}.", LogLevel.Warning);
+        Smithbox.LogError(this, LOC.Get("PARAM_Tools_Memory_Missing_AOB", offsetName));
         return false;
     }
 
@@ -204,7 +207,7 @@ public class SoulsMemoryHandler
 
     internal int GetRowCount(ProjectType type, GameOffsetBaseEntry entry, nint paramPtr)
     {
-        if (type is ProjectType.DS3 or ProjectType.SDT or ProjectType.ER or ProjectType.AC6)
+        if (type is ProjectType.DS3 or ProjectType.SDT or ProjectType.ER or ProjectType.NR or ProjectType.AC6)
         {
             return GetRowCountInt(entry, paramPtr);
         }
@@ -370,8 +373,8 @@ public class SoulsMemoryHandler
         }
         WriteProcessMemoryArray(statusStructPtr, statusStructBytes);
 
-        var itemGiveFuncPtr = GetBaseAddress() + entry.ERItemGiveFuncOffset ?? throw new InvalidOperationException("ERItemGiveFuncOffset is not set in GameOffsetBaseEntry.");
-        var mapItemManPtr = GetBaseAddress() + entry.ERMapItemManOffset ?? throw new InvalidOperationException("ERMapItemManOffset is not set in GameOffsetBaseEntry.");
+        var itemGiveFuncPtr = GetBaseAddress() + entry.ERItemGiveFuncOffset ?? throw new InvalidOperationException(LOC.Get("PARAM_Tools_Memory_ERItemGiveFuncOffset_Missing"));
+        var mapItemManPtr = GetBaseAddress() + entry.ERMapItemManOffset ?? throw new InvalidOperationException(LOC.Get("PARAM_Tools_Memory_ERMapItemManOffset_Missing"));
 
         var argBuffer = new byte[32];
         BitConverter.GetBytes((long)mapItemManPtr).CopyTo(argBuffer, 0);

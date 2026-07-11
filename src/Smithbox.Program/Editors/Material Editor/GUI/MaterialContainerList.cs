@@ -3,6 +3,7 @@ using StudioCore.Application;
 using StudioCore.Editors.Common;
 using StudioCore.Utilities;
 using System.Collections.Generic;
+using System.Numerics;
 
 namespace StudioCore.Editors.MaterialEditor;
 
@@ -14,6 +15,9 @@ public class MaterialContainerList
     public MaterialEditorView Parent;
     public ProjectEntry Project;
 
+    private string ContainerListFilter = "";
+    private bool ExactContainerListFilter = false;
+
     public MaterialContainerList(MaterialEditorView view, ProjectEntry project)
     {
         Parent = view;
@@ -22,8 +26,11 @@ public class MaterialContainerList
 
     public void Draw(float width, float height)
     {
-        UIHelper.SimpleHeader("Containers", "");
-        
+        GUI.SimpleHeader("Containers", "");
+
+        EditorFilters.DisplayFramedListFilter("materialEditor_ContainerList",
+            ref ContainerListFilter, ref ExactContainerListFilter);
+
         ImGui.BeginChild("ContainerList", new System.Numerics.Vector2(width, height), ImGuiChildFlags.Borders);
 
         ImGui.BeginTabBar("sourceTabs");
@@ -32,9 +39,11 @@ public class MaterialContainerList
         {
             Parent.Selection.SourceType = MaterialSourceType.MTD;
 
-            Parent.Filters.DisplayBinderFilterSearch();
+            ImGui.BeginChild("MtdListSection", ImGuiChildFlags.Borders);
 
             DisplayMtdList();
+
+            ImGui.EndChild();
 
             ImGui.EndTabItem();
         }
@@ -45,9 +54,11 @@ public class MaterialContainerList
             {
                 Parent.Selection.SourceType = MaterialSourceType.MATBIN;
 
-                Parent.Filters.DisplayBinderFilterSearch();
+                ImGui.BeginChild("MatbinListSection", ImGuiChildFlags.Borders);
 
                 DisplayMatbinList();
+
+                ImGui.EndChild();
 
                 ImGui.EndTabItem();
             }
@@ -71,7 +82,9 @@ public class MaterialContainerList
                 var filteredEntries = new List<FileDictionaryEntry>();
                 foreach (var entry in wrappers)
                 {
-                    if (Parent.Filters.IsBinderFilterMatch(entry.Key.Filename))
+                    var isMatch = EditorFilters.IsMatch(ContainerListFilter, entry.Key.Filename, ExactContainerListFilter);
+
+                    if (isMatch)
                     {
                         filteredEntries.Add(entry.Key);
                     }
@@ -123,7 +136,9 @@ public class MaterialContainerList
                     var filteredEntries = new List<FileDictionaryEntry>();
                     foreach (var entry in wrappers)
                     {
-                        if (Parent.Filters.IsBinderFilterMatch(entry.Key.Filename))
+                        var isMatch = EditorFilters.IsMatch(ContainerListFilter, entry.Key.Filename, ExactContainerListFilter);
+
+                        if (isMatch)
                         {
                             filteredEntries.Add(entry.Key);
                         }

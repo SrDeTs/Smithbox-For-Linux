@@ -27,20 +27,13 @@ public class MapUniverse : IUniverse
     public MapEditorView View;
     public ProjectEntry Project;
 
-    /// <summary>
-    /// Holds exception dispatches that can occur during map loading
-    /// </summary>
     public ExceptionDispatchInfo LoadMapExceptions = null;
 
-    /// <summary>
-    /// True after or before a map load. False if a map load is on-going.
-    /// </summary>
-    public bool HasProcessedMapLoad;
+    public volatile bool HasProcessedMapLoad;
+    public volatile bool IsLoading = false;
 
-    /// <summary>
-    /// Task list for the async map loads
-    /// </summary>
-    private List<Task> Tasks = new();
+    public string ModelDataMapID { get; set; }
+
 
     public MapUniverse(MapEditorView view, ProjectEntry project)
     {
@@ -53,8 +46,14 @@ public class MapUniverse : IUniverse
         return View.ViewportHandler.ActiveViewport.RenderScene;
     }
 
-    public bool LoadMap(string mapid, bool selectOnLoad = false, bool ignoreHavokLoad = false)
+    public bool LoadMap(string mapid, bool selectOnLoad = false, bool ignoreHavokLoad = false, bool allowConcurrentMapLoad = false)
     {
+        if(!allowConcurrentMapLoad && IsLoading)
+        {
+            Smithbox.LogError<MapUniverse>("A map is already in the process of loading.");
+            return false;
+        }
+
         if (View.Project.Descriptor.ProjectType is ProjectType.DS2S or ProjectType.DS2)
         {
             if (Project.Handler.ParamEditor == null)
@@ -88,30 +87,29 @@ public class MapUniverse : IUniverse
 
         Profiler.TracyFiberLeave();
 
-        LoadMapAsync(mapid, selectOnLoad);
+        _ = LoadMapAsync(mapid, selectOnLoad);
 
         return true;
     }
 
-    public string ModelDataMapID { get; set; }
-
-    /// <summary>
-    /// Load a map asynchronously based on the passed map ID
-    /// </summary>
-    public async void LoadMapAsync(string mapid, bool selectOnLoad = false)
+    public async Task<bool> LoadMapAsync(string mapid, bool selectOnLoad = false)
     {
+        IsLoading = true;
         View.Editor.LoadingModal.AllowDisplay = true;
+
         Profiler.TracyFiberEnter("loadMapAsync");
         using var __loadMapZone = Profiler.TracyZoneAuto();
 
         var fileEntry = View.Selection.GetFileEntryFromMapID(mapid);
         var existingMap = View.Selection.GetMapContainerFromMapID(mapid);
 
-        if (existingMap != null && existingMap.LoadState is MapContentLoadState.Loaded)
+        if (existingMap != null && 
+            existingMap.LoadState is MapContentLoadState.Loaded)
         {
             Smithbox.Log(this, $"Map \"{mapid}\" is already loaded",
                 LogLevel.Information, LogPriority.Normal);
-            return;
+
+            return false;
         }
 
         try
@@ -121,15 +119,15 @@ public class MapUniverse : IUniverse
             var newMap = new MapContainer(View, mapid);
 
             ModelDataMapID = newMap.Name;
-            View.ModelInsightTool.AddEntry(newMap);
 
+            View.ModelInsightTool.AddEntry(newMap);
             View.DisplayGroupTool.SetupDrawgroupCount();
 
             MapResourceHandler resourceHandler = new MapResourceHandler(View, mapid);
+
             Profiler.TracyFiberLeave();
             await resourceHandler.ReadMap(mapid);
             Profiler.TracyFiberEnter("loadMapAsync");
-
 
             if (resourceHandler.Msb != null)
             {
@@ -138,15 +136,14 @@ public class MapUniverse : IUniverse
                 if (CFG.Current.Viewport_Enable_Rendering)
                 {
                     resourceHandler.SetupHumanEnemySubstitute();
+
                     using var __resScope = Profiler.TracyZoneAuto();
                     resourceHandler.SetupModelLoadLists();
                     __resScope.Dispose();
+
                     using var __texScope = Profiler.TracyZoneAuto();
-                    resourceHandler.SetupTexturelLoadLists();
+                    resourceHandler.SetupTextureLoadLists();
                     __texScope.Dispose();
-                    using var __maskScope = Profiler.TracyZoneAuto();
-                    resourceHandler.SetupModelMasks(newMap);
-                    __maskScope.Dispose();
                 }
 
                 using var __lightScope = Profiler.TracyZoneAuto();
@@ -157,6 +154,7 @@ public class MapUniverse : IUniverse
                 View.LightProbeBank.LoadBTPB(newMap);
 
                 __lightScope.Dispose();
+
                 using var __navScope = Profiler.TracyZoneAuto();
                 View.HavokNavmeshBank.LoadHavokNVA(newMap, resourceHandler);
                 __navScope.Dispose();
@@ -205,26 +203,29 @@ public class MapUniverse : IUniverse
                     LoadDS2Generators(resourceHandler.AdjustedMapID, newMap);
                 }
 
+                var tasks = new List<Task>();
+
                 if (CFG.Current.Viewport_Enable_Rendering)
                 {
-                    Tasks = resourceHandler.LoadTextures(Tasks, newMap);
+                    tasks = resourceHandler.LoadModels(tasks, newMap);
 
                     Profiler.TracyFiberLeave();
-                    await Task.WhenAll(Tasks);
+                    await Task.WhenAll(tasks);
                     Profiler.TracyFiberEnter("loadMapAsync");
 
-                    Tasks = resourceHandler.LoadModels(Tasks, newMap);
+                    if (CFG.Current.Viewport_Enable_Texturing)
+                    {
+                        tasks = resourceHandler.LoadTextures(tasks, newMap);
 
-                    Profiler.TracyFiberLeave();
-                    await Task.WhenAll(Tasks);
-                    Profiler.TracyFiberEnter("loadMapAsync");
-
-                    ScheduleTextureRefresh();
+                        Profiler.TracyFiberLeave();
+                        await Task.WhenAll(tasks);
+                        Profiler.TracyFiberEnter("loadMapAsync");
+                    }
                 }
 
                 // After everything loads, do some additional checks:
                 Profiler.TracyFiberLeave();
-                await Task.WhenAll(Tasks);
+                await Task.WhenAll(tasks);
                 Profiler.TracyFiberEnter("loadMapAsync");
                 HasProcessedMapLoad = true;
 
@@ -242,22 +243,13 @@ public class MapUniverse : IUniverse
                 // Check for duplicate EntityIDs
                 CheckDupeEntityIDs(newMap);
 
-                // Set the map transform to the saved position, rotation and scale.
-                //map.LoadMapTransform();
-
-                // HACK: this fixes the weird ghost state between the viewport and content list
-                CloneMapObjectsAction action = new(
-                    View,
-                    new List<MsbEntity>() { (MsbEntity)newMap.RootObject }, false,
-                    null, null, true);
-
-                View.ViewportActionManager.ExecuteAction(action);
-
                 if (selectOnLoad)
                 {
                     View.Selection.SelectedMapID = mapid;
                     View.Selection.SelectedMapContainer = newMap;
                 }
+
+                ScheduleTextureRefresh();
             }
         }
         catch (Exception e)
@@ -275,9 +267,12 @@ public class MapUniverse : IUniverse
         {
             __loadMapZone.Dispose();
             Profiler.TracyFiberLeave();
+
+            View.Editor.LoadingModal.AllowDisplay = false;
+            IsLoading = false;
         }
 
-        View.Editor.LoadingModal.AllowDisplay = false;
+        return true;
     }
 
     public void UnloadMap(string mapID, bool clearFromList = false)
@@ -306,6 +301,8 @@ public class MapUniverse : IUniverse
                     View.Selection.SelectedMapID = "";
                     View.Selection.SelectedMapContainer = null;
                 }
+
+                View.MapContentView.OnMapUnloaded();
 
                 wrapper.MapContainer.LoadState = MapContentLoadState.Unloaded;
                 wrapper.MapContainer.Unload();
@@ -543,10 +540,6 @@ public class MapUniverse : IUniverse
         //map.SaveMapTransform();
     }
 
-
-    /// <summary>
-    ///
-    /// </summary>
     public void LoadDS2Generators(string mapid, MapContainer map)
     {
         Dictionary<long, Param.Row> registParams = new();
@@ -618,29 +611,14 @@ public class MapUniverse : IUniverse
                 Param.Row regist = registParams[registid];
                 var chrid = Project.Handler.ParamData.PrimaryBank.GetChrIDForEnemy(
                     (int)regist.GetCellHandleOrThrow("EnemyId").Value);
+
+
                 if (chrid != null)
                 {
-                    ResourceDescriptor asset = ModelLocator.GetChrModel(View.Project, $@"c{chrid}", $@"c{chrid}");
-                    MeshRenderableProxy model = MeshRenderableProxy.MeshRenderableFromFlverResource(
-                        View.ViewportHandler.ActiveViewport.RenderScene, asset.AssetVirtualPath, ModelMarkerType.Enemy, null);
-                    model.DrawFilter = RenderFilter.Character;
-                    generatorObjs[row.ID].RenderSceneMesh = model;
-                    model.SetSelectable(generatorObjs[row.ID]);
-                    chrsToLoad.Add(asset);
-
-                    if (CFG.Current.Viewport_Enable_Texturing)
+                    generatorObjs[row.ID].ModelName = $"c{chrid}";
+                    if(generatorObjs[row.ID] is MsbEntity msbEnt)
                     {
-                        // TPF
-                        var textureAsset = TextureLocator.GetCharacterTextureVirtualPath(View.Project, $@"c{chrid}", false);
-
-                        if (textureAsset.IsValid())
-                            chrsToLoad.Add(textureAsset);
-
-                        // BND
-                        textureAsset = TextureLocator.GetCharacterTextureVirtualPath(View.Project, $@"c{chrid}", true);
-
-                        if (textureAsset.IsValid())
-                            chrsToLoad.Add(textureAsset);
+                        msbEnt.AssignDrawable();
                     }
                 }
             }
@@ -719,7 +697,7 @@ public class MapUniverse : IUniverse
 
         foreach (KeyValuePair<string, MapConnectionRelationType> map in relatedMaps)
         {
-            View.Universe.LoadMap(map.Key);
+            View.Universe.LoadMap(map.Key, false, false, true);
         }
     }
 
@@ -1033,9 +1011,6 @@ public class MapUniverse : IUniverse
         return DCX.Type.None;
     }
 
-    /// <summary>
-    ///     Save BTL light data
-    /// </summary>
     public void SaveBTL(MapEditorView view, MapContainer map)
     {
         var fileEntries = View.Project.Locator.LightFiles.Entries;
@@ -1060,8 +1035,8 @@ public class MapUniverse : IUniverse
                     var bdtFile = (Memory<byte>)View.Project.Handler.MapData.PrimaryBank.TargetFS.ReadFile(bdtPath);
                     var bhdFile = (Memory<byte>)View.Project.Handler.MapData.PrimaryBank.TargetFS.ReadFile(bhdPath);
 
-                    using var bdt = BXF4.Read(bhdFile, bdtFile);
-                    BinderFile file = bdt.Files.Find(f => f.Name.EndsWith("light.btl.dcx"));
+                    using var bxf = BXF4.Read(bhdFile, bdtFile);
+                    BinderFile file = bxf.Files.Find(f => f.Name.EndsWith("light.btl.dcx"));
 
                     if (file != null)
                     {
@@ -1069,7 +1044,7 @@ public class MapUniverse : IUniverse
 
                         if (btl != null)
                         {
-                            List<BTL.Light> newLights = map.SerializeBtlLights(file.Name);
+                            List<BTL.Light> newLights = map.SerializeBtlLights(file.Name, true);
 
                             // Only save BTL if it has been modified
                             if (JsonSerializer.Serialize(btl.Lights, BtlLightSerializerContext.Default.ListLight) !=
@@ -1079,8 +1054,13 @@ public class MapUniverse : IUniverse
                                 file.Bytes = btl.Write();
                             }
 
-                            Project.VFS.ProjectFS.WriteFile(bhdPath, bhdFile.ToArray());
-                            Project.VFS.ProjectFS.WriteFile(bdtPath, bdtFile.ToArray());
+                            var bhdData = new byte[0];
+                            var bdtData = new byte[0];
+
+                            bxf.Write(out bhdData, out bdtData);
+
+                            Project.VFS.ProjectFS.WriteFile(bhdPath, bhdData);
+                            Project.VFS.ProjectFS.WriteFile(bdtPath, bdtData);
                         }
                     }
                 }

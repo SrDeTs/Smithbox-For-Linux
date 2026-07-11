@@ -19,12 +19,12 @@ namespace StudioCore.Editors.ParamEditor;
 
 public class ParamUpgrader
 {
-    public ParamEditorScreen Editor;
+    public ParamEditorView View;
     public ProjectEntry Project;
 
-    public ParamUpgrader(ParamEditorScreen editor, ProjectEntry project)
+    public ParamUpgrader(ParamEditorView view, ProjectEntry project)
     {
-        Editor = editor;
+        View = view;
         Project = project;
     }
 
@@ -38,8 +38,10 @@ public class ParamUpgrader
 
         if (ImGui.CollapsingHeader("Param Upgrader"))
         {
-            ImGui.BeginChild("ParamUpgraderToolSection");
+            ImGui.BeginChild("ParamUpgraderToolSection", ImGuiChildFlags.Borders);
+
             UpgraderMenu();
+
             ImGui.EndChild();
         }
     }
@@ -64,7 +66,7 @@ public class ParamUpgrader
                 var vanillaVersion = ParamUtils.ParseRegulationVersion(paramData.VanillaBank.ParamVersion);
 
                 ImGui.PushStyleColor(ImGuiCol.Text, UI.Current.ImGui_Warning_Text_Color);
-                ImGui.Text($"Project primary bank version is below current game version: {primaryVersion} < {vanillaVersion} -- Use the Param Upgrader in the Tool window.");
+                ImGui.Text($"Project primary bank version is below current game version: {primaryVersion} < {vanillaVersion} -- Open the Param Upgrader category in the Tools window.");
                 ImGui.PopStyleColor(1);
             }
         }
@@ -89,40 +91,16 @@ public class ParamUpgrader
         var vanillaBank = Project.Handler.ParamData.VanillaBank;
 
         var tblFlags = ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.Borders;
+        GUI.WrappedText("Upgrade the param version for this project's params.");
 
-        UIHelper.SimpleHeader("Version", "");
+        GUI.WrappedText("");
+        GUI.SimpleHeader("Version", "");
 
-        if (ImGui.BeginTable($"upgraderInfo", 2, tblFlags))
-        {
-            ImGui.TableSetupColumn("Title", ImGuiTableColumnFlags.WidthFixed);
-            ImGui.TableSetupColumn("Contents", ImGuiTableColumnFlags.WidthFixed);
+        ImGui.Text($"Primary Param Version: {primaryBank.ParamVersion}");
+        ImGui.Text($"Source Param Version: {vanillaBank.ParamVersion}");
 
-            // Primary
-            ImGui.TableNextRow();
-            ImGui.TableSetColumnIndex(0);
-
-            ImGui.AlignTextToFramePadding();
-            ImGui.Text("Primary Param Version");
-
-            ImGui.TableSetColumnIndex(1);
-
-            ImGui.Text($"{primaryBank.ParamVersion}");
-
-            // Source
-            ImGui.TableNextRow();
-            ImGui.TableSetColumnIndex(0);
-
-            ImGui.AlignTextToFramePadding();
-            ImGui.Text("Source Param Version");
-
-            ImGui.TableSetColumnIndex(1);
-
-            ImGui.Text($"{vanillaBank.ParamVersion}");
-
-            ImGui.EndTable();
-        }
-
-        UIHelper.SimpleHeader("Actions", "");
+        GUI.WrappedText("");
+        GUI.SimpleHeader("Actions", "");
 
         // Start
         if (!DisplayActions && primaryBank.ParamVersion < vanillaBank.ParamVersion)
@@ -136,7 +114,7 @@ public class ParamUpgrader
         if (!DisplayActions && primaryBank.ParamVersion >= vanillaBank.ParamVersion
             || DisplayActions && ConflictsChecked && UpgradePerformed && MassEditsPerformed)
         {
-            UIHelper.WrappedText("No need to upgrade params.");
+            GUI.WrappedText("No need to upgrade params.");
         }
 
         // Conflicts
@@ -171,7 +149,7 @@ public class ParamUpgrader
         {
             if (ConflictParams.Count > 0)
             {
-                UIHelper.SimpleHeader("Conflicts", "");
+                GUI.SimpleHeader("Conflicts", "");
 
                 if (ImGui.BeginTable($"conflictTable", 2, tblFlags))
                 {
@@ -305,29 +283,33 @@ public class ParamUpgrader
 
         SpEffectData.Clear();
 
-        var spEffectParam = paramData.PrimaryBank.Params["SpEffectParam"];
-        var spEffectParamVanilla = paramData.VanillaBank.Params["SpEffectParam"];
-
-        foreach (var row in spEffectParam.Rows)
+        if (paramData.PrimaryBank.Params.ContainsKey("SpEffectParam") &&
+             paramData.VanillaBank.Params.ContainsKey("SpEffectParam"))
         {
-            // Only add 'added' rows, the default mass edit covers the vanilla ones
-            if (spEffectParamVanilla.Rows.Any(e => e.ID == row.ID))
-                continue;
+            var spEffectParam = paramData.PrimaryBank.Params["SpEffectParam"];
+            var spEffectParamVanilla = paramData.VanillaBank.Params["SpEffectParam"];
 
-            var frostInflict = row["frostInflictRate_old"];
-            var sleepInflict = row["sleepInflictRate_old"];
-            var madnessInflict = row["madnessInflictRate_old"];
-            var applyOnKillSp = row["applyIdOnKillSp_old"];
-
-            if (!SpEffectData.ContainsKey(row.ID))
+            foreach (var row in spEffectParam.Rows)
             {
-                SpEffectData.Add(row.ID, new());
-            }
+                // Only add 'added' rows, the default mass edit covers the vanilla ones
+                if (spEffectParamVanilla.Rows.Any(e => e.ID == row.ID))
+                    continue;
 
-            SpEffectData[row.ID].Add("frostInflictRate", frostInflict.Value.Value);
-            SpEffectData[row.ID].Add("sleepInflictRate", sleepInflict.Value.Value);
-            SpEffectData[row.ID].Add("madnessInflictRate", madnessInflict.Value.Value);
-            SpEffectData[row.ID].Add("applyIdOnKillSp", applyOnKillSp.Value.Value);
+                var frostInflict = row["frostInflictRate_old"];
+                var sleepInflict = row["sleepInflictRate_old"];
+                var madnessInflict = row["madnessInflictRate_old"];
+                var applyOnKillSp = row["applyIdOnKillSp_old"];
+
+                if (!SpEffectData.ContainsKey(row.ID))
+                {
+                    SpEffectData.Add(row.ID, new());
+                }
+
+                SpEffectData[row.ID].Add("frostInflictRate", frostInflict.Value.Value);
+                SpEffectData[row.ID].Add("sleepInflictRate", sleepInflict.Value.Value);
+                SpEffectData[row.ID].Add("madnessInflictRate", madnessInflict.Value.Value);
+                SpEffectData[row.ID].Add("applyIdOnKillSp", applyOnKillSp.Value.Value);
+            }
         }
 
         return true;
@@ -347,7 +329,7 @@ public class ParamUpgrader
             commandString = $"{commandString}{cmd.Command};\n";
         }
 
-        Editor.ViewHandler.ActiveView.MassEdit.ApplyMassEdit(commandString);
+        View.MassEdit.ApplyMassEdit(commandString);
 
         Smithbox.Log(this, $"Applied upgrader mass edit commands");
 
@@ -369,7 +351,7 @@ public class ParamUpgrader
                 commandString = $"{commandString}\n{command}";
             }
 
-            Editor.ViewHandler.ActiveView.MassEdit.ApplyMassEdit(commandString);
+            View.MassEdit.ApplyMassEdit(commandString);
         }
 
         await paramData.PrimaryBank.Save();
@@ -588,7 +570,7 @@ public class ParamUpgrader
         {
             var paramName = Path.GetFileNameWithoutExtension(f.Name);
 
-            if (!f.Name.ToUpper().EndsWith(".PARAM"))
+            if (!f.Name.EndsWith(".PARAM", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }

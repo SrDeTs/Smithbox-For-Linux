@@ -14,8 +14,6 @@ public class MapListView : IActionEventHandler
     public MapEditorView View;
     public ProjectEntry Project;
 
-    private string ImguiID = "MapListView";
-
     public string SearchBarText = "";
 
     private bool DisplayChaliceDungeons = true;
@@ -26,44 +24,38 @@ public class MapListView : IActionEventHandler
         Project = project;
     }
 
-
     public void Display(float width, float height)
     {
-        UIHelper.SimpleHeader("Map List", "");
-
-        ImGui.BeginChild("MapList", new System.Numerics.Vector2(width, height), ImGuiChildFlags.Borders);
-
-        FocusManager.SetFocus(EditorFocusContext.MapEditor_FileList);
+        GUI.SimpleHeader("Map List", "");
 
         DisplaySearchbar();
 
-        if (View.Project.Descriptor.ProjectType is ProjectType.BB)
-        {
-            ImGui.SameLine();
-            DisplayChaliceToggleButton();
-        }
-
-        ImGui.BeginChild($"mapListSection");
+        ImGui.BeginChild("MapListSection", new Vector2(0, 0), ImGuiChildFlags.Borders);
 
         DisplayMapList(MapContentLoadState.Loaded);
         DisplayMapList(MapContentLoadState.Unloaded);
 
         ImGui.EndChild();
-
-        ImGui.EndChild();
     }
 
-    private string _lastSearchText = "";
     private HashSet<string> _cachedSearchMatches = new HashSet<string>();
     private Dictionary<string, string> _cachedMapNameAliases = new Dictionary<string, string>();
-    private Dictionary<string, List<string>> _cachedMapTags = new Dictionary<string, List<string>>();
     private bool _updateMapList = true;
+
+    private string FileListFilter = "";
+    private bool ExactFileListFilter = false;
+
+    private List<string> FilteredMapList = new();
+
+    public void ClearMapList()
+    {
+        FilteredMapList.Clear();
+    }
 
     public void UpdateMapList(List<string> mapList)
     {
-        SearchBarText = string.Join("|", mapList);
-        _lastSearchText = SearchBarText;
-        _updateMapList = true;
+        FilteredMapList.Clear();
+        FilteredMapList = mapList;
     }
 
     /// <summary>
@@ -71,19 +63,41 @@ public class MapListView : IActionEventHandler
     /// </summary>
     public void DisplaySearchbar()
     {
-        var windowWidth = ImGui.GetWindowWidth();
+        var searchHeight = new Vector2(0, 36) * DPI.UIScale();
+        ImGui.BeginChild($"framedListFilter_mapEditor_ListView", searchHeight, ImGuiChildFlags.Borders);
 
-        DPI.ApplyInputWidth(windowWidth * 0.75f);
-        ImGui.InputText($"##mapListSearch_{ImguiID}", ref SearchBarText, 255);
-        if(ImGui.IsItemEdited())
+        EditorFilters.DisplayListFilter("mapEditor_ListView", ref FileListFilter, ref ExactFileListFilter);
+        if(ImGui.IsItemDeactivatedAfterEdit())
         {
-            if (_lastSearchText != SearchBarText)
+            _updateMapList = true;
+        }
+        GUI.Tooltip("Filter the map list entries.");
+
+        if (View.Project.Descriptor.ProjectType is ProjectType.BB)
+        {
+            ImGui.SameLine();
+            DisplayChaliceToggleButton();
+        }
+
+        if (View.Project.Descriptor.ProjectType is ProjectType.ER or ProjectType.NR)
+        {
+            ImGui.SameLine();
+            if (ImGui.Button($"{Icons.Map}", DPI.IconButtonSize))
             {
-                _lastSearchText = SearchBarText;
-                _updateMapList = true;
+                View.WorldMapTool.DisplayMenuOption();
+            }
+            GUI.Tooltip($"Open a world map with a visual representation of the map tiles.\nShortcut: {InputManager.GetHint(KeybindID.MapEditor_Toggle_World_Map_Menu)}");
+
+            if(FilteredMapList.Count > 0)
+            {
+                ImGui.SameLine();
+                if (ImGui.Button($"{Icons.MapMarker}", DPI.IconButtonSize))
+                {
+                    ClearMapList();
+                }
+                GUI.Tooltip($"Clear the pre-filtered map list set by a World Map click.");
             }
         }
-        UIHelper.Tooltip("Filter the map list entries.");
 
         if (_updateMapList)
         {
@@ -91,26 +105,25 @@ public class MapListView : IActionEventHandler
 
             _cachedSearchMatches.Clear();
             _cachedMapNameAliases.Clear();
-            _cachedMapTags.Clear();
 
             foreach (var entry in Project.Locator.MapFiles.Entries)
             {
                 var mapID = entry.Filename;
 
                 var nameAlias = AliasHelper.GetMapNameAlias(View.Project, mapID);
-                var tags = AliasHelper.GetMapTags(View.Project, mapID);
 
                 _cachedMapNameAliases[mapID] = nameAlias;
-                _cachedMapTags[mapID] = tags;
 
-                bool isMatch = SearchFilters.IsMapSearchMatch(_lastSearchText, mapID, nameAlias, tags);
+                var isMatch = EditorFilters.IsMatch(FileListFilter, mapID, ExactFileListFilter, nameAlias, true, true);
 
-                if (isMatch || _lastSearchText == "")
+                if (isMatch)
                 {
                     _cachedSearchMatches.Add(mapID);
                 }
             }
         }
+
+        ImGui.EndChild();
     }
 
     /// <summary>
@@ -122,7 +135,7 @@ public class MapListView : IActionEventHandler
         {
             DisplayChaliceDungeons = !DisplayChaliceDungeons;
         }
-        UIHelper.Tooltip("Toggles the display of chalice dungeon maps within the map list.");
+        GUI.Tooltip("Toggles the display of chalice dungeon maps within the map list.");
     }
 
     /// <summary>
@@ -136,6 +149,12 @@ public class MapListView : IActionEventHandler
         foreach (var entry in Project.Handler.MapData.PrimaryBank.Maps)
         {
             var wrapper = entry.Value;
+
+            if(FilteredMapList.Count > 0)
+            {
+                if (!FilteredMapList.Contains(wrapper.Name))
+                    continue;
+            }
 
             if (!_cachedSearchMatches.Contains(wrapper.Name) && loadType == MapContentLoadState.Unloaded)
             {
@@ -268,11 +287,11 @@ public class MapListView : IActionEventHandler
 
                 if (loadType == MapContentLoadState.Loaded)
                 {
-                    UIHelper.DisplayColoredAlias(displayedName, UI.Current.ImGui_AliasName_Text, CFG.Current.Interface_Alias_Wordwrap_Map_Editor);
+                    GUI.DisplayColoredAlias(displayedName, UI.Current.ImGui_AliasName_Text, CFG.Current.Interface_Alias_Wordwrap_Map_Editor);
                 }
                 else
                 {
-                    UIHelper.DisplayColoredAlias(displayedName, UI.Current.ImGui_Default_Text_Color, CFG.Current.Interface_Alias_Wordwrap_Map_Editor);
+                    GUI.DisplayColoredAlias(displayedName, UI.Current.ImGui_Default_Text_Color, CFG.Current.Interface_Alias_Wordwrap_Map_Editor);
                 }
 
                 // Context Menu
@@ -353,12 +372,9 @@ public class MapListView : IActionEventHandler
                 var mapName = AliasHelper.GetMapNameAlias(View.Project, mapWrapper.Name);
                 PlatformUtils.Instance.SetClipboardText(mapName);
             }
-            if (View.GlobalSearchTool.IsOpen)
+            if (ImGui.Selectable("Add to Map Filter"))
             {
-                if (ImGui.Selectable("Add to Map Filter"))
-                {
-                    View.GlobalSearchTool.AddMapFilterInput(mapWrapper.Name);
-                }
+                View.GlobalSearchTool.AddMapFilterInput(mapWrapper.Name);
             }
 
             ImGui.EndPopup();

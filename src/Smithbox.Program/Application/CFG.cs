@@ -1,9 +1,10 @@
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using StudioCore.Editors.Common;
 using StudioCore.Editors.GparamEditor;
 using StudioCore.Editors.MapEditor;
 using StudioCore.Editors.ParamEditor;
 using StudioCore.Editors.TextEditor;
+using StudioCore.Editors.TextureViewer;
 using StudioCore.Logger;
 using StudioCore.Renderer;
 using StudioCore.Utilities;
@@ -40,14 +41,8 @@ public class CFG
     /// System
     ///------------------------------------------------------------
     // Preferences
-    public bool System_Check_Program_Update = true;
-    public bool System_Enable_Soapstone_Server = true;
     public bool System_Ignore_Read_Asserts = false;
     public bool System_Apply_DCX_Heuristic = false;
-
-    public RenderingBackend System_RenderingBackend = RenderingBackend.Vulkan;
-
-    public string System_Last_Dialog_Directory = "";
 
     public bool Logger_Enable_Action_Log = true;
     public bool Logger_Enable_Warning_Log = true;
@@ -90,6 +85,16 @@ public class CFG
     public string Project_Alias_Export_Delimiter = ";";
     public bool Project_Alias_Editor_Export_Ignore_Empty = false;
 
+    public bool Project_Alias_Editor_Use_Base_Source = true;
+    public bool Project_Alias_Editor_Use_Project_Source = true;
+    public bool Project_Alias_Editor_Save_Applies_To_Base = false;
+    public bool Project_Alias_Editor_Add_Insert_At_Top = false;
+
+    public bool Project_Enum_Editor_Use_Base_Source = true;
+    public bool Project_Enum_Editor_Use_Project_Source = true;
+    public bool Project_Enum_Editor_Save_Applies_To_Base = false;
+    public bool Project_Enum_Editor_Add_Insert_At_Top = false;
+
     // Metadata (Param Editor)
     public bool Param_Editor_Enable_Param_Meta_Override = false;
     public bool Param_Editor_Enable_Param_Meta_Addition = true;
@@ -114,6 +119,12 @@ public class CFG
 
     public bool Param_Editor_Enable_Graph_Annotation_Override = false;
     public bool Param_Editor_Enable_Graph_Annotation_Addition = true;
+
+    public bool Param_Editor_Enable_Row_FMG_Annotation_Override = false;
+    public bool Param_Editor_Enable_Row_FMG_Annotation_Addition = true;
+
+    public bool Interface_ProjectEditor_ProjectList = true;
+    public bool Interface_ProjectEditor_ProjectConfiguration = true;
     #endregion
 
     #region Interface
@@ -130,21 +141,15 @@ public class CFG
     public bool Interface_Alias_Wordwrap_Model_Editor = true;
     public bool Interface_Alias_Wordwrap_Animation_Editor = true;
 
-    public bool Interface_Include_Chinese_Symbols = false;
-    public bool Interface_Include_Cyrillic_Symbols = false;
-    public bool Interface_Include_Korean_Symbols = false;
-    public bool Interface_Include_Thai_Symbols = false;
-    public bool Interface_Include_Vietnamese_Symbols = false;
-
-    public string Interface_English_Font_Path = Path.Join("Assets","Fonts","RobotoMono-Light.ttf");
-    public string Interface_Non_English_Font_Path = Path.Join("Assets","Fonts","NotoSansCJKtc-Light.otf");
+    public string English_Font = Path.Join("Assets","Fonts","RobotoMono-Light.ttf");
+    public string Additional_Font_1 = Path.Join("Assets","Fonts","NotoSansCJKtc-Light.otf");
+    public string Additional_Font_2 = "";
+    public string Additional_Font_3 = "";
+    public string Additional_Font_4 = "";
+    public string Additional_Font_5 = "";
 
     public string Interface_Selected_Theme = "";
 
-    public float Interface_Context_Menu_Width = 350f;
-    public float Interface_Context_Menu_List_Height_Multiplier = 1f;
-
-    public float Interace_Editor_Display_Inner_Height_Percent = 0.95f;
     #endregion
 
     #region Map Editor
@@ -190,8 +195,9 @@ public class CFG
     // Options
     public bool MapEditor_Model_Selector_Update_Name = true;
     public bool MapEditor_Model_Selector_Update_Instance_ID = true;
+    public bool MapEditor_Model_Selector_Update_NpcParams = true;
 
-    public EntityNameDisplayType MapEditor_MapContentList_EntryNameDisplayType = EntityNameDisplayType.Internal_FMG;
+    public MapObjectNameDisplayType MapEditor_MapObjectName_DisplayType = MapObjectNameDisplayType.Internal_Community_FMG;
 
     public int MapEditor_Selection_Position_IncrementType = 0;
     public float MapEditor_Selection_Position_Increment_0 { get; set; } = 0.05f;
@@ -234,6 +240,11 @@ public class CFG
     public bool WorldMapDisplayLargeTiles = false;
     public bool WorldMapLockMovement = false;
 
+    public bool WorldMapFilter_IncludeSmallTiles = true;
+    public bool WorldMapFilter_IncludeMediumTiles = true;
+    public bool WorldMapFilter_IncludeLargeTiles = true;
+    public bool WorldMapFilter_RestrictBySource = false;
+
     public bool QuickView_DisplayTooltip = false;
     public List<string> QuickView_TargetProperties = new List<string>() { "Name" };
 
@@ -255,7 +266,7 @@ public class CFG
 
     public bool MapEditor_ModelDataExtraction_IncludeFolder = true;
     public ResourceExtractionType MapEditor_ModelDataExtraction_Type = ResourceExtractionType.Loose;
-    public string MapEditor_ModelDataExtraction_DefaultOutputFolder = ".output";
+    public string MapEditor_ModelDataExtraction_DefaultOutputFolder = "";
 
     public bool MapEditor_LightAtlas_AutomaticAdd = true;
     public bool MapEditor_LightAtlas_AutomaticDelete = false;
@@ -401,28 +412,24 @@ public class CFG
     public bool Interface_MapEditor_ResourceList = true;
 
     // Tools
-    public bool Interface_MapEditor_Tool_Create = true;
-    public bool Interface_MapEditor_Tool_Duplicate = true;
-    public bool Interface_MapEditor_Tool_DuplicateToMap = true;
-    public bool Interface_MapEditor_Tool_PullToCamera = true;
-    public bool Interface_MapEditor_Tool_Rotate = true;
-    public bool Interface_MapEditor_Tool_Scramble = true;
-    public bool Interface_MapEditor_Tool_Replicate = true;
+    public bool Interface_MapEditor_Tool_Common_Action = true;
+    public bool Interface_MapEditor_Tool_Select_Action = true;
+    public bool Interface_MapEditor_Tool_Visbility_Action = true;
+    public bool Interface_MapEditor_Tool_Viewport = true;
+    public bool Interface_MapEditor_Tool_Data_Transfer = true;
+
     public bool Interface_MapEditor_Tool_Prefab = true;
     public bool Interface_MapEditor_Tool_SelectionGroups = true;
-    public bool Interface_MapEditor_Tool_MovementIncrements = true;
-    public bool Interface_MapEditor_Tool_RotationIncrements = true;
-    public bool Interface_MapEditor_Tool_LocalPropertySearch = true;
-    public bool Interface_MapEditor_Tool_GlobalPropertySearch = true;
+    public bool Interface_MapEditor_Tool_Search = true;
+
     public bool Interface_MapEditor_Tool_PropertyMassEdit = true;
     public bool Interface_MapEditor_Tool_TreasureMaker = false;
     public bool Interface_MapEditor_Tool_WorldMapLayoutGenerator = false;
     public bool Interface_MapEditor_Tool_GridConfiguration = true;
     public bool Interface_MapEditor_Tool_ModelSelector = true;
     public bool Interface_MapEditor_Tool_DisplayGroups = true;
-    public bool Interface_MapEditor_Tool_EntityIdentifier = true;
-    public bool Interface_MapEditor_Tool_MapValidator = true;
-    public bool Interface_MapEditor_Tool_MapModelInsight = true;
+    public bool Interface_MapEditor_Tool_Validation = true;
+    public bool Interface_MapEditor_Tool_AssetBrowser = true;
 
     // Saving
     public bool Project_Automatic_Save_Include_Map_Editor = true;
@@ -457,10 +464,6 @@ public class CFG
     /// Model Editor
     ///------------------------------------------------------------
     // General
-    public float ModelEditor_Display_SourceList_Percentage = 0.2f;
-    public float ModelEditor_Display_SelectionList_Percentage = 0.1f;
-    public float ModelEditor_Display_Contents_Percentage = 0.7f;
-
     public bool ModelEditor_Containers_IncludeAliasInSearch = true;
 
     public bool ModelEditor_Files_AutoLoadFirstEntry = true;
@@ -498,6 +501,8 @@ public class CFG
     public float DummyMeshSize = 0.05f;
     public float NodeMeshSize = 0.05f;
 
+    public bool ModelEditor_ModelSourceList_RequireDoubleClick = false;
+
     // Windows
     public bool Interface_ModelEditor_Viewport_Grid = true;
     public bool Interface_ModelEditor_ResourceList = true;
@@ -510,6 +515,8 @@ public class CFG
     public bool Interface_ModelEditor_Tool_ModelInsight = true;
     public bool Interface_ModelEditor_Tool_ModelInstanceFinder = true;
     public bool Interface_ModelEditor_Tool_ModelMaskToggler = true;
+    public bool Interface_ModelEditor_Tool_ResourceMonitor = true;
+    public bool Interface_ModelEditor_Tool_Data_Transfer = true;
 
     // Saving
     public bool ModelEditor_AutomaticSave_IncludeFLVER = true;
@@ -537,6 +544,7 @@ public class CFG
     // General
     public string ParamEditor_Annotation_Language = "English";
     public bool ParamEditor_Enable_Compact_Mode = false;
+    public bool ParamEditor_Enable_Table_Borders = true;
 
     public string ParamEditor_Import_Language = "English";
 
@@ -574,7 +582,6 @@ public class CFG
 
     // Table List
     public bool ParamEditor_Display_Table_List = true;
-    public ParamTableRowDisplayType ParamEditor_Table_List_Row_Name_Display_Type = ParamTableRowDisplayType.ID;
 
 
     // Row List
@@ -583,6 +590,7 @@ public class CFG
     public bool ParamEditor_Row_List_Enable_Row_Grouping = false;
     public bool ParamEditor_Row_List_Display_Decorators = true;
     public bool ParamEditor_Row_List_Display_Modified_Row_Bg = false;
+    public bool ParamEditor_Row_List_Row_FMG_Prefer_Base = true;
 
     // Field List
     public ParamFieldNameMode ParamEditor_FieldNameMode = ParamFieldNameMode.Source;
@@ -606,7 +614,7 @@ public class CFG
     public bool ParamEditor_Field_List_Enable_Field_Layouts = true;
     public bool ParamEditor_Field_List_Enable_Field_Layout_Category_Names = true;
     public bool ParamEditor_Field_List_Enable_Field_Layout_Chance_Hints = true;
-    public FieldLayoutMode ParamEditor_Field_List_Enable_Field_Layout_Type = FieldLayoutMode.Collapsible;
+    public FieldLayoutMode ParamEditor_Field_List_Field_Layout_Display_Type = FieldLayoutMode.Header;
     public FieldLayoutUnsortedPlacement ParamEditor_Field_List_Unsorted_Field_Placement = FieldLayoutUnsortedPlacement.Bottom;
 
     public ParamTooltipMode ParamEditor_Field_List_Tooltip_Mode = ParamTooltipMode.OnFieldName;
@@ -635,8 +643,6 @@ public class CFG
     public bool ParamEditor_Row_Context_Display_Proliferate_Name = true;
     public bool ParamEditor_Row_Context_Display_Inherit_Name = true;
     public bool ParamEditor_Row_Context_Display_Row_Name_Tools = true;
-    public bool ParamEditor_Row_Context_Display_Finder_Quick_Option = false;
-    public bool ParamEditor_Row_Context_Display_Advanced_Options = true;
 
     public bool ParamEditor_Field_Context_Split = false;
     public bool ParamEditor_Field_Context_Display_Field_Name = false;
@@ -684,6 +690,7 @@ public class CFG
 
     public bool ParamEditor_DeltaPatcher_Import_Restrict_Row_Modify = false;
     public bool ParamEditor_DeltaPatcher_Import_Restrict_Row_Add = false;
+    public bool ParamEditor_DeltaPatcher_Import_Allow_Row_Overwrite = false;
 
     public bool ParamEditor_DeltaPatcher_Export_Selected_Rows_Only = false;
     public bool ParamEditor_DeltaPatcher_Export_Ignore_Indexed_Rows = true;
@@ -693,6 +700,10 @@ public class CFG
     public bool Interface_ParamEditor_ToolWindow = true;
 
     // Tools
+    public bool ParamEditor_Show_Tool_Sort_Rows = true;
+    public bool ParamEditor_Show_Tool_Row_Names = true;
+    public bool ParamEditor_Show_Tool_Data_Converter = true;
+    public bool ParamEditor_Show_Tool_Data_Comparison = true;
     public bool ParamEditor_Show_Tool_Mass_Edit = true;
     public bool ParamEditor_Show_Tool_Data_Finders = true;
     public bool ParamEditor_Show_Tool_Param_List_Categories = true;
@@ -759,9 +770,6 @@ public class CFG
 
     public bool TextEditor_Include_Vanilla_Cache = true;
 
-    public float TextEditor_Display_ContainerList_Percentage = 0.4f;
-    public float TextEditor_Display_FileList_Percentage = 0.6f;
-
     public bool TextEditor_Container_List_Hide_Unused_Containers = true;
     public bool TextEditor_Container_List_Display_Obsolete_Containers = false;
     public bool TextEditor_Container_List_Display_Primary_Category_Only = false;
@@ -783,11 +791,11 @@ public class CFG
 
     public int TextEditor_CreationModal_CreationCount = 1;
     public int TextEditor_CreationModal_IncrementCount = 1;
-    public bool TextEditor_CreationModal_UseIncrementalTitling = false;
+    public bool TextEditor_CreationModal_UseIncrementalNaming = false;
     public string TextEditor_CreationModal_IncrementalTitling_Prefix = "+";
     public string TextEditor_CreationModal_IncrementalTitling_Postfix = "";
 
-    public bool TextEditor_CreationModal_UseIncrementalNaming = false;
+    public bool TextEditor_CreationModal_UseTemplateNaming = false;
     public string TextEditor_CreationModal_IncrementalNaming_Template = "";
 
     public bool TextEditor_Text_Entry_List_Ignore_ID_Check = false;
@@ -816,6 +824,9 @@ public class CFG
     public bool Interface_TextEditor_ToolWindow = true;
 
     // Tools
+    public bool Interface_TextEditor_Tool_EntryCreator = true;
+    public bool Interface_TextEditor_Tool_DataTransfer = true;
+    public bool Interface_TextEditor_Tool_LanguageSync = true;
     public bool Interface_TextEditor_Tool_TextSearch = true;
     public bool Interface_TextEditor_Tool_TextReplacement = true;
     public bool Interface_TextEditor_Tool_TextMerge = true;
@@ -834,14 +845,21 @@ public class CFG
     ///------------------------------------------------------------
     public string GparamEditor_Annotation_Language = "English";
 
+    public bool GparamEditor_File_List_Display_BB_BND_Files = true;
     public bool GparamEditor_File_List_Display_Aliases = true;
+
+    public bool GparamEditor_Group_List_Display_Descriptions = true;
     public bool GparamEditor_Group_List_Display_Empty_Group = true;
+
+    public bool GparamEditor_Field_List_Display_Descriptions = true;
 
     public bool GparamEditor_Value_List_Display_Color_Edit_V4 = true;
     public bool GparamEditor_Value_List_Display_Time_Of_Day_Column = true;
     public bool GparamEditor_Value_List_Display_Information_Column = true;
 
     public ColorEditDisplayMode GparamEditor_Color_Edit_Mode = ColorEditDisplayMode.RGB;
+
+    public bool GparamEditor_Data_Import_Overwrite = false;
 
     // Windows
     public bool Interface_GparamEditor_FileList = true;
@@ -851,7 +869,9 @@ public class CFG
 
     // Tools
     public bool Interface_GparamEditor_ToolWindow = true;
+    public bool Interface_GparamEditor_Tool_DataTransfer = true;
     public bool Interface_GparamEditor_Tool_QuickEdit = true;
+    public bool Interface_GparamEditor_Tool_Finder = true;
 
     // Saving
     public bool Project_Automatic_Save_Include_Gparam_Editor = false;
@@ -866,10 +886,6 @@ public class CFG
     /// Texture Viewer
     ///------------------------------------------------------------
     // General
-    public float TextureViewer_Display_ContainerList_Percentage = 0.2f;
-    public float TextureViewer_Display_InternalFileList_Percentage = 0.1f;
-    public float TextureViewer_Display_FileList_Percentage = 0.6f;
-
     public bool TextureViewer_File_List_Display_Low_Detail_Entries = true;
 
     public bool TextureViewer_File_List_Display_Character_Aliases = true;
@@ -881,7 +897,7 @@ public class CFG
     public string TextureViewerToolbar_ExportTextureLocation = "";
     public bool TextureViewerToolbar_ExportTexture_IncludeFolder = true;
     public bool TextureViewerToolbar_ExportTexture_DisplayConfirm = true;
-    public int TextureViewerToolbar_ExportTextureType = 0;
+    public TextureExportType TextureViewerToolbar_ExportTextureType = TextureExportType.DDS;
 
     // Windows
     public bool Interface_TextureViewer_ToolWindow = true;
@@ -897,15 +913,15 @@ public class CFG
     /// Material Editor
     ///------------------------------------------------------------
     // General
-    public bool MaterialEditor_Properties_Display_Community_Names = false;
+    public bool MaterialEditor_FileList_DisplayFullPath = false;
 
-    public float MaterialEditor_Display_ContainerList_Percentage = 0.2f;
-    public float MaterialEditor_Display_FileList_Percentage = 0.8f;
+    public bool MaterialEditor_Properties_Display_Community_Names = false;
 
     // Windows
     public bool Interface_MaterialEditor_ToolWindow = true;
 
     // Tools
+    public bool MaterialEditor_Tool_Data_Transfer = true;
 
     // Saving
     public bool Project_Automatic_Save_Include_Material_Editor = false;
@@ -927,7 +943,32 @@ public class CFG
     public bool Interface_FileBrowser_ToolView = true;
 
     public bool Interface_FileBrowser_Tool_GameUnpacker = true;
+    public bool Interface_FileBrowser_Tool_FileExtract = true;
 
+    public string UnpackDirectory = "";
+    public string ExtractDirectory = "";
+
+    #endregion
+
+
+    #region Map Data Editor
+    ///------------------------------------------------------------
+    /// Map Data Editor
+    ///------------------------------------------------------------
+    // General
+    public bool MapDataEditor_SaveSelectedOnly = true;
+    public bool MapDataEditor_CacheLoadedMaps = false;
+
+    public bool MapDataEditor_CategoryView_Display_Empty_Base_Categories = true;
+    public bool MapDataEditor_CategoryView_Display_Empty_Sub_Categories = true;
+
+    // Windows
+    public bool Interface_MapDataEditor_ToolWindow = true;
+
+    // Tools
+
+    // Saving
+    public bool Project_Automatic_Save_Include_Map_Data_Editor = false;
     #endregion
 
     #region Viewport
@@ -1029,7 +1070,7 @@ public class CFG
     public float Viewport_Point_Light_Alpha = 75.0f;
 
     public Vector3 Viewport_Spot_Light_Base_Color = Utils.GetDecimalColor(Color.Goldenrod);
-    public Vector3 Viewport_Splot_Light_Highlight_Color = Utils.GetDecimalColor(Color.Violet);
+    public Vector3 Viewport_Spot_Light_Highlight_Color = Utils.GetDecimalColor(Color.Violet);
     public float Viewport_Spot_Light_Alpha = 75.0f;
 
     public Vector3 Viewport_Directional_Light_Base_Color = Utils.GetDecimalColor(Color.Cyan);
@@ -1064,10 +1105,12 @@ public class CFG
     public Vector3 Viewport_Selection_Tint_Color = new(1.0f, 0.5f, 0.0f);
     public Vector3 Viewport_Untextured_Selection_Tint_Color = new(0.85f, 0.0f, 1.0f);
     public float Viewport_Selection_Tint_Strength = 1.0f;
+    public bool Viewport_Enable_Selection_Dithering = true;
+    public float Viewport_Selection_Dither_Opacity = 0.9f;
 
     public bool Viewport_DisplayControls = true;
     public bool Viewport_DisplayRotationIncrement = true;
-    public bool Viewport_DisplayPositionIncrement = true;
+    public bool Viewport_DisplayTranslationIncrement = true;
 
     public bool Viewport_Enable_Box_Selection = true;
     public bool Viewport_Enable_Box_Selection_MapPiece = true;
@@ -1294,12 +1337,12 @@ public class CFG
 
                 if (Current == null)
                 {
-                    throw new Exception("JsonConvert returned null");
+                    throw new Exception($"{LOC.Get("SYS_CFG_Failed_To_Deserialize", file)}");
                 }
             }
             catch (Exception e)
             {
-                Smithbox.Log<CFG>("Configuration failed to load, default configuration has been restored.", LogLevel.Error, LogPriority.High, e);
+                Smithbox.LogError<CFG>($"{LOC.Get("SYS_CFG_Failed_To_Read", file)}", e);
 
                 Current = new CFG();
                 Save();

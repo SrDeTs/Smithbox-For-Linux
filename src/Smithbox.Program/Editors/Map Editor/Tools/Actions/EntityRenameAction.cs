@@ -102,7 +102,7 @@ public class EntityRenameAction
 
             ImGui.EndMenu();
         }
-        UIHelper.Tooltip("Applies descriptive name for map objects from developer name list.");
+        GUI.Tooltip("Applies descriptive name for map objects from developer name list.");
     }
 
     /// <summary>
@@ -146,7 +146,7 @@ public class EntityRenameAction
                         newName = name.JapaneseName;
                     }
 
-                    actionList.Add(new RenameObjectsAction(
+                    actionList.Add(new EntRenameAction(
                         new List<MsbEntity> { ent as MsbEntity },
                         new List<string> { $"{ent.Name} -- {newName}" },
                         true
@@ -172,7 +172,7 @@ public class EntityRenameAction
                         newName = name.JapaneseName;
                     }
 
-                    actionList.Add(new RenameObjectsAction(
+                    actionList.Add(new EntRenameAction(
                         new List<MsbEntity> { ent as MsbEntity },
                         new List<string> { $"{ent.Name} -- {newName}" },
                         true
@@ -198,7 +198,7 @@ public class EntityRenameAction
                         newName = name.JapaneseName;
                     }
 
-                    actionList.Add(new RenameObjectsAction(
+                    actionList.Add(new EntRenameAction(
                         new List<MsbEntity> { ent as MsbEntity },
                         new List<string> { $"{ent.Name} -- {newName}" },
                         true

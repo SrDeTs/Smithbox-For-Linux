@@ -2,6 +2,7 @@
 using StudioCore.Application;
 using StudioCore.Editors.Common;
 using StudioCore.Keybinds;
+using static HKLib.hk2018.hkSerialize.CompatTypeParentInfo;
 
 namespace StudioCore.Editors.TextEditor;
 
@@ -64,35 +65,38 @@ public class TextShortcuts
                 }
             }
 
-            // Create
-            if (InputManager.IsPressed(KeybindID.TextEditor_Create_New_Entry))
+            if (FocusManager.IsFocus(EditorFocusContext.TextEditor_EntryList))
             {
-                activeView.NewEntryModal.ShowModal = true;
-            }
+                // Create
+                if (InputManager.IsPressed(KeybindID.TextEditor_Create_New_Entry))
+                {
+                    activeView.TextEntryCreator.ShowModal = true;
+                }
 
-            // TODO: remove this if we add Copy/Paste functionality
-            // Configurable Duplicate
-            if (InputManager.IsPressed(KeybindID.TextEditor_Configurable_Duplicate))
-            {
-                ImGui.OpenPopup("textDuplicatePopup");
-            }
+                // TODO: remove this if we add Copy/Paste functionality
+                // Configurable Duplicate
+                if (InputManager.IsPressed(KeybindID.TextEditor_Configurable_Duplicate))
+                {
+                    ImGui.OpenPopup("textDuplicatePopup");
+                }
 
-            // Standard Duplicate
-            if (InputManager.IsPressed(KeybindID.Duplicate))
-            {
-                activeView.ActionHandler.DuplicateEntries();
-            }
+                // Standard Duplicate
+                if (InputManager.IsPressed(KeybindID.Duplicate))
+                {
+                    activeView.ActionHandler.DuplicateEntries();
+                }
 
-            // Delete
-            if (InputManager.IsPressed(KeybindID.Delete))
-            {
-                activeView.ActionHandler.DeleteEntries();
-            }
+                // Delete
+                if (InputManager.IsPressed(KeybindID.Delete))
+                {
+                    activeView.ActionHandler.DeleteEntries();
+                }
 
-            // Focus Selected Entry
-            if (InputManager.IsPressed(KeybindID.Jump))
-            {
-                activeView.Selection.FocusFmgEntrySelection = true;
+                // Focus Selected Entry
+                if (InputManager.IsPressed(KeybindID.Jump))
+                {
+                    activeView.Selection.FocusFmgEntrySelection = true;
+                }
             }
         }
     }
@@ -126,7 +130,19 @@ public class TextShortcuts
                         {
                             var tEntry = fmg.Entries[j];
 
-                            if (activeView.Filters.IsFmgEntryFilterMatch(tEntry))
+                            var input = activeView.TextEntryList.EntryListFilter;
+                            var exactMatch = activeView.TextEntryList.ExactEntryListFilter;
+
+                            var isMatch = EditorFilters.IsMatch(
+                                input, tEntry.ID.ToString(), exactMatch, tEntry.Text);
+
+                            // Ignore normal match if a special conditional commands has been used
+                            if (activeView.TextEntryList.UsedMatchCommands(input))
+                            {
+                                isMatch = activeView.TextEntryList.HandleMatchCommands(input, tEntry);
+                            }
+
+                            if (isMatch)
                             {
                                 multiselect.StoredEntries.Add(j, tEntry);
                             }

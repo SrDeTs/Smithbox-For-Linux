@@ -33,17 +33,19 @@ public class ModelEditorView
     public ModelUniverse Universe;
 
     public ModelViewportWindow ViewportWindow;
-    public ModelSourceList SourceList;
-    public ModelSelectionList SelectionList;
+    public ModelContainerList SourceList;
+    public ModelFileList FileList;
     public ModelContents Contents;
     public ModelProperties Properties;
+    public ModelToolWindow ToolView;
 
     // Tools
     public ModelGridConfiguration ModelGridTool;
-    public ModelInsightView ModelInsightMenu;
+    //public ModelInsightView ModelInsightMenu;
     public ModelInstanceFinder ModelInstanceFinder;
     public ModelMaskToggler ModelMaskToggler;
     public ModelInsightHelper ModelInsightHelper;
+    public ResourceListTool ResourceListTool;
 
     // Actions
     public CreateAction CreateAction;
@@ -53,7 +55,6 @@ public class ModelEditorView
     public GotoAction GotoAction;
     public PullToCameraAction PullToCameraAction;
     public ReorderAction ReorderAction;
-
 
     public ModelEditorView(ModelEditorScreen editor, ProjectEntry project, int imguiId)
     {
@@ -73,15 +74,17 @@ public class ModelEditorView
         ViewportFilters = new(this, project);
 
         SourceList = new(this, project);
-        SelectionList = new(this, project);
+        FileList = new(this, project);
         Contents = new(this, project);
         Properties = new(this, project);
+        ToolView = new(this, project);
 
         // Tools
         ModelGridTool = new ModelGridConfiguration(this, Project);
-        ModelInsightMenu = new ModelInsightView(this, Project);
+        //ModelInsightMenu = new ModelInsightView(this, Project);
         ModelInstanceFinder = new ModelInstanceFinder(this, Project);
         ModelMaskToggler = new ModelMaskToggler(this, Project);
+        ResourceListTool = new ResourceListTool();
 
         // Actions
         CreateAction = new CreateAction(this, Project);
@@ -95,17 +98,17 @@ public class ModelEditorView
         ModelInsightHelper = new ModelInsightHelper(this, Project);
     }
 
-    public void Display(bool doFocus, bool isActiveView)
+    public void Display(uint dockspaceId, int viewIndex, bool doFocus, bool isActiveView)
     {
-        DisplayMenubar();
-
+        // Source List
         if (!CFG.Current.Interface_ModelEditor_ScreenshotMode)
         {
-            // FLVER
-            if (ImGui.Begin($@"FLVER##ModelFlverWindow{ViewIndex}", UIHelper.GetInnerWindowFlags()))
+            ImGui.SetNextWindowDockID(dockspaceId, ImGuiCond.FirstUseEver);
+            ImGui.SetNextWindowClass(ref GUI.DockGroup_ModelEditorView);
+            if (ImGui.Begin($@"Source List##modelEditor_SourceList_{viewIndex}", GUI.GetInnerWindowFlags()))
             {
-                float width = ImGui.GetContentRegionAvail().X;
-                float height = ImGui.GetContentRegionAvail().Y * CFG.Current.Interace_Editor_Display_Inner_Height_Percent;
+                var width = ImGui.GetContentRegionAvail().X;
+                var height = ImGui.GetContentRegionAvail().Y;
 
                 if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
                 {
@@ -113,25 +116,86 @@ public class ModelEditorView
                     Editor.ViewHandler.ActiveView = this;
                 }
 
-                SourceList.Display(width, height * CFG.Current.ModelEditor_Display_SourceList_Percentage);
-                SelectionList.Display(width, height * CFG.Current.ModelEditor_Display_SelectionList_Percentage);
-                Contents.Display(width, height * CFG.Current.ModelEditor_Display_Contents_Percentage);
+                SourceList.Display(width, height);
             }
 
             ImGui.End();
-        }
 
-        // Viewport
-        ViewportWindow.Display();
-
-        if (!CFG.Current.Interface_ModelEditor_ScreenshotMode)
-        {
-            // Properties
-            if (ImGui.Begin($@"Properties##ModelPropertiesWindow{ViewIndex}", UIHelper.GetInnerWindowFlags()))
+            // File List
+            ImGui.SetNextWindowDockID(dockspaceId, ImGuiCond.FirstUseEver);
+            ImGui.SetNextWindowClass(ref GUI.DockGroup_ModelEditorView);
+            if (ImGui.Begin($@"File List##modelEditor_FileList_{viewIndex}", GUI.GetInnerWindowFlags()))
             {
+                var width = ImGui.GetContentRegionAvail().X;
+                var height = ImGui.GetContentRegionAvail().Y;
+
                 if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
                 {
                     FocusManager.SetFocus(EditorFocusContext.ModelEditor_FileList);
+                    Editor.ViewHandler.ActiveView = this;
+                }
+
+                FileList.Display(width, height);
+            }
+
+            ImGui.End();
+
+            // Contents
+            ImGui.SetNextWindowDockID(dockspaceId, ImGuiCond.FirstUseEver);
+            ImGui.SetNextWindowClass(ref GUI.DockGroup_ModelEditorView);
+            if (ImGui.Begin($@"Contents##modelEditor_Contents_{viewIndex}", GUI.GetInnerWindowFlags()))
+            {
+                var width = ImGui.GetContentRegionAvail().X;
+                var height = ImGui.GetContentRegionAvail().Y;
+
+                if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
+                {
+                    FocusManager.SetFocus(EditorFocusContext.ModelEditor_FileList);
+                    Editor.ViewHandler.ActiveView = this;
+                }
+
+                Contents.Display(width, height);
+            }
+
+            ImGui.End();
+
+            // Tools
+            ImGui.SetNextWindowDockID(dockspaceId, ImGuiCond.FirstUseEver);
+            ImGui.SetNextWindowClass(ref GUI.DockGroup_ModelEditorView);
+            if (ImGui.Begin($@"Tools##modelEditor_ToolWindow_{viewIndex}", GUI.GetMainWindowFlags()))
+            {
+                var width = ImGui.GetContentRegionAvail().X;
+                var height = ImGui.GetContentRegionAvail().Y;
+
+                if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
+                {
+                    FocusManager.SetFocus(EditorFocusContext.ModelEditor_Tools);
+                    Editor.ViewHandler.ActiveView = this;
+                }
+
+                ToolView.Display();
+            }
+
+            ImGui.End();
+
+        }
+
+        // Viewport
+        ViewportWindow.Display(dockspaceId);
+
+        // Properties
+        if (!CFG.Current.Interface_ModelEditor_ScreenshotMode)
+        {
+            ImGui.SetNextWindowDockID(dockspaceId, ImGuiCond.FirstUseEver);
+            ImGui.SetNextWindowClass(ref GUI.DockGroup_ModelEditorView);
+            if (ImGui.Begin($@"Properties##modelEditor_Properties_{viewIndex}", GUI.GetInnerWindowFlags()))
+            {
+                var width = ImGui.GetContentRegionAvail().X;
+                var height = ImGui.GetContentRegionAvail().Y;
+
+                if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
+                {
+                    FocusManager.SetFocus(EditorFocusContext.ModelEditor_Properties);
                     Editor.ViewHandler.ActiveView = this;
                 }
 
@@ -141,96 +205,6 @@ public class ModelEditorView
             ImGui.End();
         }
 
-
         ViewportSelection.ClearGotoTarget();
-    }
-    public void DisplayMenubar()
-    {
-        if (ImGui.BeginMenuBar())
-        {
-            if (ImGui.BeginMenu("Options"))
-            {
-                if (ImGui.BeginMenu("Containers"))
-                {
-                    if (ImGui.MenuItem("Include Alias in Search"))
-                    {
-                        CFG.Current.ModelEditor_Containers_IncludeAliasInSearch = !CFG.Current.ModelEditor_Containers_IncludeAliasInSearch;
-                    }
-                    UIHelper.Tooltip($"If enabled, when filtering the source list, alias will be included. Can be slower than normal.");
-                    UIHelper.ShowActiveStatus(CFG.Current.ModelEditor_Containers_IncludeAliasInSearch);
-
-                    ImGui.EndMenu();
-                }
-
-                if (ImGui.BeginMenu("Files"))
-                {
-                    if (ImGui.MenuItem("Auto-Select First Entries"))
-                    {
-                        CFG.Current.ModelEditor_Files_AutoLoadFirstEntry = !CFG.Current.ModelEditor_Files_AutoLoadFirstEntry;
-                    }
-                    UIHelper.Tooltip($"If enabled, the first entry in the list will be loaded automatically.");
-                    UIHelper.ShowActiveStatus(CFG.Current.ModelEditor_Files_AutoLoadFirstEntry);
-
-                    ImGui.EndMenu();
-                }
-
-                if (ImGui.BeginMenu("Contents"))
-                {
-                    if (ImGui.MenuItem("Display Node Name in Mesh Entry"))
-                    {
-                        CFG.Current.ModelEditor_Contents_NodeNameInMeshEntry = !CFG.Current.ModelEditor_Contents_NodeNameInMeshEntry;
-                    }
-                    UIHelper.Tooltip($"If enabled, the linked node name is displayed in the mesh entry name.");
-                    UIHelper.ShowActiveStatus(CFG.Current.ModelEditor_Contents_NodeNameInMeshEntry);
-
-                    ImGui.EndMenu();
-                }
-
-                if (ImGui.BeginMenu("Display"))
-                {
-                    ImGui.SliderFloat("Containers##containersDisplayPercentage", ref CFG.Current.ModelEditor_Display_SourceList_Percentage, 0.01f, 0.99f);
-                    if (ImGui.IsItemDeactivatedAfterEdit())
-                    {
-                        var remainder = 1f - CFG.Current.ModelEditor_Display_SourceList_Percentage;
-
-                        StudioMath.Redistribute(
-                            ref CFG.Current.ModelEditor_Display_SelectionList_Percentage,
-                            ref CFG.Current.ModelEditor_Display_Contents_Percentage,
-                            remainder);
-                    }
-                    UIHelper.Tooltip("The percentage of the window the Containers section occupies.");
-
-                    ImGui.SliderFloat("Files##filesDisplayPercentage", ref CFG.Current.ModelEditor_Display_SelectionList_Percentage, 0.01f, 0.99f);
-                    if (ImGui.IsItemDeactivatedAfterEdit())
-                    {
-                        var remainder = 1f - CFG.Current.ModelEditor_Display_SelectionList_Percentage;
-
-                        StudioMath.Redistribute(
-                            ref CFG.Current.ModelEditor_Display_SourceList_Percentage,
-                            ref CFG.Current.ModelEditor_Display_Contents_Percentage,
-                            remainder);
-                    }
-                    UIHelper.Tooltip("The percentage of the window the Files section occupies.");
-
-                    ImGui.SliderFloat("Contents##contentsDisplayPercentage", ref CFG.Current.ModelEditor_Display_Contents_Percentage, 0.01f, 0.99f);
-                    if (ImGui.IsItemDeactivatedAfterEdit())
-                    {
-                        var remainder = 1f - CFG.Current.ModelEditor_Display_Contents_Percentage;
-
-                        StudioMath.Redistribute(
-                            ref CFG.Current.ModelEditor_Display_SourceList_Percentage,
-                            ref CFG.Current.ModelEditor_Display_SelectionList_Percentage,
-                            remainder);
-                    }
-                    UIHelper.Tooltip("The percentage of the window the Contents section occupies.");
-
-                    ImGui.EndMenu();
-                }
-
-                ImGui.EndMenu();
-            }
-
-            ImGui.EndMenuBar();
-        }
     }
 }

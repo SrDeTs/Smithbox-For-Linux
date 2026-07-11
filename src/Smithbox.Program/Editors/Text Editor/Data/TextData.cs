@@ -19,7 +19,9 @@ public class TextData : IDisposable
 
     public FileDictionary FmgFiles = new();
 
-    public FmgDescriptors FmgDescriptors;
+    public FmgDescriptors FmgDescriptors = new();
+
+    public IncrementalTemplates Templates = new();
 
     public TextData(ProjectEntry project)
     {
@@ -39,11 +41,24 @@ public class TextData : IDisposable
 
         if (!descriptorTaskResult)
         {
-            Smithbox.LogError(this, $"[Text Editor] Failed to setup the FMG Descriptor data.");
+            Smithbox.LogError(this, LOC.Get("TEXT_Data_FMG_Descriptor_Setup_PASS"));
         }
         else
         {
-            Smithbox.Log(this, $"[Text Editor] Setup the FMG Descriptor data.");
+            Smithbox.Log(this, LOC.Get("TEXT_Data_FMG_Descriptor_Setup_FAIL"));
+        }
+
+        // Templates
+        Task<bool> templatesTask = SetupIncrementalTemplates();
+        bool templatesTaskResult = await templatesTask;
+
+        if (!templatesTaskResult)
+        {
+            Smithbox.LogError(this, LOC.Get("TEXT_Data_Incremental_Templates_Setup_FAIL"));
+        }
+        else
+        {
+            Smithbox.Log(this, LOC.Get("TEXT_Data_Incremental_Templates_Setup_PASS"));
         }
 
         // Primary Bank
@@ -52,11 +67,11 @@ public class TextData : IDisposable
 
         if (!primaryBankTaskResult)
         {
-            Smithbox.LogError(this, $"[Text Editor] Failed to setup the Primary Bank.");
+            Smithbox.LogError(this, LOC.Get("TEXT_Data_Primary_Bank_Setup_FAIL"));
         }
         else
         {
-            Smithbox.Log(this, $"[Text Editor] Setup the Primary Bank.");
+            Smithbox.Log(this, LOC.Get("TEXT_Data_Primary_Bank_Setup_PASS"));
         }
 
         // Vanilla Bank
@@ -65,11 +80,11 @@ public class TextData : IDisposable
 
         if (!vanillaBankTaskResult)
         {
-            Smithbox.LogError(this, $"[Text Editor] Failed to setup Vanilla Bank.");
+            Smithbox.LogError(this, LOC.Get("TEXT_Data_Vanilla_Bank_Setup_FAIL"));
         }
         else
         {
-            Smithbox.Log(this, $"[Text Editor] Setup the Vanilla Bank.");
+            Smithbox.Log(this, LOC.Get("TEXT_Data_Vanilla_Bank_Setup_PASS"));
         }
 
         return true;
@@ -87,7 +102,7 @@ public class TextData : IDisposable
 
         if (!auxBankTaskResult)
         {
-            Smithbox.LogError(this, $"[Text Editor] Failed to setup the Aux FMG Bank.");
+            Smithbox.LogError(this, LOC.Get("TEXT_Data_Vanilla_Bank_Setup_FAIL", targetProject.Descriptor.ProjectName));
         }
 
         if (AuxBanks.ContainsKey(targetProject.Descriptor.ProjectName))
@@ -99,10 +114,47 @@ public class TextData : IDisposable
             AuxBanks.Add(targetProject.Descriptor.ProjectName, newAuxBank);
         }
 
-        Smithbox.Log(this, $"[Text Editor] Setup the Aux FMG Bank.");
+        Smithbox.Log(this, LOC.Get("TEXT_Data_Aux_Bank_Setup_PASS", targetProject.Descriptor.ProjectName));
 
         return true;
     }
+
+    #region Incremental Templates
+    public async Task<bool> SetupIncrementalTemplates()
+    {
+        await Task.Yield();
+
+        Templates = new();
+
+        var folder = @$"{AppContext.BaseDirectory}/Assets/FMG/Templates";
+
+        foreach(var file in Directory.EnumerateFiles(folder))
+        {
+            try
+            {
+                var newTemplate = new IncrementalTemplateEntry();
+                var filestring = await File.ReadAllTextAsync(file);
+
+                try
+                {
+                    newTemplate = JsonSerializer.Deserialize(filestring, TextEditorJsonSerializerContext.Default.IncrementalTemplateEntry);
+
+                    Templates.Add(newTemplate);
+                }
+                catch (Exception e)
+                {
+                    Smithbox.LogError(this, LOC.Get("TEXT_Data_Deserialize_Incremental_Template_FAIL", file), e);
+                }
+            }
+            catch (Exception e)
+            {
+                Smithbox.LogError(this, LOC.Get("TEXT_Data_Read_Incremental_Template_FAIL", file), e);
+            }
+        }
+
+        return true;
+    }
+    #endregion
 
     #region FMG Descriptors
 
@@ -127,12 +179,12 @@ public class TextData : IDisposable
                 }
                 catch (Exception e)
                 {
-                    Smithbox.LogError(this, $"Failed to deserialize FMG descriptor registry: {file}", e);
+                    Smithbox.LogError(this, LOC.Get("TEXT_Data_Deserialize_FMG_Descriptors_FAIL", file), e);
                 }
             }
             catch (Exception e)
             {
-                Smithbox.LogError(this, $"Failed to read FMG descriptor registry: {file}", e);
+                Smithbox.LogError(this, LOC.Get("TEXT_Data_Read_FMG_Descriptors_FAIL", file), e);
             }
         }
 

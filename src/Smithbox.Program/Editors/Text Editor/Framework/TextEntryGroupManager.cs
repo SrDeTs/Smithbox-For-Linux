@@ -122,6 +122,12 @@ public class TextEntryGroupManager
 
     public FmgEntryGroup GetEntryGroup(FMG.Entry entry)
     {
+        if (Parent.Selection.SelectedContainerWrapper == null)
+            return null;
+
+        if (Parent.Selection.SelectedFmgWrapper == null)
+            return null;
+
         return new FmgEntryGroup(this,
             Parent.Selection.SelectedContainerWrapper,
             Parent.Selection.SelectedFmgWrapper, entry);
@@ -939,11 +945,12 @@ public class FmgEntryGroup
         {
             if (fmg.ID == targetBndId)
             {
-                foreach (var entry in fmg.File.Entries)
-                {
-                    if (entry.ID == baseEntry.ID)
+                for(var i = 0; i < fmg.File.Entries.Count; i++)
+                { 
+                    var curEntry = fmg.File.Entries[i];
+                    if (curEntry.ID == baseEntry.ID)
                     {
-                        return entry;
+                        return curEntry;
                     }
                 }
             }

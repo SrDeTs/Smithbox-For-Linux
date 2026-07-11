@@ -96,6 +96,12 @@ public class HavokCollisionBank
                 }
             }
 
+            if (CompendiumBytes != null)
+            {
+                using MemoryStream memoryStream = new MemoryStream(CompendiumBytes);
+                serializer.LoadCompendium(memoryStream);
+            }
+
             foreach (var file in packedBinder.Files)
             {
                 var parts = file.Name.Split('\\');
@@ -112,12 +118,6 @@ public class HavokCollisionBank
 
                 try
                 {
-                    if (CompendiumBytes != null)
-                    {
-                        using MemoryStream memoryStream = new MemoryStream(CompendiumBytes);
-                        serializer.LoadCompendium(memoryStream);
-                    }
-
                     using (MemoryStream memoryStream = new MemoryStream(FileBytes))
                     {
                         hkRootLevelContainer fileHkx;
@@ -162,18 +162,13 @@ public class HavokCollisionBank
                 {
                     if(EntityHelper.IsPartCollision(ent) || EntityHelper.IsPartConnectCollision(ent))
                     {
-                        ent.ForceModelRefresh = true;
+                        if (ent is MsbEntity msbEnt)
+                        {
+                            msbEnt.AssignDrawable();
+                        }
                         ent.UpdateRenderModel();
                     }
                 }
-
-                // HACK: this fixes the weird ghost state between the viewport and content list
-                CloneMapObjectsAction action = new(
-                    View,
-                    new List<MsbEntity>() { (MsbEntity)entry.Value.MapContainer.RootObject }, false,
-                    null, null, true);
-
-                View.ViewportActionManager.ExecuteAction(action);
             }
         }
     }

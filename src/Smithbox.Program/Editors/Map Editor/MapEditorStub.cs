@@ -16,7 +16,7 @@ public class MapEditorStub : IEditorStub
         Project = project;
     }
 
-    public string EditorName = "Map Editor";
+    public string EditorName = "Visual Map Editor";
 
     public string CommandEndpoint = "map";
 
@@ -45,6 +45,7 @@ public class MapEditorStub : IEditorStub
 
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0.0f, 0.0f));
 
+        ImGui.SetNextWindowClass(ref GUI.DockGroup_EditorView);
         if (ImGui.Begin(EditorName, ImGuiWindowFlags.MenuBar))
         {
             ImGui.PopStyleColor(1);

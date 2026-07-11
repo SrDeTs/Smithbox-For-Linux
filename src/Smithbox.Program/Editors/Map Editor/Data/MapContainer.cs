@@ -86,7 +86,7 @@ public class MapContainer : ObjectContainer
 
         var t = new MapTransformNode(mapid);
         RootObject = new MsbEntity(View.Universe, this, t, MsbEntityType.MapRoot);
-        MapOffsetNode = new MsbEntity(View.Universe, this, new MapTransformNode(mapid));
+        MapOffsetNode = new MsbEntity(View.Universe, this, new MapTransformNode(mapid), MsbEntityType.Editor);
 
         RootObject.AddChild(MapOffsetNode);
     }
@@ -116,6 +116,7 @@ public class MapContainer : ObjectContainer
         {
             if (obj != null)
             {
+                MeshProviderCache.InvalidateUidEntries(obj.EntityCacheUID);
                 obj.Dispose();
             }
         }
@@ -534,10 +535,13 @@ public class MapContainer : ObjectContainer
 
     private void AddModelDeS(IMsb m, MSBD.Model model, string name)
     {
-        if (LoadedModels[name] != null)
+        if (LoadedModels.TryGetValue(name, out var existing))
         {
-            m.Models.Add(LoadedModels[name]);
-            return;
+            if (existing != null)
+            {
+                m.Models.Add(existing);
+                return;
+            }
         }
 
         model.Name = name;
@@ -567,10 +571,13 @@ public class MapContainer : ObjectContainer
 
     private void AddModelDS1(IMsb m, MSB1.Model model, string name)
     {
-        if (LoadedModels[name] != null)
+        if (LoadedModels.TryGetValue(name, out var existing))
         {
-            m.Models.Add(LoadedModels[name]);
-            return;
+            if (existing != null)
+            {
+                m.Models.Add(existing);
+                return;
+            }
         }
 
         model.Name = name;
@@ -600,7 +607,7 @@ public class MapContainer : ObjectContainer
 
     private void AddModelDS2(IMsb m, MSB2.Model model, string name)
     {
-        if (LoadedModels[name] != null)
+        if (LoadedModels.TryGetValue(name, out var existing))
         {
             m.Models.Add(LoadedModels[name]);
             return;
@@ -612,10 +619,13 @@ public class MapContainer : ObjectContainer
 
     private void AddModelBB(IMsb m, MSBB.Model model, string name)
     {
-        if (LoadedModels[name] != null)
+        if (LoadedModels.TryGetValue(name, out var existing))
         {
-            m.Models.Add(LoadedModels[name]);
-            return;
+            if (existing != null)
+            {
+                m.Models.Add(existing);
+                return;
+            }
         }
 
         var a = $@"A{Name.Substring(1, 2)}";
@@ -659,10 +669,13 @@ public class MapContainer : ObjectContainer
 
     private void AddModelDS3(IMsb m, MSB3.Model model, string name)
     {
-        if (LoadedModels[name] != null)
+        if (LoadedModels.TryGetValue(name, out var existing))
         {
-            m.Models.Add(LoadedModels[name]);
-            return;
+            if (existing != null)
+            {
+                m.Models.Add(existing);
+                return;
+            }
         }
 
         model.Name = name;
@@ -692,10 +705,13 @@ public class MapContainer : ObjectContainer
 
     private void AddModelSekiro(IMsb m, MSBS.Model model, string name)
     {
-        if (LoadedModels[name] != null)
+        if (LoadedModels.TryGetValue(name, out var existing))
         {
-            m.Models.Add(LoadedModels[name]);
-            return;
+            if (existing != null)
+            {
+                m.Models.Add(existing);
+                return;
+            }
         }
 
         model.Name = name;
@@ -725,10 +741,13 @@ public class MapContainer : ObjectContainer
 
     private void AddModelER(IMsb m, MSBE.Model model, string name)
     {
-        if (LoadedModels[name] != null)
+        if (LoadedModels.TryGetValue(name, out var existing))
         {
-            m.Models.Add(LoadedModels[name]);
-            return;
+            if (existing != null)
+            {
+                m.Models.Add(existing);
+                return;
+            }
         }
 
         model.Name = name;
@@ -757,10 +776,13 @@ public class MapContainer : ObjectContainer
     }
     private void AddModelNR(IMsb m, MSB_NR.Model model, string name)
     {
-        if (LoadedModels[name] != null)
+        if (LoadedModels.TryGetValue(name, out var existing))
         {
-            m.Models.Add(LoadedModels[name]);
-            return;
+            if (existing != null)
+            {
+                m.Models.Add(existing);
+                return;
+            }
         }
 
         model.Name = name;
@@ -791,10 +813,13 @@ public class MapContainer : ObjectContainer
 
     private void AddModelAC6(IMsb m, MSB_AC6.Model model, string name)
     {
-        if (LoadedModels[name] != null)
+        if (LoadedModels.TryGetValue(name, out var existing))
         {
-            m.Models.Add(LoadedModels[name]);
-            return;
+            if (existing != null)
+            {
+                m.Models.Add(existing);
+                return;
+            }
         }
 
         model.Name = name;
@@ -827,27 +852,23 @@ public class MapContainer : ObjectContainer
         foreach (KeyValuePair<string, IMsbModel> mk in LoadedModels.OrderBy(q => q.Key))
         {
             var m = mk.Key;
-            if (m.StartsWith("m"))
+            if (m.StartsWith("m", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelDeS(msb, new MSBD.Model.MapPiece(), m);
             }
-
-            if (m.StartsWith("h"))
+            else if (m.StartsWith("h", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelDeS(msb, new MSBD.Model.Collision(), m);
             }
-
-            if (m.StartsWith("o"))
+            else if (m.StartsWith("o", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelDeS(msb, new MSBD.Model.Object(), m);
             }
-
-            if (m.StartsWith("c"))
+            else if (m.StartsWith("c", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelDeS(msb, new MSBD.Model.Enemy(), m);
             }
-
-            if (m.StartsWith("n"))
+            else if (m.StartsWith("n", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelDeS(msb, new MSBD.Model.Navmesh(), m);
             }
@@ -859,27 +880,23 @@ public class MapContainer : ObjectContainer
         foreach (KeyValuePair<string, IMsbModel> mk in LoadedModels.OrderBy(q => q.Key))
         {
             var m = mk.Key;
-            if (m.StartsWith("m"))
+            if (m.StartsWith("m", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelDS1(msb, new MSB1.Model.MapPiece(), m);
             }
-
-            if (m.StartsWith("h"))
+            else if (m.StartsWith("h", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelDS1(msb, new MSB1.Model.Collision(), m);
             }
-
-            if (m.StartsWith("o"))
+            else if (m.StartsWith("o", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelDS1(msb, new MSB1.Model.Object(), m);
             }
-
-            if (m.StartsWith("c"))
+            else if (m.StartsWith("c", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelDS1(msb, new MSB1.Model.Enemy(), m);
             }
-
-            if (m.StartsWith("n"))
+            else if (m.StartsWith("n", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelDS1(msb, new MSB1.Model.Navmesh(), m);
             }
@@ -891,22 +908,19 @@ public class MapContainer : ObjectContainer
         foreach (KeyValuePair<string, IMsbModel> mk in LoadedModels.OrderBy(q => q.Key))
         {
             var m = mk.Key;
-            if (m.StartsWith("m"))
+            if (m.StartsWith("m", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelDS2(msb, new MSB2.Model.MapPiece(), m);
             }
-
-            if (m.StartsWith("h"))
+            else if (m.StartsWith("h", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelDS2(msb, new MSB2.Model.Collision(), m);
             }
-
-            if (m.StartsWith("o"))
+            else if (m.StartsWith("o", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelDS2(msb, new MSB2.Model.Object(), m);
             }
-
-            if (m.StartsWith("n"))
+            else if (m.StartsWith("n", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelDS2(msb, new MSB2.Model.Navmesh(), m);
             }
@@ -918,27 +932,23 @@ public class MapContainer : ObjectContainer
         foreach (KeyValuePair<string, IMsbModel> mk in LoadedModels.OrderBy(q => q.Key))
         {
             var m = mk.Key;
-            if (m.StartsWith("m"))
+            if (m.StartsWith("m", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelBB(msb, new MSBB.Model.MapPiece { Name = m }, m);
             }
-
-            if (m.StartsWith("h"))
+            else if (m.StartsWith("h", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelBB(msb, new MSBB.Model.Collision { Name = m }, m);
             }
-
-            if (m.StartsWith("o"))
+            else if (m.StartsWith("o", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelBB(msb, new MSBB.Model.Object { Name = m }, m);
             }
-
-            if (m.StartsWith("c"))
+            else if (m.StartsWith("c", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelBB(msb, new MSBB.Model.Enemy { Name = m }, m);
             }
-
-            if (m.StartsWith("n"))
+            else if (m.StartsWith("n", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelBB(msb, new MSBB.Model.Navmesh { Name = m }, m);
             }
@@ -950,22 +960,19 @@ public class MapContainer : ObjectContainer
         foreach (KeyValuePair<string, IMsbModel> mk in LoadedModels.OrderBy(q => q.Key))
         {
             var m = mk.Key;
-            if (m.StartsWith("m"))
+            if (m.StartsWith("m", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelDS3(msb, new MSB3.Model.MapPiece { Name = m }, m);
             }
-
-            if (m.StartsWith("h"))
+            else if (m.StartsWith("h", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelDS3(msb, new MSB3.Model.Collision { Name = m }, m);
             }
-
-            if (m.StartsWith("o"))
+            else if (m.StartsWith("o", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelDS3(msb, new MSB3.Model.Object { Name = m }, m);
             }
-
-            if (m.StartsWith("c"))
+            else if (m.StartsWith("c", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelDS3(msb, new MSB3.Model.Enemy { Name = m }, m);
             }
@@ -977,22 +984,19 @@ public class MapContainer : ObjectContainer
         foreach (KeyValuePair<string, IMsbModel> mk in LoadedModels.OrderBy(q => q.Key))
         {
             var m = mk.Key;
-            if (m.StartsWith("m"))
+            if (m.StartsWith("m", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelSekiro(msb, new MSBS.Model.MapPiece { Name = m }, m);
             }
-
-            if (m.StartsWith("h"))
+            else if (m.StartsWith("h", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelSekiro(msb, new MSBS.Model.Collision { Name = m }, m);
             }
-
-            if (m.StartsWith("o"))
+            else if (m.StartsWith("o", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelSekiro(msb, new MSBS.Model.Object { Name = m }, m);
             }
-
-            if (m.StartsWith("c"))
+            else if (m.StartsWith("c", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelSekiro(msb, new MSBS.Model.Enemy { Name = m }, m);
             }
@@ -1004,25 +1008,22 @@ public class MapContainer : ObjectContainer
         foreach (KeyValuePair<string, IMsbModel> mk in LoadedModels.OrderBy(q => q.Key))
         {
             var m = mk.Key;
-            if (m.ToLower().StartsWith("m"))
+            if (m.StartsWith("m", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelER(msb, new MSBE.Model.MapPiece { Name = m }, m);
                 continue;
             }
-
-            if (m.ToLower().StartsWith("h"))
+            else if (m.StartsWith("h", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelER(msb, new MSBE.Model.Collision { Name = m }, m);
                 continue;
             }
-
-            if (m.ToLower().StartsWith("aeg"))
+            else if (m.StartsWith("aeg", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelER(msb, new MSBE.Model.Asset { Name = m }, m);
                 continue;
             }
-
-            if (m.ToLower().StartsWith("c"))
+            else if (m.StartsWith("c", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelER(msb, new MSBE.Model.Enemy { Name = m }, m);
                 continue;
@@ -1034,25 +1035,22 @@ public class MapContainer : ObjectContainer
         foreach (KeyValuePair<string, IMsbModel> mk in LoadedModels.OrderBy(q => q.Key))
         {
             var m = mk.Key;
-            if (m.ToLower().StartsWith("m"))
+            if (m.StartsWith("m", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelNR(msb, new MSB_NR.Model.MapPiece { Name = m }, m);
                 continue;
             }
-
-            if (m.ToLower().StartsWith("h"))
+            else if (m.StartsWith("h", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelNR(msb, new MSB_NR.Model.Collision { Name = m }, m);
                 continue;
             }
-
-            if (m.ToLower().StartsWith("aeg"))
+            else if (m.StartsWith("aeg", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelNR(msb, new MSB_NR.Model.Asset { Name = m }, m);
                 continue;
             }
-
-            if (m.ToLower().StartsWith("c"))
+            else if (m.StartsWith("c", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelNR(msb, new MSB_NR.Model.Enemy { Name = m }, m);
                 continue;
@@ -1065,25 +1063,22 @@ public class MapContainer : ObjectContainer
         foreach (KeyValuePair<string, IMsbModel> mk in LoadedModels.OrderBy(q => q.Key))
         {
             var m = mk.Key;
-            if (m.ToLower().StartsWith("m"))
+            if (m.StartsWith("m", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelAC6(msb, new MSB_AC6.Model.MapPiece { Name = m }, m);
                 continue;
             }
-
-            if (m.ToLower().StartsWith("h"))
+            else if (m.StartsWith("h", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelAC6(msb, new MSB_AC6.Model.Collision { Name = m }, m);
                 continue;
             }
-
-            if (m.ToLower().StartsWith("aeg"))
+            else if (m.StartsWith("aeg", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelAC6(msb, new MSB_AC6.Model.Asset { Name = m }, m);
                 continue;
             }
-
-            if (m.ToLower().StartsWith("c"))
+            else if (m.StartsWith("c", StringComparison.OrdinalIgnoreCase))
             {
                 AddModelAC6(msb, new MSB_AC6.Model.Enemy { Name = m }, m);
                 continue;
@@ -1168,13 +1163,13 @@ public class MapContainer : ObjectContainer
     /// <summary>
     ///     Gets all BTL.Light with matching ParentBtlNames.
     /// </summary>
-    public List<BTL.Light> SerializeBtlLights(string btlName)
+    public List<BTL.Light> SerializeBtlLights(string btlName, bool isDS2 = false)
     {
         List<BTL.Light> lights = new();
         foreach (Entity p in BTLParents)
         {
-            var name = (string)p.WrappedObject;
-            if (name == btlName)
+            // For DS2, since there is only one light.btl.dcx within the GI container, skip the btl name checking
+            if (isDS2)
             {
                 foreach (Entity e in p.Children)
                 {
@@ -1185,6 +1180,24 @@ public class MapContainer : ObjectContainer
                     else
                     {
                         throw new Exception($"WrappedObject \"{e.WrappedObject}\" is not a BTL Light.");
+                    }
+                }
+            }
+            else
+            {
+                var name = (string)p.WrappedObject;
+                if (name == btlName)
+                {
+                    foreach (Entity e in p.Children)
+                    {
+                        if (e.WrappedObject != null && e.WrappedObject is BTL.Light light)
+                        {
+                            lights.Add(light);
+                        }
+                        else
+                        {
+                            throw new Exception($"WrappedObject \"{e.WrappedObject}\" is not a BTL Light.");
+                        }
                     }
                 }
             }
@@ -1359,16 +1372,4 @@ public class MapContainer : ObjectContainer
 
         return true;
     }
-
-    public MapSerializationEntity SerializeHierarchy()
-    {
-        Dictionary<Entity, int> idmap = new();
-        for (var i = 0; i < Objects.Count; i++)
-        {
-            idmap.Add(Objects[i], i);
-        }
-
-        return ((MsbEntity)RootObject).Serialize(idmap);
-    }
-
 }

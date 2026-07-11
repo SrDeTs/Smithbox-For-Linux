@@ -14,7 +14,7 @@ namespace StudioCore.Editors.ParamEditor;
 
 public class FieldValueFinder
 {
-    public ParamEditorScreen Editor;
+    public ParamEditorView View;
     public ProjectEntry Project;
 
     public string imguiID = "FieldValueFinder";
@@ -32,40 +32,55 @@ public class FieldValueFinder
 
     public List<DataSearchResult> Results = new();
 
-    public FieldValueFinder(ParamEditorScreen editor, ProjectEntry project)
+    public FieldValueFinder(ParamEditorView view, ProjectEntry project)
     {
-        Editor = editor;
+        View = view;
         Project = project;
     }
 
     public void Display()
     {
-        if (Editor.Project.Handler.ParamData.PrimaryBank.Params == null)
+        if (View.Editor.Project.Handler.ParamData.PrimaryBank.Params == null)
         {
             return;
         }
 
-        var windowWidth = ImGui.GetWindowWidth();
+        // Header
+        GUI.WrappedText(LOC.Get("PARAM_FieldValueFinder_Hint"));
 
-        var Size = ImGui.GetWindowSize();
-        float EditX = (Size.X / 100) * 95;
-        float EditY = (Size.Y / 100) * 25;
+        // Options
+        GUI.Spacer();
+        GUI.SimpleHeader(
+            LOC.Get("PARAM_DataFinder_Header_Options"),
+            LOC.Get("PARAM_DataFinder_Header_Options_TT"));
 
-        UIHelper.WrappedText("Display all instances of a specified field value.");
-        UIHelper.WrappedText("");
+        // Toggle: Enable Range Search
+        ImGui.Checkbox($"{LOC.Get("PARAM_FieldValueFinder_Checkbox_Enable_Range_Search")}##rangeMode_{imguiID}", 
+            ref UseRangeMatchMode);
+        GUI.Tooltip(LOC.Get("PARAM_FieldValueFinder_Checkbox_Enable_Range_Search_TT"));
 
-        ImGui.Checkbox("Display Row Context Action", ref CFG.Current.ParamEditor_Row_Context_Display_Finder_Quick_Option);
-        UIHelper.Tooltip("If enabled, a quick search option will appear in the right-click Row Context menu within the Row List.");
+        // Toggle: Display First Match Only
+        ImGui.Checkbox($"{LOC.Get("PARAM_FieldValueFinder_Checkbox_Display_First_Match")}##firstMatchOnly_{imguiID}", 
+            ref DisplayFirstMatchOnlyInResult);
+        GUI.Tooltip(LOC.Get("PARAM_FieldValueFinder_Checkbox_Display_First_Match_TT"));
 
-        /// Targeted Param
-        UIHelper.SimpleHeader("Targeted Params", "Leave blank to target all params.");
+        // Toggle: Display Community Name in Result
+        ImGui.Checkbox($"{LOC.Get("PARAM_FieldValueFinder_Checkbox_Display_Community_Name")}##displayCommunityNames_{imguiID}",
+            ref DisplayCommunityNameInResult);
+        GUI.Tooltip(LOC.Get("PARAM_FieldValueFinder_Checkbox_Display_Community_Name_TT"));
+
+        // Targeted Param
+        GUI.Spacer();
+        GUI.SimpleHeader(
+            LOC.Get("PARAM_DataFinder_Header_Target_Params"),
+            LOC.Get("PARAM_DataFinder_Header_Target_Params_TT"));
 
         // Add
-        if (ImGui.Button($"{Icons.Plus}##paramTargetAdd_fieldValueFinder"))
+        if (ImGui.Button($"{Icons.Plus}##paramTargetAdd_{imguiID}"))
         {
             TargetedParams.Add("");
         }
-        UIHelper.Tooltip("Add new param target input row.");
+        GUI.Tooltip(LOC.Get("PARAM_DataFinder_Action_Add_Param_Target_TT"));
 
         ImGui.SameLine();
 
@@ -74,115 +89,98 @@ public class FieldValueFinder
         {
             ImGui.BeginDisabled();
 
-            if (ImGui.Button($"{Icons.Minus}##paramTargetRemove_fieldValueFinder"))
+            if (ImGui.Button($"{Icons.Minus}##paramTargetRemove_{imguiID}"))
             {
                 TargetedParams.RemoveAt(TargetedParams.Count - 1);
             }
-            UIHelper.Tooltip("Remove last added param target input row.");
+            GUI.Tooltip(LOC.Get("PARAM_DataFinder_Action_Remove_Param_Target_TT"));
 
             ImGui.EndDisabled();
         }
         else
         {
-            if (ImGui.Button($"{Icons.Minus}##paramTargetRemove_fieldValueFinder"))
+            if (ImGui.Button($"{Icons.Minus}##paramTargetRemove_{imguiID}"))
             {
                 TargetedParams.RemoveAt(TargetedParams.Count - 1);
-                UIHelper.Tooltip("Remove last added param target input row.");
             }
+            GUI.Tooltip(LOC.Get("PARAM_DataFinder_Action_Remove_Param_Target_TT"));
         }
 
         ImGui.SameLine();
 
         // Reset
-        if (ImGui.Button("Reset##paramTargetReset_fieldValueFinder"))
+        if (ImGui.Button($"{LOC.Get("PARAM_DataFinder_Action_Reset_Param_Target")}##paramTargetReset_{imguiID}"))
         {
             TargetedParams = new List<string>();
         }
-        UIHelper.Tooltip("Reset param target input rows.");
+        GUI.Tooltip(LOC.Get("PARAM_DataFinder_Action_Reset_Param_Target_TT"));
 
         for (int i = 0; i < TargetedParams.Count; i++)
         {
             var curCommand = TargetedParams[i];
             var curText = curCommand;
 
+            ImGui.PushItemWidth(ImGui.GetWindowWidth() * 0.5f);
             if (ImGui.InputText($"##paramTargetInput{i}_fieldValueFinder", ref curText, 255))
             {
                 TargetedParams[i] = curText;
             }
-            UIHelper.Tooltip("The param target to include.");
+            GUI.Tooltip(LOC.Get("PARAM_DataFinder_Param_Target_Include_TT"));
         }
 
-        UIHelper.WrappedText("");
+        GUI.Spacer();
 
-        /// Search Configuration
-        UIHelper.SimpleHeader("Search Configuration", "The configuration parameters for the search.");
-
-        // Checkbox: Enable Range Search
-        ImGui.Checkbox($"Enable Range Search##rangeMode_{imguiID}", ref UseRangeMatchMode);
-
-        UIHelper.Tooltip("If enabled, the search will search for matches between a start and end value.");
-
-        // Checkbox: Display First Match Only
-        ImGui.Checkbox($"Display First Match Only##firstMatchOnly_{imguiID}", ref DisplayFirstMatchOnlyInResult);
-
-        UIHelper.Tooltip("Only display the first match within a param, instead of all matches.");
-
-        // Checkbox: Display Community Name in Result
-        ImGui.Checkbox($"Display Community Names in Result##displayCommunityNames_{imguiID}",
-            ref DisplayCommunityNameInResult);
-        UIHelper.Tooltip("Display the community name for the field instead of the internal name.");
-
-        UIHelper.WrappedText("");
+        // Search Text
+        GUI.SimpleHeader(
+            LOC.Get("PARAM_DataFinder_Header_Search"),
+            LOC.Get("PARAM_DataFinder_Header_Search_TT"));
 
         if (UseRangeMatchMode)
         {
-            // Start Value
-            UIHelper.WrappedText("Start Value:");
-            ImGui.InputText($"##startSearchValue_{imguiID}", ref RangeSearchText_Start, 255);
-            UIHelper.Tooltip("The start value in the search range.");
+            GUI.SetInputWidth();
+            ImGui.InputTextWithHint($"{LOC.Get("PARAM_FieldValueFinder_Value_Start")}##startSearchValue_{imguiID}", LOC.Get("PARAM_DataFinder_Search_RangeStart_Hint"), ref RangeSearchText_Start, 255);
 
-            // End Value
-            UIHelper.WrappedText("End Value:");
-            ImGui.InputText($"##endSearchValue_{imguiID}", ref RangeSearchText_End, 255);
-            UIHelper.Tooltip("The end value in the search range.");
+            GUI.SetInputWidth();
+            ImGui.InputTextWithHint($"{LOC.Get("PARAM_FieldValueFinder_Value_End")}##endSearchValue_{imguiID}", LOC.Get("PARAM_DataFinder_Search_RangeEnd_Hint"), ref RangeSearchText_End, 255);
         }
 
         if (!UseRangeMatchMode)
         {
-            UIHelper.WrappedText("Search Value:");
-            ImGui.InputText($"##searchValue_{imguiID}", ref SearchText, 255);
-            UIHelper.Tooltip("The value to search for.");
+            GUI.SetInputWidth();
+            ImGui.InputTextWithHint($"{LOC.Get("PARAM_FieldValueFinder_Value")}##searchValue_{imguiID}", LOC.Get("PARAM_DataFinder_Search_Value_Hint"), ref SearchText, 255);
         }
 
-        if (ImGui.Button($"Search##searchButton_{imguiID}"))
-        {
-            CachedSearchText = SearchText;
+        GUI.MultiButtonInput("searchActions",
+            "search",
+            LOC.Get("PARAM_DataFinder_Action_Search"),
+            LOC.Get("PARAM_DataFinder_Action_Search_TT"),
+            ConductSearch,
 
-            if (UseRangeMatchMode)
-            {
-                CachedSearchText = $"{RangeSearchText_Start} -> {RangeSearchText_End}";
-            }
+            "clearSearch",
+            LOC.Get("PARAM_DataFinder_Action_Clear"),
+            LOC.Get("PARAM_DataFinder_Action_Clear_TT"),
+            ClearSearch);
 
-            Results = ConstructResults();
-            Results.Sort();
-        }
+        GUI.Spacer();
 
         // Result List
         if (Results.Count > 0)
         {
-            UIHelper.SimpleHeader("Search Results", "The results of the last search performed.");
+            GUI.SimpleHeader(
+                LOC.Get("PARAM_DataFinder_Header_Search_Results"),
+                LOC.Get("PARAM_DataFinder_Header_Search_Results_TT"));
 
-            UIHelper.WrappedText($"Search Term:");
-            UIHelper.DisplayAlias(CachedSearchText);
+            GUI.WrappedText(LOC.Get("PARAM_DataFinder_Search_Term"));
+            GUI.DisplayAlias(CachedSearchText);
 
-            UIHelper.WrappedText($"Result Count:");
-            UIHelper.DisplayAlias($"{Results.Count}");
+            GUI.WrappedText(LOC.Get("PARAM_DataFinder_Result_Count"));
+            GUI.DisplayAlias($"{Results.Count}");
 
-            UIHelper.WrappedText($"");
-            UIHelper.WrappedText($"Param: Row ID: Field Name: Field Value");
+            GUI.Spacer();
+            GUI.WrappedText(LOC.Get("PARAM_FieldValueFinder_Results_Column_Header"));
 
             ImGui.BeginChild($"##resultSection_{imguiID}",
-                new Vector2(EditX, EditY));
+                new Vector2(0, ImGui.GetContentRegionAvail().Y * 0.9f), ImGuiChildFlags.Borders);
 
             foreach (var result in Results)
             {
@@ -197,14 +195,14 @@ public class FieldValueFinder
                 {
                     EditorCommandQueue.AddCommand($@"param/select/-1/{result.ParamName}/{result.RowID}/{result.FieldInternalName}");
                 }
-                if (ImGui.BeginPopupContextItem($"#resultPopup{result.ParamName}{result.RowID}"))
+                if (ImGui.BeginPopupContextItem($"##resultPopup{result.ParamName}{result.RowID}"))
                 {
-                    if (ImGui.Selectable("Copy Row ID"))
+                    if (ImGui.Selectable($"{LOC.Get("PARAM_FieldValueFinder_Context_Action_Copy_Row_ID")}##copyRowIdAction"))
                     {
                         PlatformUtils.Instance.SetClipboardText($"{result.RowID}");
                     }
 
-                    if (ImGui.Selectable("Copy Row Name"))
+                    if (ImGui.Selectable($"{LOC.Get("PARAM_FieldValueFinder_Context_Action_Copy_Row_Name")}##copyRowNameAction"))
                     {
                         if (result.RowName != null)
                         {
@@ -219,11 +217,31 @@ public class FieldValueFinder
         }
         else
         {
-            ImGui.Text("No results to display.");
+            ImGui.Text(LOC.Get("PARAM_DataFinder_No_Results"));
         }
 
-        UIHelper.WrappedText("");
+        GUI.WrappedText("");
 
+    }
+
+    public void ConductSearch()
+    {
+        CachedSearchText = SearchText;
+
+        if (UseRangeMatchMode)
+        {
+            CachedSearchText = $"{RangeSearchText_Start} -> {RangeSearchText_End}";
+        }
+
+        Results = ConstructResults();
+        Results.Sort();
+    }
+
+    public void ClearSearch()
+    {
+        SearchText = "";
+        CachedSearchText = "";
+        Results = new();
     }
 
     /// <summary>
@@ -237,7 +255,7 @@ public class FieldValueFinder
         var startValue = RangeSearchText_Start;
         var endValue = RangeSearchText_End;
 
-        foreach (var p in Editor.Project.Handler.ParamData.PrimaryBank.Params)
+        foreach (var p in View.Editor.Project.Handler.ParamData.PrimaryBank.Params)
         {
             if (TargetedParams.Count > 0)
             {
@@ -247,8 +265,8 @@ public class FieldValueFinder
                 }
             }
 
-            var meta = Editor.Project.Handler.ParamData.GetParamMeta(p.Value.AppliedParamdef);
-            var annotations = Editor.Project.Handler.ParamData.GetParamAnnotations(p.Value.AppliedParamdef.ParamType);
+            var meta = View.Editor.Project.Handler.ParamData.GetParamMeta(p.Value.AppliedParamdef);
+            var annotations = View.Editor.Project.Handler.ParamData.GetParamAnnotations(p.Value.AppliedParamdef.ParamType);
 
             for (var i = 0; i < p.Value.Rows.Count; i++)
             {
@@ -262,11 +280,11 @@ public class FieldValueFinder
                 {
                     PARAMDEF.DefType type = field.Def.DisplayType;
 
-                    var fieldMeta = Editor.Project.Handler.ParamData.GetParamFieldMeta(meta, field.Def);
-                    var fieldAnnotation = Editor.Project.Handler.ParamData.GetFieldAnnotation(annotations, field.Def.InternalName);
+                    var fieldMeta = View.Editor.Project.Handler.ParamData.GetParamFieldMeta(meta, field.Def);
+                    var fieldAnnotation = View.Editor.Project.Handler.ParamData.GetFieldAnnotation(annotations, field.Def.InternalName);
 
                     fieldName = field.Def.InternalName;
-                    if (fieldMeta != null)
+                    if (fieldMeta != null && fieldAnnotation != null)
                     {
                         fieldDisplayName = fieldAnnotation.Name;
                     }

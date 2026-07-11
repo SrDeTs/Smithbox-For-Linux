@@ -1,10 +1,7 @@
-using NativeFileDialogSharp;
+﻿using NativeFileDialogSharp;
 using Silk.NET.SDL;
-using StudioCore.Application;
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
 using Veldrid;
 
@@ -74,35 +71,35 @@ public abstract unsafe class PlatformUtils
         {
             case MessageBoxButtons.OK:
                 buttonCount = 1;
-                buttonNames[0] = "Ok";
+                buttonNames[0] = LOC.Get("INTERFACE_Message_Box_OK");
                 buttonResults[0] = DialogResult.OK;
                 returnID = 0;
                 break;
             case MessageBoxButtons.OKCancel:
                 buttonCount = 2;
-                buttonNames[1] = "Ok";
+                buttonNames[1] = LOC.Get("INTERFACE_Message_Box_OK");
                 buttonResults[1] = DialogResult.OK;
-                buttonNames[0] = "Cancel";
+                buttonNames[0] = LOC.Get("INTERFACE_Message_Box_Cancel");
                 buttonResults[0] = DialogResult.Cancel;
                 returnID = 1;
                 escapeID = 0;
                 break;
             case MessageBoxButtons.YesNoCancel:
                 buttonCount = 3;
-                buttonNames[2] = "Yes";
+                buttonNames[2] = LOC.Get("INTERFACE_Message_Box_Yes");
                 buttonResults[2] = DialogResult.Yes;
-                buttonNames[1] = "No";
+                buttonNames[1] = LOC.Get("INTERFACE_Message_Box_No");
                 buttonResults[1] = DialogResult.No;
-                buttonNames[0] = "Cancel";
+                buttonNames[0] = LOC.Get("INTERFACE_Message_Box_Cancel");
                 buttonResults[0] = DialogResult.Cancel;
                 returnID = 2;
                 escapeID = 0;
                 break;
             case MessageBoxButtons.YesNo:
                 buttonCount = 2;
-                buttonNames[1] = "Yes";
+                buttonNames[1] = LOC.Get("INTERFACE_Message_Box_Yes");
                 buttonResults[1] = DialogResult.Yes;
-                buttonNames[0] = "No";
+                buttonNames[0] = LOC.Get("INTERFACE_Message_Box_No");
                 buttonResults[0] = DialogResult.No;
                 returnID = 1;
                 escapeID = 0;
@@ -159,25 +156,15 @@ public abstract unsafe class PlatformUtils
     // Title arg is currently unusable. We should restore it back if at all possible.
     public bool OpenFileDialog(string title, IReadOnlyList<string> filters, out string path)
     {
-        string startDir = CFG.Current.System_Last_Dialog_Directory;
-        NativeFileDialogSharp.DialogResult dialogResult = Dialog.FileOpen(CombineNdlFilters(filters, false), startDir);
+        NativeFileDialogSharp.DialogResult dialogResult = Dialog.FileOpen(CombineNdlFilters(filters, false));
         path = dialogResult.Path;
-        if (dialogResult.IsOk && !string.IsNullOrEmpty(path))
-        {
-            CFG.Current.System_Last_Dialog_Directory = Path.GetDirectoryName(path) ?? "";
-        }
         return dialogResult.IsOk;
     }
 
     public bool OpenFileDialog(string title, out string path)
     {
-        string startDir = CFG.Current.System_Last_Dialog_Directory;
-        NativeFileDialogSharp.DialogResult dialogResult = Dialog.FileOpen(null, startDir);
+        NativeFileDialogSharp.DialogResult dialogResult = Dialog.FileOpen();
         path = dialogResult.Path;
-        if (dialogResult.IsOk && !string.IsNullOrEmpty(path))
-        {
-            CFG.Current.System_Last_Dialog_Directory = Path.GetDirectoryName(path) ?? "";
-        }
         return dialogResult.IsOk;
     }
 
@@ -191,37 +178,22 @@ public abstract unsafe class PlatformUtils
 
     public bool SaveFileDialog(string title, IReadOnlyList<string> filters, out string path)
     {
-        string startDir = CFG.Current.System_Last_Dialog_Directory;
-        NativeFileDialogSharp.DialogResult dialogResult = Dialog.FileSave(CombineNdlFilters(filters, true), startDir);
+        NativeFileDialogSharp.DialogResult dialogResult = Dialog.FileSave(CombineNdlFilters(filters, true));
         path = dialogResult.Path;
-        if (dialogResult.IsOk && !string.IsNullOrEmpty(path))
-        {
-            CFG.Current.System_Last_Dialog_Directory = Path.GetDirectoryName(path) ?? "";
-        }
         return dialogResult.IsOk;
     }
 
     public bool OpenFolderDialog(string title, out string path)
     {
-        string startDir = CFG.Current.System_Last_Dialog_Directory;
-        NativeFileDialogSharp.DialogResult dialogResult = Dialog.FolderPicker(startDir);
+        NativeFileDialogSharp.DialogResult dialogResult = Dialog.FolderPicker();
         path = dialogResult.Path;
-        if (dialogResult.IsOk && !string.IsNullOrEmpty(path))
-        {
-            CFG.Current.System_Last_Dialog_Directory = path;
-        }
         return dialogResult.IsOk;
     }
 
     public bool OpenFolderDialog(string title, out string path, string defaultPath)
     {
-        string startDir = string.IsNullOrEmpty(defaultPath) ? CFG.Current.System_Last_Dialog_Directory : defaultPath;
-        NativeFileDialogSharp.DialogResult dialogResult = Dialog.FolderPicker(startDir);
+        NativeFileDialogSharp.DialogResult dialogResult = Dialog.FolderPicker(defaultPath);
         path = dialogResult.Path;
-        if (dialogResult.IsOk && !string.IsNullOrEmpty(path))
-        {
-            CFG.Current.System_Last_Dialog_Directory = path;
-        }
         return dialogResult.IsOk;
     }
 

@@ -130,11 +130,52 @@ public static class FocusManager
 
         return false;
     }
+
+    public static bool IsInMapDataEditor()
+    {
+        if (Focus is EditorFocusContext.MapDataEditor_None
+            or EditorFocusContext.MapDataEditor_CommonView
+            or EditorFocusContext.MapDataEditor_MsbEditor
+            or EditorFocusContext.MapDataEditor_EnflEditor
+            or EditorFocusContext.MapDataEditor_Tools)
+            return true;
+
+        return false;
+    }
+
+    public static bool IsInProjectEditor()
+    {
+        if (Focus is EditorFocusContext.Project_None)
+            return true;
+
+        return false;
+    }
+    public static bool IsInProjectMetadataEditor()
+    {
+        if (Focus is EditorFocusContext.Metadata_None or
+            EditorFocusContext.Metadata_ModeSelection or
+            EditorFocusContext.Metadata_AliasEditor or
+            EditorFocusContext.Metadata_EnumEditor or
+            EditorFocusContext.Metadata_ParamDefEditor or
+            EditorFocusContext.Metadata_ParamMetaEditor)
+            return true;
+
+        return false;
+    }
 }
 
 public enum EditorFocusContext
 {
     None,
+
+    Project_None,
+
+    Metadata_None,
+    Metadata_ModeSelection,
+    Metadata_AliasEditor,
+    Metadata_EnumEditor,
+    Metadata_ParamDefEditor,
+    Metadata_ParamMetaEditor,
 
     FileBrowser_None,
     FileBrowser_FileList,
@@ -146,6 +187,7 @@ public enum EditorFocusContext
     MapEditor_Properties,
     MapEditor_Tools,
     MapEditor_Viewport,
+    MapEditor_WorldMap,
 
     ModelEditor_None,
     ModelEditor_FileList,
@@ -190,4 +232,10 @@ public enum EditorFocusContext
     AnimEditor_BehaviorProperties,
     AnimEditor_Viewport,
     AnimEditor_Tools,
+
+    MapDataEditor_None,
+    MapDataEditor_CommonView,
+    MapDataEditor_MsbEditor,
+    MapDataEditor_EnflEditor,
+    MapDataEditor_Tools,
 }

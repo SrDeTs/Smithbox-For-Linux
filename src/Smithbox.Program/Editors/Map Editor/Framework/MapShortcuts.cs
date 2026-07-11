@@ -78,10 +78,21 @@ public class MapShortcuts
         // Actions
         if (FocusManager.IsFocus(EditorFocusContext.MapEditor_Viewport) || FocusManager.IsFocus(EditorFocusContext.MapEditor_FileList))
         {
+            if (InputManager.IsPressed(KeybindID.Copy))
+            {
+                activeView.DuplicateToMapAction.OnCopy(activeView);
+            }
+
+            if (InputManager.IsPressed(KeybindID.Paste))
+            {
+                activeView.DuplicateToMapAction.OnPaste(activeView);
+            }
+
             activeView.CreateAction.OnShortcut();
             activeView.DuplicateAction.OnShortcut();
             activeView.DeleteAction.OnShortcut();
             activeView.DuplicateToMapAction.OnShortcut();
+            activeView.TranslateAction.OnShortcut();
             activeView.RotateAction.OnShortcut();
             activeView.ScrambleAction.OnShortcut();
             activeView.ReplicateAction.OnShortcut();
@@ -110,8 +121,6 @@ public class MapShortcuts
         activeView.DisplayGroupTool.OnShortcut();
         activeView.PrefabTool.OnShortcut();
         activeView.SelectionGroupTool.OnShortcut();
-        activeView.RotationIncrementTool.OnShortcut();
-        activeView.PositionIncrementTool.OnShortcut();
         activeView.PatrolDrawManager.OnShortcut();
 
         GizmoState.OnShortcut();

@@ -2,6 +2,7 @@
 using SoulsFormats;
 using StudioCore.Application;
 using StudioCore.Editors.Common;
+using StudioCore.Editors.MetadataEditor;
 using StudioCore.Keybinds;
 using StudioCore.Utilities;
 using System;
@@ -15,10 +16,12 @@ public class ModelSelectorTool
     public MapEditorView View;
     public ProjectEntry Project;
 
-    private string _searchInput = "";
     private string _selectedEntry = "";
 
     private bool SelectNextEntry = false;
+
+    public string ModelFilter = "";
+    public bool ExactModelFilter = false;
 
     public ModelSelectorTool(MapEditorView view, ProjectEntry project)
     {
@@ -31,54 +34,60 @@ public class ModelSelectorTool
     /// </summary>
     public void OnToolWindow()
     {
-        if (ImGui.CollapsingHeader("Model Selector"))
+        ImGui.BeginChild("ModelSelectorToolSection", ImGuiChildFlags.Borders);
+
+        GUI.WrappedText("Use this to switch a selected map object to a different model.");
+
+        GUI.Spacer();
+        GUI.SimpleHeader("Options", "");
+
+        ImGui.Checkbox("Update Name on Switch", ref CFG.Current.MapEditor_Model_Selector_Update_Name);
+        GUI.Tooltip("When a map object is switched to a new form, update the name to match the new form.");
+
+        if (View.Project.Descriptor.ProjectType is ProjectType.ER or ProjectType.AC6)
         {
-            ImGui.BeginChild("ModelSelectorToolSection");
+            ImGui.Checkbox("Update Instance ID on Switch", ref CFG.Current.MapEditor_Model_Selector_Update_Instance_ID);
+            GUI.Tooltip("When a map object is switched to a new form, update the Instance ID to account for the new form.");
+        }
 
-            ImGui.InputText($"##selectorFilter", ref _searchInput, 255);
-            UIHelper.Tooltip("Filter the model selector list. Separate terms are split via the + character.");
+        // TOOD
+        //ImGui.Checkbox("Update Params on Switch", ref CFG.Current.MapEditor_Model_Selector_Update_NpcParams);
+        //UIHelper.Tooltip("When a map object is switched to a new form, update the NpcParam and NpcThinkParam to the closest suitable rows (based on the character ID).");
 
-            ImGui.Checkbox("Update Name on Switch", ref CFG.Current.MapEditor_Model_Selector_Update_Name);
-            UIHelper.Tooltip("When a map object is switched to a new form, update the name to match the new form.");
+        GUI.Spacer();
+        GUI.SimpleHeader("List", "");
 
-            if (View.Project.Descriptor.ProjectType is ProjectType.ER or ProjectType.AC6)
+        EditorFilters.DisplayFramedListFilter("modelSelector", ref ModelFilter, ref ExactModelFilter);
+
+        var curSelection = View.ViewportSelection.GetSelection();
+
+        if (curSelection.Count > 0)
+        {
+            var firstSelection = (Entity)curSelection.First();
+
+            if (EntityHelper.IsPartEnemy(firstSelection) || EntityHelper.IsPartDummyEnemy(firstSelection))
             {
-                ImGui.SameLine();
-
-                ImGui.Checkbox("Update Instance ID on Switch", ref CFG.Current.MapEditor_Model_Selector_Update_Instance_ID);
-                UIHelper.Tooltip("When a map object is switched to a new form, update the Instance ID to account for the new form.");
+                DisplayCharacterList();
             }
-
-            var curSelection = View.ViewportSelection.GetSelection();
-
-            if (curSelection.Count > 0)
+            else if (EntityHelper.IsPartAsset(firstSelection) || EntityHelper.IsPartDummyAsset(firstSelection))
             {
-                var firstSelection = (Entity)curSelection.First();
-
-                if (EntityHelper.IsPartEnemy(firstSelection) || EntityHelper.IsPartDummyEnemy(firstSelection))
-                {
-                    DisplayCharacterList();
-                }
-                else if (EntityHelper.IsPartAsset(firstSelection) || EntityHelper.IsPartDummyAsset(firstSelection))
-                {
-                    DisplayAssetList();
-                }
-                else if (EntityHelper.IsPartMapPiece(firstSelection))
-                {
-                    DisplayMapPieceList();
-                }
-                else
-                {
-                    ImGui.Text("Your current selection does not use a model.");
-                }
+                DisplayAssetList();
+            }
+            else if (EntityHelper.IsPartMapPiece(firstSelection))
+            {
+                DisplayMapPieceList();
             }
             else
             {
-                ImGui.Text("You must select a valid map object first.");
+                ImGui.Text("Your current selection does not use a model.");
             }
-
-            ImGui.EndChild();
         }
+        else
+        {
+            ImGui.Text("You must select a valid map object first.");
+        }
+
+        ImGui.EndChild();
     }
 
     private void DisplayCharacterList()
@@ -86,12 +95,7 @@ public class ModelSelectorTool
         // TODO: this needs to draw from a scanned list of characters, not the alias list
         if (View.Project.Handler.ProjectData.Aliases.TryGetValue(ProjectAliasType.Characters, out List<AliasEntry> characterAliases))
         {
-            var windowSize = DPI.GetWindowSize(Smithbox.Instance._context);
-            var sectionWidth = ImGui.GetWindowWidth() * 0.95f;
-            var sectionHeight = windowSize.Y * 0.3f;
-            var sectionSize = new Vector2(sectionWidth * DPI.UIScale(), sectionHeight * DPI.UIScale());
-
-            ImGui.BeginChild("##characterSelectorList", sectionSize, ImGuiChildFlags.Borders);
+            ImGui.BeginChild("##characterSelectorList", new Vector2(0, 0), ImGuiChildFlags.Borders);
 
             foreach (var entry in characterAliases)
             {
@@ -136,12 +140,7 @@ public class ModelSelectorTool
         // TODO: this needs to draw from a scanned list of assets, not the alias list
         if (View.Project.Handler.ProjectData.Aliases.TryGetValue(ProjectAliasType.Assets, out List<AliasEntry> assetAliases))
         {
-            var windowSize = DPI.GetWindowSize(Smithbox.Instance._context);
-            var sectionWidth = ImGui.GetWindowWidth() * 0.95f;
-            var sectionHeight = windowSize.Y * 0.3f;
-            var sectionSize = new Vector2(sectionWidth * DPI.UIScale(), sectionHeight * DPI.UIScale());
-
-            ImGui.BeginChild("##assetSelectorList", sectionSize, ImGuiChildFlags.Borders);
+            ImGui.BeginChild("##assetSelectorList", new Vector2(0, 0), ImGuiChildFlags.Borders);
 
             foreach (var entry in assetAliases)
             {
@@ -188,18 +187,13 @@ public class ModelSelectorTool
         // TODO: this needs to draw from a scanned list of map pieces, not the alias list
         if (View.Project.Handler.ProjectData.Aliases.TryGetValue(ProjectAliasType.MapPieces, out List<AliasEntry> mapPieceAliases))
         {
-            var windowSize = DPI.GetWindowSize(Smithbox.Instance._context);
-            var sectionWidth = ImGui.GetWindowWidth() * 0.95f;
-            var sectionHeight = windowSize.Y * 0.3f;
-            var sectionSize = new Vector2(sectionWidth * DPI.UIScale(), sectionHeight * DPI.UIScale());
-
-            ImGui.BeginChild("##mapPieceSelectorList", sectionSize, ImGuiChildFlags.Borders);
+            ImGui.BeginChild("##mapPieceSelectorList", new Vector2(0, 0), ImGuiChildFlags.Borders);
 
             foreach (var map in maps)
             {
                 var displayedMapName = $"{map} - {AliasHelper.GetMapNameAlias(View.Project, map)}";
 
-                UIHelper.SimpleHeader($"{map}_header", $"{displayedMapName}", "", UI.Current.ImGui_Default_Text_Color);
+                GUI.SimpleHeader($"{map}_header", $"{displayedMapName}", "", UI.Current.ImGui_Default_Text_Color);
 
                 var displayedName = $"{map}";
                 var modelName = map.Replace($"{map}_", "m");
@@ -262,12 +256,14 @@ public class ModelSelectorTool
             }
         }
 
-        if (!SearchFilters.IsAssetBrowserSearchMatch(_searchInput, lowerName, refName, refTagList))
+        var isMatch = EditorFilters.IsMatch(ModelFilter, entry.Name, ExactModelFilter);
+
+        if (isMatch)
         {
-            return false;
+            return true;
         }
 
-        return true;
+        return false;
     }
 
     private void DisplaySelectableAlias(AliasEntry entry)
@@ -276,7 +272,7 @@ public class ModelSelectorTool
 
         if (CFG.Current.MapEditor_Model_Selector_Display_Aliases)
         {
-            UIHelper.DisplayAlias(entry.Name);
+            GUI.DisplayAlias(entry.Name);
         }
 
         // Tags
@@ -481,7 +477,9 @@ public class ModelSelectorTool
                 }
 
                 // ModelName
-                actlist.Add(s.ChangeObjectProperty("ModelName", modelName));
+                var action = s.ChangeObjectProperty("ModelName", modelName);
+                actlist.Add(action);
+
 
                 if (CFG.Current.MapEditor_Model_Selector_Update_Name)
                 {
@@ -513,7 +511,7 @@ public class ModelSelectorTool
         var name = GetUniqueNameString(modelName);
         ent.Name = name;
 
-        return ent.GetPropertyChangeAction("Name", name);
+        return ent.GetPropertyChangeAction(ent, "Name", name);
     }
 
     private ViewportAction UpdateInstanceID(string modelName, MsbEntity ent)
@@ -547,7 +545,7 @@ public class ModelSelectorTool
                 newInstanceID++;
             }
 
-            return ent.GetPropertyChangeAction("InstanceID", newInstanceID);
+            return ent.GetPropertyChangeAction(ent, "InstanceID", newInstanceID);
         }
 
         // AC6
@@ -574,7 +572,7 @@ public class ModelSelectorTool
                 newInstanceID++;
             }
 
-            return ent.GetPropertyChangeAction("TypeIndex", newInstanceID);
+            return ent.GetPropertyChangeAction(ent, "TypeIndex", newInstanceID);
         }
 
         return null;

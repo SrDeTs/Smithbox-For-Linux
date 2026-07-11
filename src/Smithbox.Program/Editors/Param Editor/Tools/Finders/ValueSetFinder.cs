@@ -1,19 +1,13 @@
 ﻿using Hexa.NET.ImGui;
 using SoulsFormats;
-using StudioCore.Application;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace StudioCore.Editors.ParamEditor;
 
 
 public class ValueSetFinder
 {
-    public ParamEditorScreen Editor;
+    public ParamEditorView View;
     public ProjectEntry Project;
 
     public string imguiID = "ValueSetFinder";
@@ -23,57 +17,64 @@ public class ValueSetFinder
 
     public List<FieldSearchResult> Results = new();
 
-    public ValueSetFinder(ParamEditorScreen editor, ProjectEntry project)
+    public ValueSetFinder(ParamEditorView view, ProjectEntry project)
     {
-        Editor = editor;
+        View = view;
         Project = project;
     }
+
     public void Display()
     {
-        if (Editor.Project.Handler.ParamData.PrimaryBank.Params == null)
+        if (View.Editor.Project.Handler.ParamData.PrimaryBank.Params == null)
         {
             return;
         }
 
         var windowWidth = ImGui.GetWindowWidth();
 
-        var Size = ImGui.GetWindowSize();
-        float EditX = (Size.X / 100) * 95;
-        float EditY = (Size.Y / 100) * 25;
+        GUI.WrappedText(LOC.Get("PARAM_ValueSetFinder_Hint"));
 
-        UIHelper.WrappedText("Display fields that make use of a specified set of values.");
-        UIHelper.WrappedText("");
+        // Search Text
+        GUI.Spacer();
+        GUI.SimpleHeader(
+            LOC.Get("PARAM_DataFinder_Header_Search"),
+            LOC.Get("PARAM_DataFinder_Header_Search_TT"));
 
-        /// Search Configuration
-        UIHelper.SimpleHeader("Search Configuration", "The configuration parameters for the search.");
+        GUI.SetInputWidth();
+        ImGui.InputTextWithHint($"{LOC.Get("PARAM_ValueSetFinder_Value_Set")}##searchText_{imguiID}", LOC.Get("PARAM_DataFinder_Search_Hint"), ref SearchText, 255);
+        GUI.Tooltip(LOC.Get("PARAM_ValueSetFinder_Search_TT"));
 
-        UIHelper.WrappedText("Search Value:");
-        ImGui.InputText($"##searchValue_{imguiID}", ref SearchText, 255);
-        UIHelper.Tooltip("The values to search for. Split with a space.");
+        GUI.MultiButtonInput("searchActions",
+            "search",
+            LOC.Get("PARAM_DataFinder_Action_Search"),
+            LOC.Get("PARAM_DataFinder_Action_Search_TT"),
+            ConductSearch,
 
-        if (ImGui.Button($"Search##searchButton_{imguiID}"))
-        {
-            CachedSearchText = SearchText;
+            "clearSearch",
+            LOC.Get("PARAM_DataFinder_Action_Clear"),
+            LOC.Get("PARAM_DataFinder_Action_Clear_TT"),
+            ClearSearch);
 
-            Results = ConstructResults();
-        }
+        GUI.Spacer();
 
         // Result List
         if (Results.Count > 0)
         {
-            UIHelper.SimpleHeader("Search Results", "The results of the last search performed.");
+            GUI.SimpleHeader(
+                LOC.Get("PARAM_DataFinder_Header_Search_Results"),
+                LOC.Get("PARAM_DataFinder_Header_Search_Results_TT"));
 
-            UIHelper.WrappedText($"Search Term:");
-            UIHelper.DisplayAlias(CachedSearchText);
+            GUI.WrappedText(LOC.Get("PARAM_DataFinder_Search_Term"));
+            GUI.DisplayAlias(CachedSearchText);
 
-            UIHelper.WrappedText($"Result Count:");
-            UIHelper.DisplayAlias($"{Results.Count}");
+            GUI.WrappedText(LOC.Get("PARAM_DataFinder_Result_Count"));
+            GUI.DisplayAlias($"{Results.Count}");
 
-            UIHelper.WrappedText($"");
-            UIHelper.WrappedText($"Param: Row ID: Field Name: Field Value");
+            GUI.Spacer();
+            GUI.WrappedText(LOC.Get("PARAM_ValueSetFinder_Results_Column_Header"));
 
             ImGui.BeginChild($"##resultSection_{imguiID}",
-                new Vector2(EditX, EditY));
+                new Vector2(0, ImGui.GetContentRegionAvail().Y * 0.9f), ImGuiChildFlags.Borders);
 
             foreach (var result in Results)
             {
@@ -87,11 +88,24 @@ public class ValueSetFinder
         }
         else
         {
-            ImGui.Text("No results to display.");
+            ImGui.Text(LOC.Get("PARAM_DataFinder_No_Results"));
         }
 
-        UIHelper.WrappedText("");
+        GUI.WrappedText("");
 
+    }
+    public void ConductSearch()
+    {
+        CachedSearchText = SearchText;
+
+        Results = ConstructResults();
+    }
+
+    public void ClearSearch()
+    {
+        SearchText = "";
+        CachedSearchText = "";
+        Results = new();
     }
 
     /// <summary>
@@ -112,7 +126,7 @@ public class ValueSetFinder
             Values.Add(SearchText);
         }
 
-        foreach (var p in Editor.Project.Handler.ParamData.PrimaryBank.Params)
+        foreach (var p in View.Editor.Project.Handler.ParamData.PrimaryBank.Params)
         {
             ProcessParam(ref output, p.Key, p.Value, Values);
         }

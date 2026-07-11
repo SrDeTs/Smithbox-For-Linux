@@ -1,4 +1,5 @@
-﻿using StudioCore.Application;
+﻿using Hexa.NET.ImGui;
+using StudioCore.Application;
 using StudioCore.Editors.Viewport;
 using StudioCore.Renderer;
 using Veldrid;
@@ -40,8 +41,11 @@ public class ModelViewportWindow
 
     }
 
-    public void Display()
+    public void Display(uint dockspaceId)
     {
+        ImGui.SetNextWindowDockID(dockspaceId, ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowClass(ref GUI.DockGroup_ModelEditorView);
+
         if (Viewport is VulkanViewport vulkanViewport)
         {
             vulkanViewport.Display();
@@ -88,13 +92,13 @@ public class ModelViewportWindow
 
         foreach (var obj in container.Dummies)
         {
-            obj.RenderSceneMesh.Dispose();
+            obj.RenderSceneMesh = null;
             container.AssignDummyDrawable(obj, wrapper);
         }
 
         foreach (var obj in container.Nodes)
         {
-            obj.RenderSceneMesh.Dispose();
+            obj.RenderSceneMesh = null;
             container.AssignNodeDrawable(obj, wrapper);
         }
     }

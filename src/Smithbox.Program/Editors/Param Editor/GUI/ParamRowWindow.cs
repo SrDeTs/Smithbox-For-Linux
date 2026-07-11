@@ -1,6 +1,6 @@
 ﻿using Andre.Formats;
+using Hexa.NET.DirectXTex;
 using Hexa.NET.ImGui;
-using SoulsFormats;
 using StudioCore.Application;
 using StudioCore.Editors.Common;
 using StudioCore.Keybinds;
@@ -10,10 +10,35 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Reflection;
-using Veldrid;
-using static StudioCore.Editors.ParamEditor.ParamUtils;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace StudioCore.Editors.ParamEditor;
+
+/// <summary>
+/// The row list context (per frame)
+/// </summary>
+public class RowListContext
+{
+    public bool IsActiveView { get; set; }
+    public bool DoFocus { get; set; }
+    public float ScrollTo { get; set; }
+
+    public string ActiveParam { get; set; }
+    public Param CurParam { get; set; }
+    public ParamMeta CurMeta { get; set; }
+    public ParamAnnotationEntry CurAnnotation { get; set; }
+
+    public Param.Column CompareColumn { get; set; }
+    public PropertyInfo CompareColumnProperty { get; set; }
+
+    public HashSet<int> VanillaDiffCache { get; set; }
+    public List<(HashSet<int>, HashSet<int>)> AuxDiffCaches { get; set; }
+
+    public FmgRowDecorator FmgRowDecorator { get; set; }
+
+    public RowListContext() { }
+}
 
 public class ParamRowWindow
 {
@@ -29,6 +54,13 @@ public class ParamRowWindow
     public string TargetField = "";
     public string NameAdjustment = "";
 
+    private RowListContext Context;
+    private Param.Row ID_EditRow { get; set; }
+    private Param.Row Name_EditRow { get; set; }
+
+    private Param.Row DragSourceRow;
+
+
     public ParamRowWindow(ParamEditorScreen editor, ProjectEntry project, ParamEditorView curView)
     {
         Editor = editor;
@@ -38,204 +70,57 @@ public class ParamRowWindow
 
     public void Display(bool doFocus, bool isActiveView, float scrollTo, string activeParam)
     {
+        Context = new RowListContext();
+        Context.DoFocus = doFocus;
+        Context.IsActiveView = isActiveView;
+        Context.ScrollTo = scrollTo;
+        Context.ActiveParam = activeParam;
+
+        DisplayTitle();
+
         if (!ParentView.Selection.ActiveParamExists())
         {
+            FocusManager.SetFocus(EditorFocusContext.ParamEditor_RowList);
             ImGui.Text("Select a param to see rows");
         }
         else
         {
-            var fmgDecorator = ParentView.RowDecorators.GetFmgRowDecorator(activeParam);
+            FocusManager.SetFocus(EditorFocusContext.ParamEditor_RowList);
 
-            DisplayHeader(ref doFocus, isActiveView, ref scrollTo, activeParam);
+            DisplayHeader();
 
-            Param para = Editor.Project.Handler.ParamData.PrimaryBank.Params[activeParam];
+            Context.FmgRowDecorator = ParentView.RowDecorators.GetFmgRowDecorator(activeParam);
+            Context.CurParam = Editor.Project.Handler.ParamData.PrimaryBank.Params[activeParam];
+            Context.CurMeta = Editor.Project.Handler.ParamData.GetParamMeta(Context.CurParam.AppliedParamdef);
+            Context.CurAnnotation = Editor.Project.Handler.ParamData.GetParamAnnotations(Context.CurParam.AppliedParamdef.ParamType);
 
-            HashSet<int> vanillaDiffCache = Editor.Project.Handler.ParamData.PrimaryBank.GetVanillaDiffRows(activeParam);
+            Context.VanillaDiffCache = Editor.Project.Handler.ParamData.PrimaryBank
+                .GetVanillaDiffRows(activeParam);
+            Context.AuxDiffCaches = Editor.Project.Handler.ParamData.AuxBanks
+                .Select((bank, i) => (bank.Value.GetVanillaDiffRows(activeParam), 
+                bank.Value.GetPrimaryDiffRows(activeParam))).ToList();
 
-            var auxDiffCaches = Editor.Project.Handler.ParamData.AuxBanks.Select((bank, i) =>
-                (bank.Value.GetVanillaDiffRows(activeParam), bank.Value.GetPrimaryDiffRows(activeParam))).ToList();
+            Context.CompareColumn = ParentView.Selection.GetCompareCol();
+            Context.CompareColumnProperty = typeof(Param.Cell).GetProperty("Value");
 
-            Param.Column compareCol = ParentView.Selection.GetCompareCol();
-            PropertyInfo compareColProp = typeof(Param.Cell).GetProperty("Value");
-
-            //ImGui.BeginChild("rows" + activeParam);
-            if (EditorTableUtils.ImGuiTableStdColumns("rowList", compareCol == null ? 1 : 2, false))
-            {
-                var curParam = Editor.Project.Handler.ParamData.PrimaryBank.Params[activeParam];
-                var meta = Editor.Project.Handler.ParamData.GetParamMeta(curParam.AppliedParamdef);
-
-                var annotations = Editor.Project.Handler.ParamData.GetParamAnnotations(curParam.AppliedParamdef.ParamType);
-
-                var pinnedRowList = Editor.Project.Descriptor.PinnedRows
-                    .GetValueOrDefault(activeParam, new List<int>()).Select(id => para[id]).ToList();
-
-                ImGui.TableSetupColumn("rowCol", ImGuiTableColumnFlags.None, 1f);
-                if (compareCol != null)
-                {
-                    ImGui.TableSetupColumn("rowCol2", ImGuiTableColumnFlags.None, 0.4f);
-
-                    if (CFG.Current.ParamEditor_Row_List_Pinned_Stay_Visible)
-                    {
-                        ImGui.TableSetupScrollFreeze(2, 1 + pinnedRowList.Count);
-                    }
-                    if (ImGui.TableNextColumn())
-                    {
-                        FocusManager.SetFocus(EditorFocusContext.ParamEditor_RowList);
-                        ImGui.Text("ID\t\tName");
-                    }
-
-                    if (ImGui.TableNextColumn())
-                    {
-                        FocusManager.SetFocus(EditorFocusContext.ParamEditor_RowList);
-                        ImGui.Text(compareCol.Def.InternalName);
-                    }
-                }
-                else
-                {
-                    if (CFG.Current.ParamEditor_Row_List_Pinned_Stay_Visible)
-                    {
-                        ImGui.TableSetupScrollFreeze(1, pinnedRowList.Count);
-                    }
-                }
-
-                ImGui.PushID("pinned");
-
-                var selectionCachePins = ParentView.Selection.GetSelectionCache(pinnedRowList, "pinned");
-                if (pinnedRowList.Count != 0)
-                {
-                    var lastCol = false;
-                    for (var i = 0; i < pinnedRowList.Count(); i++)
-                    {
-                        Param.Row row = pinnedRowList[i];
-                        if (row == null)
-                        {
-                            continue;
-                        }
-
-                        lastCol = HandleRowPresentation(selectionCachePins, i, activeParam, null, row,
-                            vanillaDiffCache, auxDiffCaches, fmgDecorator, ref scrollTo, false, true, compareCol,
-                            compareColProp, meta, annotations);
-                    }
-
-                    if (lastCol)
-                    {
-                        ImGui.Spacing();
-                    }
-
-                    if (EditorTableUtils.ImguiTableSeparator())
-                    {
-                        ImGui.Spacing();
-                    }
-                }
-
-                ImGui.PopID();
-
-                if (InputManager.HasArrowSelection())
-                {
-                    _arrowKeyPressed = true;
-                }
-
-                if (_focusRows)
-                {
-                    ImGui.SetNextWindowFocus();
-                    _arrowKeyPressed = false;
-                    _focusRows = false;
-                }
-
-                var curSearchTerm = ParentView.Selection.GetCurrentRowSearchString();
-
-                List<Param.Row> rows = CacheBank.GetCached(
-                    Editor, (ParentView.ViewIndex, activeParam),
-                    () => ParentView.MassEdit.RSE.Search(
-                        (Editor.Project.Handler.ParamData.PrimaryBank, para),
-                       curSearchTerm, true, true)
-                    );
-
-                var enableGrouping = false;
-
-                if (meta != null)
-                {
-                    enableGrouping = CFG.Current.ParamEditor_Row_List_Enable_Row_Grouping && meta.ConsecutiveIDs;
-                }
-
-                // Rows
-                var selectionCache = ParentView.Selection.GetSelectionCache(rows, "regular");
-
-                for (var i = 0; i < rows.Count; i++)
-                {
-                    Param.Row currentRow = rows[i];
-
-                    var displayRow = false;
-
-                    if (ParentView.ParamTableWindow.IsInTableGroupMode(activeParam))
-                    {
-                        if (currentRow.ID == ParentView.ParamTableWindow.CurrentTableGroup)
-                        {
-                            displayRow = true;
-                        }
-                    }
-                    else
-                    {
-                        displayRow = true;
-                    }
-
-                    if (displayRow)
-                    {
-                        // Display groupings if ConsecutiveIDs is set in the meta for the current param.
-                        if (enableGrouping)
-                        {
-                            Param.Row prev = i - 1 > 0 ? rows[i - 1] : null;
-                            Param.Row next = i + 1 < rows.Count ? rows[i + 1] : null;
-                            if (prev != null && next != null && prev.ID + 1 != currentRow.ID &&
-                                currentRow.ID + 1 == next.ID)
-                            {
-                                EditorTableUtils.ImguiTableSeparator();
-                            }
-
-                            HandleRowPresentation(selectionCache, i, activeParam, rows, currentRow, vanillaDiffCache,
-                                auxDiffCaches, fmgDecorator, ref scrollTo, doFocus, false, compareCol, compareColProp,
-                                meta, annotations);
-
-                            if (prev != null && next != null && prev.ID + 1 == currentRow.ID &&
-                                currentRow.ID + 1 != next.ID)
-                            {
-                                EditorTableUtils.ImguiTableSeparator();
-                            }
-                        }
-                        else
-                        {
-                            HandleRowPresentation(selectionCache, i, activeParam, rows, currentRow, vanillaDiffCache,
-                                auxDiffCaches, fmgDecorator, ref scrollTo, doFocus, false, compareCol, compareColProp,
-                                meta, annotations);
-                        }
-                    }
-                }
-
-                if (doFocus)
-                {
-                    ImGui.SetScrollFromPosY(scrollTo - ImGui.GetScrollY());
-                }
-
-                ImGui.EndTable();
-            }
-            //ImGui.EndChild();
+            DisplayPinnedRowList();
+            DisplayRowList();
         }
     }
 
-    /// <summary>
-    /// The header for the Rows column.
-    /// </summary>
-    /// <param name="doFocus"></param>
-    /// <param name="isActiveView"></param>
-    /// <param name="scrollTo"></param>
-    /// <param name="activeParam"></param>
-    private void DisplayHeader(ref bool doFocus, bool isActiveView, ref float scrollTo,
-        string activeParam)
+    public void DisplayTitle()
     {
-        ImGui.Text("Rows");
-        ImGui.Separator();
+        var rowListTitle = "Row List";
 
-        scrollTo = 0;
+        GUI.SimpleHeader($"{rowListTitle}", "");
+    }
+
+    private void DisplayHeader()
+    {
+        var searchHeight = new Vector2(0, 36) * DPI.UIScale();
+        ImGui.BeginChild("ParamRowListHeaderSection", searchHeight, ImGuiChildFlags.Borders);
+
+        Context.ScrollTo = 0;
 
         // Auto fill
         if (ParentView.MassEdit.AutoFill != null)
@@ -252,14 +137,14 @@ public class ParamRowWindow
         ImGui.SameLine();
 
         // Row Search
-        if (isActiveView && InputManager.IsPressed(KeybindID.ParamEditor_Focus_Searchbar))
+        if (Context.IsActiveView && InputManager.IsPressed(KeybindID.ParamEditor_Focus_Searchbar))
         {
             ImGui.SetKeyboardFocusHere();
         }
 
         ImGui.AlignTextToFramePadding();
-        ImGui.InputText($"##rowSearch", ref ParentView.Selection.GetCurrentRowSearchString(), 256);
-        UIHelper.Tooltip($"Search <{InputManager.GetHint(KeybindID.ParamEditor_Focus_Searchbar)}>");
+        ImGui.InputTextWithHint($"##rowSearch", "Search...", ref ParentView.Selection.GetCurrentRowSearchString(), 256);
+        GUI.Tooltip($"Search <{InputManager.GetHint(KeybindID.ParamEditor_Focus_Searchbar)}>");
 
         if (!lastRowSearch.ContainsKey(ParentView.Selection.GetActiveParam())
             || !lastRowSearch[ParentView.Selection.GetActiveParam()].Equals(ParentView.Selection.GetCurrentRowSearchString()))
@@ -267,7 +152,7 @@ public class ParamRowWindow
             CacheBank.ClearCaches();
             lastRowSearch[ParentView.Selection.GetActiveParam()] = ParentView.Selection.GetCurrentRowSearchString();
 
-            doFocus = true;
+            Context.DoFocus = true;
         }
 
         if (ImGui.IsItemActive())
@@ -284,11 +169,11 @@ public class ParamRowWindow
         // Go to selected
         ImGui.AlignTextToFramePadding();
         if (ImGui.Button($"{Icons.LocationArrow}") ||
-            isActiveView && InputManager.IsPressed(KeybindID.Jump))
+            Context.IsActiveView && InputManager.IsPressed(KeybindID.Jump))
         {
             ParentView.JumpToSelectedRow = true;
         }
-        UIHelper.Tooltip($"Go to selected <{InputManager.GetHint(KeybindID.Jump)}>");
+        GUI.Tooltip($"Go to selected <{InputManager.GetHint(KeybindID.Jump)}>");
 
         ImGui.SameLine();
 
@@ -299,7 +184,7 @@ public class ParamRowWindow
         {
             ImGui.OpenPopup("massEditHint");
         }
-        UIHelper.Tooltip(ParamEditorHints.SearchBarHint);
+        GUI.Tooltip(ParamEditorHints.SearchBarHint);
 
         if (ImGui.BeginPopup("massEditHint"))
         {
@@ -322,7 +207,22 @@ public class ParamRowWindow
         if (CFG.Current.ParamEditor_Row_List_Display_Modified_Row_Bg)
             rowModifiedBgMode = "Display Background";
 
-        UIHelper.Tooltip($"Toggle the display of the modified background on modified rows.\nCurrent Mode: {rowModifiedBgMode}");
+        GUI.Tooltip($"Toggle the display of the modified background on modified rows.\nCurrent Mode: {rowModifiedBgMode}");
+
+        // Display Decorators
+        ImGui.SameLine();
+
+        if (ImGui.Button($"{Icons.FileText}"))
+        {
+            CFG.Current.ParamEditor_Row_List_Display_Decorators = !CFG.Current.ParamEditor_Row_List_Display_Decorators;
+        }
+
+        var displayDecoratorMode = "Hide FMG Text";
+        if (CFG.Current.ParamEditor_Row_List_Display_Decorators)
+            displayDecoratorMode = "Display FMG Text";
+
+        GUI.Tooltip($"Toggle the display of the FMG text on rows.\nCurrent Mode: {displayDecoratorMode}");
+        
 
         // Quick Export
         if (CFG.Current.Developer_Enable_Tools)
@@ -330,23 +230,448 @@ public class ParamRowWindow
             ParamDebugTools.DisplayQuickRowNameExport(Editor, Project);
         }
 
-        ImGui.Separator();
+
+        ImGui.EndChild();
     }
 
-    private void DisplayRow(bool[] selectionCache, int selectionCacheIndex, string activeParam,
-        List<Param.Row> p, Param.Row r, HashSet<int> vanillaDiffCache,
-        List<(HashSet<int>, HashSet<int>)> auxDiffCaches, FmgRowDecorator fmgDecorator, ref float scrollTo,
-        bool doFocus, bool isPinned, ParamMeta meta)
+    private void ListHeader()
     {
-        var diffVanilla = vanillaDiffCache.Contains(r.ID);
-        var auxDiffVanilla = auxDiffCaches.Where(cache => cache.Item1.Contains(r.ID)).Count() > 0;
+        var colFlags = ImGuiTableColumnFlags.WidthStretch;
+
+        ImGui.TableSetupColumn("ID", colFlags, 0.2f);
+        ImGui.TableSetupColumn("Name", colFlags);
+        // Comparison Column
+        if (Context.CompareColumn != null)
+        {
+            ImGui.TableSetupColumn("Comparison", colFlags);
+        }
+
+        var columnCount = Context.CompareColumn != null ? 3 : 2;
+        ImGui.TableSetupScrollFreeze(columnCount, 1);
+
+        // ID
+        ImGui.TableNextRow();
+        ImGui.TableSetColumnIndex(0);
+        ImGui.Text("ID");
+
+        // Name
+        ImGui.TableSetColumnIndex(1);
+        ImGui.Text("Name");
+
+        // Comparison Column
+        if (Context.CompareColumn != null)
+        {
+            ImGui.TableSetColumnIndex(2);
+
+            var key = Context.CompareColumn.Def.InternalName;
+            var name = key;
+
+            if (CFG.Current.ParamEditor_FieldNameMode is ParamFieldNameMode.Community)
+            {
+                var fieldAnnotation = Context.CurAnnotation.Fields.FirstOrDefault(e => e.Field == key);
+                if (fieldAnnotation != null)
+                {
+                    name = fieldAnnotation.Name;
+                }
+            }
+            else if (CFG.Current.ParamEditor_FieldNameMode is ParamFieldNameMode.Community_Source)
+            {
+                var fieldAnnotation = Context.CurAnnotation.Fields.FirstOrDefault(e => e.Field == key);
+                if (fieldAnnotation != null)
+                {
+                    name = $"{fieldAnnotation.Name} ({key})";
+                }
+            }
+            else if (CFG.Current.ParamEditor_FieldNameMode is ParamFieldNameMode.Source_Community)
+            {
+                var fieldAnnotation = Context.CurAnnotation.Fields.FirstOrDefault(e => e.Field == key);
+                if (fieldAnnotation != null)
+                {
+                    name = $"{key} ({fieldAnnotation.Name}";
+                }
+            }
+
+            ImGui.Text(name);
+        }
+    }
+
+    private void DisplayPinnedRowList()
+    {
+        var pinnedRowList = Editor.Project.Descriptor.PinnedRows
+            .GetValueOrDefault(Context.ActiveParam, new List<int>()).Select(id => Context.CurParam[id]).ToList();
+
+        if (pinnedRowList.Count > 0)
+        {
+            var height = 20 + (20 * pinnedRowList.Count);
+
+            // Limit height and enable scrollbar beyond this height
+            if (height > 250)
+                height = 250;
+
+            ImGui.BeginChild("PinnedRowSection", new Vector2(0, height), ImGuiChildFlags.None, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
+
+            var tblFlags = ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.Resizable | ImGuiTableFlags.ScrollY ;
+
+            if (CFG.Current.ParamEditor_Enable_Table_Borders)
+            {
+                tblFlags = tblFlags | ImGuiTableFlags.Borders;
+            }
+            else
+            {
+                tblFlags = tblFlags | ImGuiTableFlags.BordersOuterH | ImGuiTableFlags.BordersOuterV;
+            }
+
+                var columnCount = 2;
+
+            if (Context.CompareColumn != null)
+            {
+                columnCount = 3;
+            }
+
+            if (ImGui.BeginTable($"pinnedRowList", columnCount, tblFlags))
+            {
+                FocusManager.SetFocus(EditorFocusContext.ParamEditor_RowList);
+
+                ListHeader();
+
+                // Pinned Rows
+                ImGui.PushID("pinned");
+                var selectionCachePins = ParentView.Selection.GetSelectionCache(pinnedRowList, "pinned");
+
+                for (var i = 0; i < pinnedRowList.Count(); i++)
+                {
+                    Param.Row row = pinnedRowList[i];
+
+                    if (row == null)
+                    {
+                        continue;
+                    }
+
+                    HandleRowPresentation(selectionCachePins, i, null, row, true);
+                }
+                ImGui.PopID();
+
+                ImGui.EndTable();
+            }
+
+            ImGui.EndChild();
+        }
+    }
+
+    private void DisplayRowList()
+    {
+        ImGui.BeginChild("FullRowSection", new Vector2(0, 0), ImGuiChildFlags.None, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
+
+        if (InputManager.HasArrowSelection())
+        {
+            _arrowKeyPressed = true;
+        }
+
+        if (_focusRows)
+        {
+            ImGui.SetNextWindowFocus();
+            _arrowKeyPressed = false;
+            _focusRows = false;
+        }
+
+        var tblFlags = ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.Resizable | ImGuiTableFlags.ScrollY;
+
+        if (CFG.Current.ParamEditor_Enable_Table_Borders)
+        {
+            tblFlags = tblFlags | ImGuiTableFlags.Borders;
+        }
+        else
+        {
+            tblFlags = tblFlags | ImGuiTableFlags.BordersOuterH | ImGuiTableFlags.BordersOuterV;
+        }
+
+        var columnCount = 2;
+
+        if (Context.CompareColumn != null)
+        {
+            columnCount = 3;
+        }
+
+        if (ImGui.BeginTable($"fullRowList", columnCount, tblFlags))
+        {
+            FocusManager.SetFocus(EditorFocusContext.ParamEditor_RowList);
+
+            ListHeader();
+
+            // All Rows
+            var curSearchTerm = ParentView.Selection.GetCurrentRowSearchString();
+
+            List<Param.Row> rows = CacheBank.GetCached(
+                Editor, (ParentView.ViewIndex, Context.ActiveParam),
+                () => ParentView.MassEdit.RSE.Search(
+                    (Editor.Project.Handler.ParamData.PrimaryBank, Context.CurParam),
+                   curSearchTerm, true, true)
+                );
+
+
+            var enableGrouping = false;
+
+            if (Context.CurMeta != null)
+            {
+                enableGrouping = CFG.Current.ParamEditor_Row_List_Enable_Row_Grouping && Context.CurMeta.ConsecutiveIDs;
+            }
+
+            // Rows
+            var selectionCache = ParentView.Selection.GetSelectionCache(rows, "regular");
+
+            for (var i = 0; i < rows.Count; i++)
+            {
+                Param.Row currentRow = rows[i];
+
+                var displayRow = false;
+
+                if (ParentView.ParamTableWindow.IsInTableGroupMode(Context.ActiveParam))
+                {
+                    if (currentRow.ID == ParentView.ParamTableWindow.CurrentTableGroupID)
+                    {
+                        displayRow = true;
+                    }
+                }
+                else
+                {
+                    displayRow = true;
+                }
+
+                if (displayRow)
+                {
+                    HandleRowPresentation(selectionCache, i, rows, currentRow, false);
+                }
+            }
+
+            if (Context.DoFocus)
+            {
+                ImGui.SetScrollFromPosY(Context.ScrollTo - ImGui.GetScrollY());
+            }
+
+            ImGui.EndTable();
+        }
+
+        ImGui.EndChild();
+    }
+
+    private void HandleRowPresentation(bool[] selectionCache, int selectionCacheIndex,
+        List<Param.Row> rowList, Param.Row row, bool isPinned)
+    {
+        if (CFG.Current.ParamEditor_Enable_Compact_Mode)
+        {
+            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(5.0f, 2.0f));
+        }
+
+        // ID
+        ImGui.TableNextRow();
+        ImGui.TableSetColumnIndex(0);
+        DisplayRowID(selectionCache, selectionCacheIndex, rowList, row, isPinned);
+
+        // Name
+        ImGui.TableSetColumnIndex(1);
+        DisplayRow(selectionCache, selectionCacheIndex, rowList, row, isPinned);
+
+        // Comparison Column
+        if (Context.CompareColumn != null)
+        {
+            ImGui.TableSetColumnIndex(2);
+            Param.Cell c = row[Context.CompareColumn];
+            object newval = null;
+            ImGui.PushID("compareCol_" + selectionCacheIndex);
+            ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(0, 0));
+
+            var fieldAnnotation = Editor.Project.Handler.ParamData.GetFieldAnnotation(Context.CurAnnotation, c.Def.InternalName);
+
+            var metaContext = new FieldMetaContext(
+                ParentView, Context.CurMeta, Context.CurMeta.GetField(c.Def), fieldAnnotation, ParentView.Selection.GetActiveParam(), c.Def.InternalName);
+
+            ParentView.FieldInputHandler.DisplayFieldInput(metaContext, Context.CompareColumn.ValueType, c.Value, ref newval);
+
+            if (ParentView.FieldInputHandler.UpdateProperty(c, Context.CompareColumnProperty,
+                    c.Value))
+            {
+                Editor.Project.Handler.ParamData.PrimaryBank.RefreshParamRowDiffs(Editor, row, Context.ActiveParam);
+            }
+
+            ImGui.PopStyleVar();
+            ImGui.PopID();
+        }
+
+        if (CFG.Current.ParamEditor_Enable_Compact_Mode)
+        {
+            ImGui.PopStyleVar();
+        }
+    }
+
+    private void DisplayRowID(bool[] selectionCache, int selectionCacheIndex,
+        List<Param.Row> p, Param.Row r, bool isPinned)
+    {
+        var selected = selectionCache != null && selectionCacheIndex < selectionCache.Length
+            ? selectionCache[selectionCacheIndex]
+            : false;
+
+        var label = $@"{r.ID}";
+
+        label = Utils.ImGui_WordWrapString(label, ImGui.GetColumnWidth(),
+            !CFG.Current.ParamEditor_Row_List_Enable_Line_Wrapping ? 1 : 3);
+
+        if (ID_EditRow == null | ID_EditRow != r)
+        {
+            if (ImGui.Selectable($@"{label}##{selectionCacheIndex}_id", selected))
+            {
+                if (Editor.ViewHandler.ActiveView.ViewIndex != ParentView.ViewIndex)
+                {
+                    EditorCommandQueue.AddCommand($@"param/view/{ParentView.ViewIndex}/{ParentView.Selection.GetActiveParam()}");
+                }
+
+                _focusRows = true;
+
+                if (InputManager.HasCtrlDown())
+                {
+                    ParentView.Selection.ToggleRowInSelection(r);
+                }
+                else if (p != null && (InputManager.HasShiftDown())
+                    && ParentView.Selection.GetActiveRow() != null)
+                {
+                    ParentView.Selection.CleanSelectedRows();
+
+                    var start = p.IndexOf(ParentView.Selection.GetActiveRow());
+                    var end = p.IndexOf(r);
+
+                    if (start != end && start != -1 && end != -1)
+                    {
+                        foreach (Param.Row r2 in p.GetRange(start < end ? start : end, Math.Abs(end - start)))
+                        {
+                            if (ParentView.ParamTableWindow.IsInTableGroupMode(Context.ActiveParam))
+                            {
+                                if (r2.ID == ParentView.ParamTableWindow.CurrentTableGroupID)
+                                {
+                                    ClearEditRows();
+                                    ParentView.Selection.AddRowToSelection(r2);
+                                }
+                            }
+                            else
+                            {
+                                ClearEditRows();
+                                ParentView.Selection.AddRowToSelection(r2);
+                            }
+                        }
+                    }
+
+                    ClearEditRows();
+                    ParentView.Selection.AddRowToSelection(r);
+                }
+                else if (InputManager.HasAltDown())
+                {
+                    if (Name_EditRow == null)
+                    {
+                        ID_EditRow = r;
+                    }
+                }
+                else
+                {
+                    ClearEditRows();
+                    ParentView.Selection.SetActiveRow(r, true);
+                }
+            }
+
+            if (_arrowKeyPressed && ImGui.IsItemFocused() && r != ParentView.Selection.GetActiveRow())
+            {
+                if (InputManager.HasCtrlDown())
+                {
+                    // Add to selection
+                    ClearEditRows();
+                    ParentView.Selection.AddRowToSelection(r);
+                }
+                else
+                {
+                    // Exclusive selection
+                    ClearEditRows();
+                    ParentView.Selection.SetActiveRow(r, true);
+                }
+
+                _arrowKeyPressed = false;
+            }
+
+            // Drag source
+            if (ImGui.BeginDragDropSource(ImGuiDragDropFlags.None))
+            {
+                DragSourceRow = r;
+                unsafe
+                {
+                    byte dummy = 0;
+                    ImGui.SetDragDropPayload("PARAM_ROW", &dummy, 1);
+                }
+                ImGui.Text($"Row {r.ID}");
+                ImGui.EndDragDropSource();
+            }
+
+            // Drop target
+            if (ImGui.BeginDragDropTarget())
+            {
+                unsafe
+                {
+                    var payload = ImGui.AcceptDragDropPayload("PARAM_ROW");
+                    if (!payload.IsNull && DragSourceRow != null && DragSourceRow != r)
+                    {
+                        int dropTargetIndex = Context.CurParam.IndexOfRow(r);
+
+                        if (dropTargetIndex >= 0)
+                        {
+                            List<Param.Row> rowsToMove;
+                            var selectedRows = ParentView.Selection.GetSelectedRows();
+
+                            if (selectedRows.Contains(DragSourceRow))
+                            {
+                                rowsToMove = selectedRows
+                                    .OrderBy(row => Context.CurParam.IndexOfRow(row))
+                                    .ToList();
+                            }
+                            else
+                            {
+                                rowsToMove = new List<Param.Row> { DragSourceRow };
+                            }
+
+                            var action = new ReorderRowAction(Context.CurParam, rowsToMove, dropTargetIndex);
+                            ParentView.Editor.ActionManager.ExecuteAction(action);
+                        }
+
+                        DragSourceRow = null;
+                    }
+                }
+                ImGui.EndDragDropTarget();
+            }
+
+            DisplayContextMenu("id", r, selectionCacheIndex, isPinned);
+        }
+        else if(r == ID_EditRow)
+        {
+            var tempID = r.ID;
+
+            var width = ImGui.GetWindowWidth();
+            ImGui.PushItemWidth(width);
+            ImGui.InputInt($"##rowIdInput_{r.ID}", ref tempID, 255);
+            if (ImGui.IsItemDeactivatedAfterEdit())
+            {
+                var editCommand = $"selection: ID := {tempID}";
+                ParentView.Selection.SortSelection();
+                ParentView.MassEdit.ApplyMassEdit(editCommand);
+            }
+        }
+    }
+
+    private void DisplayRow(bool[] selectionCache, int selectionCacheIndex,
+        List<Param.Row> p, Param.Row r, bool isPinned)
+    {
+        var diffVanilla = Context.VanillaDiffCache.Contains(r.ID);
+        var auxDiffVanilla = Context.AuxDiffCaches.Where(cache => cache.Item1.Contains(r.ID)).Count() > 0;
 
         var popColor = true;
 
         if (diffVanilla)
         {
             // If the auxes are changed 
-            var auxDiffPrimaryAndVanilla = (auxDiffVanilla ? 1 : 0) + auxDiffCaches
+            var auxDiffPrimaryAndVanilla = (auxDiffVanilla ? 1 : 0) + Context.AuxDiffCaches
                 .Where(cache => cache.Item1.Contains(r.ID) && cache.Item2.Contains(r.ID)).Count() > 1;
 
             if (auxDiffVanilla && auxDiffPrimaryAndVanilla)
@@ -401,20 +726,10 @@ public class ParamRowWindow
             }
         }
 
-        var label = $@"{r.ID} {Utils.ImGuiEscape(r.Name)}";
+        var label = $@"{Utils.ImGuiEscape(r.Name)}";
 
         label = Utils.ImGui_WordWrapString(label, ImGui.GetColumnWidth(),
             !CFG.Current.ParamEditor_Row_List_Enable_Line_Wrapping ? 1 : 3);
-
-        if (ParentView.ParamTableWindow.IsInTableGroupMode(activeParam))
-        {
-            if (CFG.Current.ParamEditor_Table_List_Row_Name_Display_Type is ParamTableRowDisplayType.None)
-            {
-                // Ignore the option if the Name is empty
-                if(r.Name != "")
-                    label = $@"{Utils.ImGuiEscape(r.Name)}";
-            }
-        }
 
         if (CFG.Current.ParamEditor_Row_List_Display_Modified_Row_Bg)
         {
@@ -426,201 +741,188 @@ public class ParamRowWindow
                 }
                 else
                 {
-                    UIHelper.ApplyDiffHeaderBackground();
+                    GUI.ApplyDiffHeaderBackground();
                 }
             }
         }
 
-        if (ImGui.Selectable($@"{label}##{selectionCacheIndex}", selected))
+        if (Name_EditRow == null | Name_EditRow != r)
         {
-            if (Editor.ViewHandler.ActiveView.ViewIndex != ParentView.ViewIndex)
+            if (ImGui.Selectable($@"{label}##{selectionCacheIndex}_name", selected))
             {
-                EditorCommandQueue.AddCommand($@"param/view/{ParentView.ViewIndex}/{ParentView.Selection.GetActiveParam()}");
-            }
-
-            _focusRows = true;
-
-            if (InputManager.HasCtrlDown())
-            {
-                ParentView.Selection.ToggleRowInSelection(r);
-            }
-            else if (p != null && (InputManager.HasShiftDown())
-                && ParentView.Selection.GetActiveRow() != null)
-            {
-                ParentView.Selection.CleanSelectedRows();
-
-                var start = p.IndexOf(ParentView.Selection.GetActiveRow());
-                var end = p.IndexOf(r);
-
-                if (start != end && start != -1 && end != -1)
+                if (Editor.ViewHandler.ActiveView.ViewIndex != ParentView.ViewIndex)
                 {
-                    foreach (Param.Row r2 in p.GetRange(start < end ? start : end, Math.Abs(end - start)))
+                    EditorCommandQueue.AddCommand($@"param/view/{ParentView.ViewIndex}/{ParentView.Selection.GetActiveParam()}");
+                }
+
+                _focusRows = true;
+
+                if (InputManager.HasCtrlDown())
+                {
+                    ParentView.Selection.ToggleRowInSelection(r);
+                }
+                else if (p != null && (InputManager.HasShiftDown())
+                    && ParentView.Selection.GetActiveRow() != null)
+                {
+                    ParentView.Selection.CleanSelectedRows();
+
+                    var start = p.IndexOf(ParentView.Selection.GetActiveRow());
+                    var end = p.IndexOf(r);
+
+                    if (start != end && start != -1 && end != -1)
                     {
-                        if (ParentView.ParamTableWindow.IsInTableGroupMode(activeParam))
+                        foreach (Param.Row r2 in p.GetRange(start < end ? start : end, Math.Abs(end - start)))
                         {
-                            if (r2.ID == ParentView.ParamTableWindow.CurrentTableGroup)
+                            if (ParentView.ParamTableWindow.IsInTableGroupMode(Context.ActiveParam))
                             {
+                                if (r2.ID == ParentView.ParamTableWindow.CurrentTableGroupID)
+                                {
+                                    ClearEditRows();
+                                    ParentView.Selection.AddRowToSelection(r2);
+                                }
+                            }
+                            else
+                            {
+                                ClearEditRows();
                                 ParentView.Selection.AddRowToSelection(r2);
                             }
                         }
-                        else
-                        {
-                            ParentView.Selection.AddRowToSelection(r2);
-                        }
+                    }
+
+                    ClearEditRows();
+                    ParentView.Selection.AddRowToSelection(r);
+                }
+                else if (InputManager.HasAltDown())
+                {
+                    if (ID_EditRow == null)
+                    {
+                        Name_EditRow = r;
                     }
                 }
-
-                ParentView.Selection.AddRowToSelection(r);
-            }
-            else
-            {
-                ParentView.Selection.SetActiveRow(r, true);
-            }
-        }
-
-        if (_arrowKeyPressed && ImGui.IsItemFocused() && r != ParentView.Selection.GetActiveRow())
-        {
-            if (InputManager.HasCtrlDown())
-            {
-                // Add to selection
-                ParentView.Selection.AddRowToSelection(r);
-            }
-            else
-            {
-                // Exclusive selection
-                ParentView.Selection.SetActiveRow(r, true);
-            }
-
-            _arrowKeyPressed = false;
-        }
-
-        if (CFG.Current.ParamEditor_Row_List_Display_Modified_Row_Bg)
-        {
-            if (diffVanilla)
-            {
-                if (selected)
+                else
                 {
-                    ImGui.PopStyleColor(1);
+                    ClearEditRows();
+                    ParentView.Selection.SetActiveRow(r, true);
                 }
             }
+
+            if (_arrowKeyPressed && ImGui.IsItemFocused() && r != ParentView.Selection.GetActiveRow())
+            {
+                if (InputManager.HasCtrlDown())
+                {
+                    // Add to selection
+                    ClearEditRows();
+                    ParentView.Selection.AddRowToSelection(r);
+                }
+                else
+                {
+                    // Exclusive selection
+                    ClearEditRows();
+                    ParentView.Selection.SetActiveRow(r, true);
+                }
+
+                _arrowKeyPressed = false;
+            }
+
+            if (CFG.Current.ParamEditor_Row_List_Display_Modified_Row_Bg)
+            {
+                if (diffVanilla)
+                {
+                    if (selected)
+                    {
+                        ImGui.PopStyleColor(1);
+                    }
+                }
+            }
+
+            if (popColor)
+            {
+                ImGui.PopStyleColor(1);
+            }
+
+            DisplayContextMenu("name", r, selectionCacheIndex, isPinned);
+
+            if (Context.FmgRowDecorator != null)
+            {
+                Context.FmgRowDecorator.DecorateParam(r);
+            }
+
+            // Roll Chance for Table Group View
+            if (ParentView.ParamTableWindow.IsInTableGroupMode(Context.ActiveParam))
+            {
+                ParentView.ParamTableWindow.DisplayTableEntryChance(r);
+            }
+
+            if (Context.DoFocus && ParentView.Selection.GetActiveRow() == r)
+            {
+                Context.ScrollTo = ImGui.GetCursorPosY();
+            }
         }
-
-        if (popColor)
+        else if(Name_EditRow == r)
         {
-            ImGui.PopStyleColor(1);
-        }
+            if (popColor)
+            {
+                ImGui.PopStyleColor(1);
+            }
 
-        DisplayContextMenu(r, selectionCacheIndex, isPinned, activeParam, fmgDecorator);
+            var tempName = r.Name;
 
-        if (fmgDecorator != null)
-        {
-            fmgDecorator.DecorateParam(r);
-        }
+            var width = ImGui.GetWindowWidth();
+            ImGui.PushItemWidth(width);
 
-        // Roll Chance for Table Group View
-        if (ParentView.ParamTableWindow.IsInTableGroupMode(activeParam))
-        {
-            ParentView.ParamTableWindow.DisplayTableEntryChance(r);
-        }
+            var input = new DelayedInputTextHandler(tempName);
 
-        if (doFocus && ParentView.Selection.GetActiveRow() == r)
-        {
-            scrollTo = ImGui.GetCursorPosY();
+            if (input.Draw($"##rowNameInput_{r.ID}", out string newValue))
+            {
+                var editCommand = $"selection: Name := {newValue}";
+                ParentView.Selection.SortSelection();
+                ParentView.MassEdit.ApplyMassEdit(editCommand);
+            }
         }
     }
 
-    private bool HandleRowPresentation(bool[] selectionCache, int selectionCacheIndex, string activeParam,
-        List<Param.Row> p, Param.Row r, HashSet<int> vanillaDiffCache,
-        List<(HashSet<int>, HashSet<int>)> auxDiffCaches, FmgRowDecorator fmgDecorator, ref float scrollTo,
-        bool doFocus, bool isPinned, Param.Column compareCol, PropertyInfo compareColProp, ParamMeta meta, ParamAnnotationEntry annotations)
+    public void DisplayContextMenu(string imguiKey, Param.Row r, int selectionCacheIndex, bool isPinned)
     {
-        if (CFG.Current.ParamEditor_Enable_Compact_Mode)
-        {
-            // ItemSpacing only affects clickable area for selectables in tables. Add additional height to prevent gaps between selectables.
-            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(5.0f, 2.0f));
-        }
-
-        var lastCol = false;
-
-        if (ImGui.TableNextColumn())
-        {
-            FocusManager.SetFocus(EditorFocusContext.ParamEditor_RowList);
-
-            DisplayRow(selectionCache, selectionCacheIndex, activeParam, p, r, vanillaDiffCache,
-                auxDiffCaches, fmgDecorator, ref scrollTo, doFocus, isPinned, meta);
-            lastCol = true;
-        }
-
-        if (compareCol != null)
-        {
-            if (ImGui.TableNextColumn())
-            {
-                FocusManager.SetFocus(EditorFocusContext.ParamEditor_RowList);
-
-                Param.Cell c = r[compareCol];
-                object newval = null;
-                ImGui.PushID("compareCol_" + selectionCacheIndex);
-                ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(0, 0));
-
-                var fieldAnnotation = Editor.Project.Handler.ParamData.GetFieldAnnotation(annotations, c.Def.InternalName);
-
-                var metaContext = new FieldMetaContext(
-                    ParentView, meta, meta.GetField(c.Def), fieldAnnotation, ParentView.Selection.GetActiveParam(), c.Def.InternalName);
-
-                ParentView.FieldInputHandler.DisplayFieldInput(metaContext, compareCol.ValueType, c.Value, ref newval);
-
-                if (ParentView.FieldInputHandler.UpdateProperty(c, compareColProp,
-                        c.Value, newval))
-                {
-                    Editor.Project.Handler.ParamData.PrimaryBank.RefreshParamRowDiffs(Editor, r, activeParam);
-                }
-
-                ImGui.PopStyleVar();
-                ImGui.PopID();
-                lastCol = true;
-            }
-            else
-            {
-                lastCol = false;
-            }
-        }
-
-        if (CFG.Current.ParamEditor_Enable_Compact_Mode)
-        {
-            ImGui.PopStyleVar();
-        }
-
-        return lastCol;
-    }
-
-    /// <summary>
-    /// The context menu for a Row entry.
-    /// </summary>
-    /// <param name="r"></param>
-    /// <param name="selectionCacheIndex"></param>
-    /// <param name="isPinned"></param>
-    /// <param name="activeParam"></param>
-    /// <param name="fmgDecorator"></param>
-    public void DisplayContextMenu(Param.Row r, int selectionCacheIndex, bool isPinned, string activeParam, FmgRowDecorator fmgDecorator)
-    {
-        if (ImGui.BeginPopupContextItem($"{r.ID}_{selectionCacheIndex}"))
+        if (ImGui.BeginPopupContextItem($"{imguiKey}_{r.ID}_{selectionCacheIndex}"))
         {
             // Name Input
-            if (CFG.Current.ParamEditor_Row_Context_Display_Row_Name_Input)
+            if (imguiKey == "id")
             {
-                if (ParentView.Selection.RowSelectionExists())
+                if (CFG.Current.ParamEditor_Row_Context_Display_Row_Name_Input)
                 {
-                    var name = ParentView.Selection.GetActiveRow().Name;
-                    if (name != null)
+                    if (ParentView.Selection.RowSelectionExists())
                     {
-                        ImGui.InputText("##nameMassEdit", ref name, 255);
+                        var id = ParentView.Selection.GetActiveRow().ID;
+                        ImGui.InputInt("##newRowId", ref id);
 
                         if (ImGui.IsItemDeactivatedAfterEdit())
                         {
-                            var editCommand = $"selection: Name := {name}";
+                            var editCommand = $"selection: ID := {id}";
                             ParentView.Selection.SortSelection();
-
                             ParentView.MassEdit.ApplyMassEdit(editCommand);
+                        }
+                    }
+                }
+            }
+
+            if (imguiKey == "name")
+            {
+                if (CFG.Current.ParamEditor_Row_Context_Display_Row_Name_Input)
+                {
+                    if (ParentView.Selection.RowSelectionExists())
+                    {
+                        var name = ParentView.Selection.GetActiveRow().Name;
+                        if (name != null)
+                        {
+                            ImGui.InputText("##nameMassEdit", ref name, 255);
+
+                            if (ImGui.IsItemDeactivatedAfterEdit())
+                            {
+                                var editCommand = $"selection: Name := {name}";
+                                ParentView.Selection.SortSelection();
+
+                                ParentView.MassEdit.ApplyMassEdit(editCommand);
+                            }
                         }
                     }
                 }
@@ -634,7 +936,7 @@ public class ParamRowWindow
             {
                 Editor.Clipboard.CopySelectionToClipboard(ParentView);
             }
-            UIHelper.Tooltip($"Shortcut: {InputManager.GetHint(KeybindID.Copy)}\n\n" +
+            GUI.Tooltip($"Shortcut: {InputManager.GetHint(KeybindID.Copy)}\n\n" +
                 "Copy the current row selection to the clipboard.");
 
             // Paste
@@ -643,7 +945,7 @@ public class ParamRowWindow
             {
                 EditorCommandQueue.AddCommand(@"param/menu/ctrlVPopup");
             }
-            UIHelper.Tooltip($"Shortcut: {InputManager.GetHint(KeybindID.Paste)}\n\n" +
+            GUI.Tooltip($"Shortcut: {InputManager.GetHint(KeybindID.Paste)}\n\n" +
                 "Paste the current row clipboard into the current param.");
 
             // Delete
@@ -654,7 +956,7 @@ public class ParamRowWindow
             {
                 ParamRowDelete.ApplyDelete(ParentView);
             }
-            UIHelper.Tooltip($"Shortcut: {InputManager.GetHint(KeybindID.Delete)}\n\n" +
+            GUI.Tooltip($"Shortcut: {InputManager.GetHint(KeybindID.Delete)}\n\n" +
                 "Delete the current row selection from the param.");
 
             // Duplicate
@@ -662,11 +964,11 @@ public class ParamRowWindow
             {
                 ImGui.InputInt("Offset##duplicateOffset", ref CFG.Current.Param_Toolbar_Duplicate_Offset);
 
-                UIHelper.Tooltip("The ID offset to apply when duplicating.\nSet to 0 for row indexed params to duplicate as expected.");
+                GUI.Tooltip("The ID offset to apply when duplicating.\nSet to 0 for row indexed params to duplicate as expected.");
 
                 ImGui.InputInt("Amount##duplicateAmount", ref CFG.Current.Param_Toolbar_Duplicate_Amount);
 
-                UIHelper.Tooltip("The number of times the current selection will be duplicated.");
+                GUI.Tooltip("The number of times the current selection will be duplicated.");
 
                 if (ImGui.Selectable(@$"Apply", false,
                     ParentView.Selection.RowSelectionExists()
@@ -675,7 +977,7 @@ public class ParamRowWindow
                 {
                     ParamRowDuplicate.ApplyDuplicate(ParentView);
                 }
-                UIHelper.Tooltip($"Shortcut: {InputManager.GetHint(KeybindID.Duplicate)}\n\n" +
+                GUI.Tooltip($"Shortcut: {InputManager.GetHint(KeybindID.Duplicate)}\n\n" +
                     "Duplicate the current row selection, automatically incrementing the row ID.");
 
                 ImGui.EndMenu();
@@ -688,193 +990,309 @@ public class ParamRowWindow
 
                 ImGui.EndMenu();
             }
-            UIHelper.Tooltip($"Duplicate the current row selection into the chosen target param.");
+            GUI.Tooltip($"Duplicate the current row selection into the chosen target param.");
 
-            // Revert to Default
-            if (ImGui.Selectable(@$"Revert to Default", false,
+            // Jump
+            if (HasJumpOption())
+            {
+                if (ImGui.BeginMenu("Jump"))
+                {
+                    // Decorator Options (e.g. Go to Text)
+                    if (Context.FmgRowDecorator != null)
+                    {
+                        Context.FmgRowDecorator.DecorateContextMenuItems(r);
+                    }
+
+                    ImGui.EndMenu();
+                }
+            }
+
+            // Value
+            if (ImGui.BeginMenu("Value"))
+            {
+                // Revert to Default
+                if (ImGui.Selectable(@$"Revert to Default", false,
                     ParentView.Selection.RowSelectionExists()
                         ? ImGuiSelectableFlags.None
                         : ImGuiSelectableFlags.Disabled))
-            {
-                ParamRowOperations.SetRowToDefault(ParentView);
-            }
-            UIHelper.Tooltip($"Revert the current row selection field values to the vanilla field values.");
-
-            ImGui.Separator();
-
-            // Pin
-            if (!isPinned)
-            {
-                if (ImGui.Selectable($"Pin"))
                 {
-                    if (!Editor.Project.Descriptor.PinnedRows.ContainsKey(activeParam))
-                    {
-                        Editor.Project.Descriptor.PinnedRows.Add(activeParam, new List<int>());
-                    }
+                    ParamRowOperations.SetRowToDefault(ParentView);
+                }
+                GUI.Tooltip($"Revert the current row selection field values to the vanilla field values.");
 
-                    List<int> pinned = Editor.Project.Descriptor.PinnedRows[activeParam];
+                ImGui.EndMenu();
+            }
 
-                    foreach (var entry in ParentView.Selection.GetSelectedRows())
+            // Mass Edit
+            if (ImGui.BeginMenu("Mass Edit"))
+            {
+                if (ImGui.Selectable("Command Palette"))
+                {
+                    EditorCommandQueue.AddCommand(
+                        $@"param/menu/massEditRegex/selection: ");
+                }
+                GUI.Tooltip("Open the floating command palette.");
+
+                if (ImGui.BeginMenu("Autofill"))
+                {
+                    if (ParentView.MassEdit.AutoFill != null)
                     {
-                        if (!pinned.Contains(entry.ID))
+                        var res = ParentView.MassEdit.AutoFill.MassEditCompleteAutoFill();
+                        if (res != null)
                         {
-                            pinned.Add(entry.ID);
+                            EditorCommandQueue.AddCommand(
+                                $@"{res}");
                         }
                     }
+
+                    ImGui.EndMenu();
                 }
-                UIHelper.Tooltip($"Pin the current row selection to the top of the row list.");
+                GUI.Tooltip("Open the autofill menu.");
+
+                ImGui.EndMenu();
             }
-            // Unpin
-            else if (isPinned)
+
+            // Pinning
+            if (ImGui.BeginMenu("Pinning"))
             {
-                if (ImGui.Selectable($"Unpin"))
+                if (!isPinned)
                 {
-                    if (!Editor.Project.Descriptor.PinnedRows.ContainsKey(activeParam))
+                    if (ImGui.Selectable($"Pin"))
                     {
-                        Editor.Project.Descriptor.PinnedRows.Add(activeParam, new List<int>());
-                    }
-
-                    List<int> pinned = Editor.Project.Descriptor.PinnedRows[activeParam];
-
-                    foreach (var entry in ParentView.Selection.GetSelectedRows())
-                    {
-                        if (pinned.Contains(entry.ID))
+                        if (!Editor.Project.Descriptor.PinnedRows.ContainsKey(Context.ActiveParam))
                         {
-                            pinned.Remove(entry.ID);
+                            Editor.Project.Descriptor.PinnedRows.Add(Context.ActiveParam, new List<int>());
+                        }
+
+                        List<int> pinned = Editor.Project.Descriptor.PinnedRows[Context.ActiveParam];
+
+                        foreach (var entry in ParentView.Selection.GetSelectedRows())
+                        {
+                            if (!pinned.Contains(entry.ID))
+                            {
+                                pinned.Add(entry.ID);
+                            }
                         }
                     }
+                    GUI.Tooltip($"Pin the current row selection to the top of the row list.");
                 }
-                UIHelper.Tooltip($"Unpin the current row selection from top of the row list.");
-            }
-
-            // Decorator Options (e.g. Go to Text)
-            if (fmgDecorator != null)
-            {
-                fmgDecorator.DecorateContextMenuItems(r);
-            }
-
-            // Advanced Contextual Actions
-            if (CFG.Current.ParamEditor_Row_Context_Display_Advanced_Options)
-            {
-                // Quick Search
-                if (CFG.Current.ParamEditor_Row_Context_Display_Finder_Quick_Option)
+                // Unpin
+                else if (isPinned)
                 {
-                    ParamRowTools.ParamQuickSearch(ParentView, activeParam, r.ID);
+                    if (ImGui.Selectable($"Unpin"))
+                    {
+                        if (!Editor.Project.Descriptor.PinnedRows.ContainsKey(Context.ActiveParam))
+                        {
+                            Editor.Project.Descriptor.PinnedRows.Add(Context.ActiveParam, new List<int>());
+                        }
+
+                        List<int> pinned = Editor.Project.Descriptor.PinnedRows[Context.ActiveParam];
+
+                        foreach (var entry in ParentView.Selection.GetSelectedRows())
+                        {
+                            if (pinned.Contains(entry.ID))
+                            {
+                                pinned.Remove(entry.ID);
+                            }
+                        }
+                    }
+                    GUI.Tooltip($"Unpin the current row selection from top of the row list.");
                 }
 
-                // Comparison Options
-                if (ImGui.Selectable("Compare"))
+                if (ImGui.Selectable($"Unpin All"))
+                {
+                    Editor.Project.Descriptor.PinnedRows.Clear();
+                }
+
+                ImGui.EndMenu();
+            }
+
+            // Search
+            if (ImGui.BeginMenu("Search"))
+            {
+                ParamRowTools.ParamQuickSearch(ParentView, Context.ActiveParam, r.ID);
+
+                ParamRowTools.ParamReverseLookup_Value(ParentView, Context.ActiveParam, r.ID);
+
+                ImGui.EndMenu();
+            }
+
+            // Comparison
+            if (ImGui.BeginMenu("Comparison"))
+            {
+                if (ImGui.Selectable("Set Compare Row"))
                 {
                     ParentView.Selection.SetCompareRow(r);
                 }
-                UIHelper.Tooltip($"Set this row as the row comparison target within the field window.");
+                GUI.Tooltip($"Set this row as the row comparison target within the field window.");
 
-                // Reverse Lookup Options
-                ParamRowTools.ParamReverseLookup_Value(ParentView, activeParam, r.ID);
-
-                ImGui.Separator();
-
-                if (ImGui.BeginMenu("Row Name Inherit Actions"))
+                if (ImGui.Selectable("Clear Compare Row"))
                 {
-                    // Proliferate name to references
-                    if (ImGui.Selectable(@$"Proliferate name to references", false,
-                        ParentView.Selection.RowSelectionExists()
-                            ? ImGuiSelectableFlags.None
-                            : ImGuiSelectableFlags.Disabled))
-                    {
-                        ParamRowOperations.ProliferateRowName(ParentView, TargetField);
-                    }
-                    UIHelper.Tooltip($"Proliferate the name of this row to the references pointed to by the named field within this row.");
-
-                    // Inherit Name from reference
-                    if (ImGui.Selectable(@$"Inherit name from reference", false,
-                            ParentView.Selection.RowSelectionExists()
-                                ? ImGuiSelectableFlags.None
-                                : ImGuiSelectableFlags.Disabled))
-                    {
-                        ParamRowOperations.InheritRowName(ParentView, TargetField);
-                    }
-                    UIHelper.Tooltip($"Inherit the name of the referenced row connected to via the target field.");
-
-                    // Inherit Name from text
-                    if (ImGui.Selectable(@$"Inherit name from text", false,
-                            ParentView.Selection.RowSelectionExists()
-                                ? ImGuiSelectableFlags.None
-                                : ImGuiSelectableFlags.Disabled))
-                    {
-                        ParamRowOperations.InheritRowNameFromFMG(ParentView, TargetField);
-                    }
-                    UIHelper.Tooltip($"Inherit the name of the referenced FMG connected to via the target field.");
-
-                    // Inherit Name from alias
-                    if (ImGui.Selectable(@$"Inherit name from alias", false,
-                            ParentView.Selection.RowSelectionExists()
-                                ? ImGuiSelectableFlags.None
-                                : ImGuiSelectableFlags.Disabled))
-                    {
-                        ParamRowOperations.InheritRowNameFromAlias(ParentView, TargetField);
-                    }
-                    UIHelper.Tooltip($"Inherit the name of the referenced Alias connected to via the target field.");
-
-                    ImGui.InputText("Inherit Name Field##targetField", ref TargetField, 255);
-                    UIHelper.Tooltip("The internal name of the field to target for the inherit name actions.");
-
-                    ImGui.EndMenu();
+                    ParentView.Selection.ClearCompareRow();
                 }
 
-                if (ImGui.BeginMenu("Row Name Adjustment Actions"))
-                {
-                    if (ImGui.Selectable(@$"Clear text from name", false,
-                        ParentView.Selection.RowSelectionExists()
-                            ? ImGuiSelectableFlags.None
-                            : ImGuiSelectableFlags.Disabled))
-                    {
-                        ParamRowOperations.AdjustRowName(ParentView, NameAdjustment, ParamRowNameAdjustType.Clear);
-                    }
-                    UIHelper.Tooltip($"Prepend text to the names of all currently selected rows.");
-
-                    if (ImGui.Selectable(@$"Prepend text to name", false,
-                        ParentView.Selection.RowSelectionExists()
-                            ? ImGuiSelectableFlags.None
-                            : ImGuiSelectableFlags.Disabled))
-                    {
-                        ParamRowOperations.AdjustRowName(ParentView, NameAdjustment, ParamRowNameAdjustType.Prepend);
-                    }
-                    UIHelper.Tooltip($"Prepend text to the names of all currently selected rows.");
-
-                    if (ImGui.Selectable(@$"Postpend text to name", false,
-                            ParentView.Selection.RowSelectionExists()
-                                ? ImGuiSelectableFlags.None
-                                : ImGuiSelectableFlags.Disabled))
-                    {
-                        ParamRowOperations.AdjustRowName(ParentView, NameAdjustment, ParamRowNameAdjustType.Postpend);
-                    }
-                    UIHelper.Tooltip($"Postpend text to the names of all currently selected rows.");
-
-                    if (ImGui.Selectable(@$"Remove text from name", false,
-                            ParentView.Selection.RowSelectionExists()
-                                ? ImGuiSelectableFlags.None
-                                : ImGuiSelectableFlags.Disabled))
-                    {
-                        ParamRowOperations.AdjustRowName(ParentView, NameAdjustment, ParamRowNameAdjustType.Remove);
-                    }
-                    UIHelper.Tooltip($"Remove text from the names of all currently selected rows.");
-
-                    ImGui.InputText("Text to Apply##nameAdjustment", ref NameAdjustment, 255);
-                    UIHelper.Tooltip("The string to pre or post pend to the existing name.");
-
-                    ImGui.EndMenu();
-
-                }
-
-                ImGui.Separator();
-
-                var selectedRowCount = ParentView.Selection.GetSelectedRows().Count;
-                ImGui.Text($"{selectedRowCount} rows selected currently.");
+                ImGui.EndMenu();
             }
+
+            if (imguiKey == "name")
+            {
+                if (ImGui.BeginMenu("Name Manipulation"))
+                {
+
+                    if (ImGui.BeginMenu("Adjust"))
+                    {
+                        if (ImGui.Selectable(@$"Clear text from name", false,
+                            ParentView.Selection.RowSelectionExists()
+                                ? ImGuiSelectableFlags.None
+                                : ImGuiSelectableFlags.Disabled))
+                        {
+                            ParamRowOperations.AdjustRowName(ParentView, NameAdjustment, ParamRowNameAdjustType.Clear);
+                        }
+                        GUI.Tooltip($"Prepend text to the names of all currently selected rows.");
+
+                        if (ImGui.Selectable(@$"Prepend text to name", false,
+                            ParentView.Selection.RowSelectionExists()
+                                ? ImGuiSelectableFlags.None
+                                : ImGuiSelectableFlags.Disabled))
+                        {
+                            ParamRowOperations.AdjustRowName(ParentView, NameAdjustment, ParamRowNameAdjustType.Prepend);
+                        }
+                        GUI.Tooltip($"Prepend text to the names of all currently selected rows.");
+
+                        if (ImGui.Selectable(@$"Postpend text to name", false,
+                                ParentView.Selection.RowSelectionExists()
+                                    ? ImGuiSelectableFlags.None
+                                    : ImGuiSelectableFlags.Disabled))
+                        {
+                            ParamRowOperations.AdjustRowName(ParentView, NameAdjustment, ParamRowNameAdjustType.Postpend);
+                        }
+                        GUI.Tooltip($"Postpend text to the names of all currently selected rows.");
+
+                        if (ImGui.Selectable(@$"Remove text from name", false,
+                                ParentView.Selection.RowSelectionExists()
+                                    ? ImGuiSelectableFlags.None
+                                    : ImGuiSelectableFlags.Disabled))
+                        {
+                            ParamRowOperations.AdjustRowName(ParentView, NameAdjustment, ParamRowNameAdjustType.Remove);
+                        }
+                        GUI.Tooltip($"Remove text from the names of all currently selected rows.");
+
+                        ImGui.InputText("Text to Apply##nameAdjustment", ref NameAdjustment, 255);
+                        GUI.Tooltip("The string to pre or post pend to the existing name.");
+
+                        ImGui.EndMenu();
+
+                    }
+
+                    if (ImGui.BeginMenu("Inherit"))
+                    {
+                        // Proliferate name to references
+                        if (ImGui.Selectable(@$"Proliferate name to references", false,
+                            ParentView.Selection.RowSelectionExists()
+                                ? ImGuiSelectableFlags.None
+                                : ImGuiSelectableFlags.Disabled))
+                        {
+                            ParamRowOperations.ProliferateRowName(ParentView, TargetField);
+                        }
+                        GUI.Tooltip($"Proliferate the name of this row to the references pointed to by the named field within this row.");
+
+                        // Inherit Name from reference
+                        if (ImGui.Selectable(@$"Inherit name from reference", false,
+                                ParentView.Selection.RowSelectionExists()
+                                    ? ImGuiSelectableFlags.None
+                                    : ImGuiSelectableFlags.Disabled))
+                        {
+                            ParamRowOperations.InheritRowName(ParentView, TargetField);
+                        }
+                        GUI.Tooltip($"Inherit the name of the referenced row connected to via the target field.");
+
+                        // Inherit Name from text
+                        if (ImGui.Selectable(@$"Inherit name from text", false,
+                                ParentView.Selection.RowSelectionExists()
+                                    ? ImGuiSelectableFlags.None
+                                    : ImGuiSelectableFlags.Disabled))
+                        {
+                            ParamRowOperations.InheritRowNameFromFMG(ParentView, TargetField);
+                        }
+                        GUI.Tooltip($"Inherit the name of the referenced FMG connected to via the target field.");
+
+                        // Inherit Name from alias
+                        if (ImGui.Selectable(@$"Inherit name from alias", false,
+                                ParentView.Selection.RowSelectionExists()
+                                    ? ImGuiSelectableFlags.None
+                                    : ImGuiSelectableFlags.Disabled))
+                        {
+                            ParamRowOperations.InheritRowNameFromAlias(ParentView, TargetField);
+                        }
+                        GUI.Tooltip($"Inherit the name of the referenced Alias connected to via the target field.");
+
+                        ImGui.InputText("Target Field##targetField", ref TargetField, 255);
+                        GUI.Tooltip("The internal name of the field to target for the name actions.");
+
+                        ImGui.EndMenu();
+                    }
+
+                    ImGui.EndMenu();
+                }
+            }
+
+            // Information
+            if (ImGui.BeginMenu("Information"))
+            {
+                if(ImGui.Selectable("Copy ID"))
+                {
+                    var selection = ParentView.Selection.GetSelectedRows();
+                    StringBuilder _builder = new();
+                    foreach(var entry in selection)
+                    {
+                        _builder.AppendLine($"{entry.ID.ToString()}");
+                    }
+
+                    PlatformUtils.Instance.SetClipboardText(_builder.ToString());
+                }
+
+                if (ImGui.Selectable("Copy Name"))
+                {
+                    var selection = ParentView.Selection.GetSelectedRows();
+                    StringBuilder _builder = new();
+                    foreach (var entry in selection)
+                    {
+                        _builder.AppendLine(entry.Name.ToString());
+                    }
+
+                    PlatformUtils.Instance.SetClipboardText(_builder.ToString());
+                }
+
+                if (ImGui.Selectable("Copy ID and Name"))
+                {
+                    var selection = ParentView.Selection.GetSelectedRows();
+                    StringBuilder _builder = new();
+                    foreach (var entry in selection)
+                    {
+                        _builder.AppendLine($"{entry.ID.ToString()};{entry.Name.ToString()}");
+                    }
+
+                    PlatformUtils.Instance.SetClipboardText(_builder.ToString());
+                }
+
+                ImGui.EndMenu();
+            }
+
+            ImGui.Separator();
+
+            var selectedRowCount = ParentView.Selection.GetSelectedRows().Count;
+            ImGui.Text($"{selectedRowCount} rows selected currently.");
 
             ImGui.EndPopup();
         }
+    }
+
+    private bool HasJumpOption()
+    {
+        if (Context.FmgRowDecorator != null)
+            return true;
+
+        return false;
     }
 
     /// <summary>
@@ -892,15 +1310,23 @@ public class ParamRowWindow
         {
             if (ParentView.ParamTableWindow.IsInTableGroupMode(activeParam))
             {
-                if (row.ID == ParentView.ParamTableWindow.CurrentTableGroup)
+                if (row.ID == ParentView.ParamTableWindow.CurrentTableGroupID)
                 {
+                    ClearEditRows();
                     ParentView.Selection.AddRowToSelection(row);
                 }
             }
             else
             {
+                ClearEditRows();
                 ParentView.Selection.AddRowToSelection(row);
             }
         }
+    }
+
+    public void ClearEditRows()
+    {
+        ID_EditRow = null;
+        Name_EditRow = null;
     }
 }

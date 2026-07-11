@@ -205,47 +205,50 @@ public class TextActionHandler
         var selectedFmg = curEntry.Parent;
         var fmgEntryGroup = Parent.EntryGroupManager.GetEntryGroup(curEntry);
 
-        if (newId != -1)
+        if (fmgEntryGroup != null)
         {
-            // Duplicate all related entries together based on selection
-            if (fmgEntryGroup.SupportsGrouping)
+            if (newId != -1)
             {
-                if (fmgEntryGroup.Title != null)
+                // Duplicate all related entries together based on selection
+                if (fmgEntryGroup.SupportsGrouping)
                 {
-                    var titleEntry = fmgEntryGroup.Title;
-                    var titleFmg = titleEntry.Parent;
+                    if (fmgEntryGroup.Title != null)
+                    {
+                        var titleEntry = fmgEntryGroup.Title;
+                        var titleFmg = titleEntry.Parent;
 
-                    actions.Add(new DuplicateFmgEntry(Parent, selectedContainer, titleFmg, titleEntry, newId));
+                        actions.Add(new DuplicateFmgEntry(Parent, selectedContainer, titleFmg, titleEntry, newId));
+                    }
+
+                    if (fmgEntryGroup.Summary != null)
+                    {
+                        var summaryEntry = fmgEntryGroup.Summary;
+                        var summaryFmg = summaryEntry.Parent;
+
+                        actions.Add(new DuplicateFmgEntry(Parent, selectedContainer, summaryFmg, summaryEntry, newId));
+                    }
+
+                    if (fmgEntryGroup.Description != null)
+                    {
+                        var descriptionEntry = fmgEntryGroup.Description;
+                        var descriptionFmg = descriptionEntry.Parent;
+
+                        actions.Add(new DuplicateFmgEntry(Parent, selectedContainer, descriptionFmg, descriptionEntry, newId));
+                    }
+
+                    if (fmgEntryGroup.Effect != null)
+                    {
+                        var effectEntry = fmgEntryGroup.Effect;
+                        var effectFmg = effectEntry.Parent;
+
+                        actions.Add(new DuplicateFmgEntry(Parent, selectedContainer, effectFmg, effectEntry, newId));
+                    }
                 }
-
-                if (fmgEntryGroup.Summary != null)
+                // Otherwise just duplicate selection
+                else
                 {
-                    var summaryEntry = fmgEntryGroup.Summary;
-                    var summaryFmg = summaryEntry.Parent;
-
-                    actions.Add(new DuplicateFmgEntry(Parent, selectedContainer, summaryFmg, summaryEntry, newId));
+                    actions.Add(new DuplicateFmgEntry(Parent, selectedContainer, selectedFmg, curEntry, newId));
                 }
-
-                if (fmgEntryGroup.Description != null)
-                {
-                    var descriptionEntry = fmgEntryGroup.Description;
-                    var descriptionFmg = descriptionEntry.Parent;
-
-                    actions.Add(new DuplicateFmgEntry(Parent, selectedContainer, descriptionFmg, descriptionEntry, newId));
-                }
-
-                if (fmgEntryGroup.Effect != null)
-                {
-                    var effectEntry = fmgEntryGroup.Effect;
-                    var effectFmg = effectEntry.Parent;
-
-                    actions.Add(new DuplicateFmgEntry(Parent, selectedContainer, effectFmg, effectEntry, newId));
-                }
-            }
-            // Otherwise just duplicate selection
-            else
-            {
-                actions.Add(new DuplicateFmgEntry(Parent, selectedContainer, selectedFmg, curEntry, newId));
             }
         }
 
@@ -302,45 +305,48 @@ public class TextActionHandler
         var selectedFmg = curEntry.Parent;
         var fmgEntryGroup = Parent.EntryGroupManager.GetEntryGroup(curEntry);
 
-        // Delete all related entries together based on selection
-        if (fmgEntryGroup.SupportsGrouping)
+        if (fmgEntryGroup != null)
         {
-            if (fmgEntryGroup.Title != null)
+            // Delete all related entries together based on selection
+            if (fmgEntryGroup.SupportsGrouping)
             {
-                var titleEntry = fmgEntryGroup.Title;
-                var titleFmg = titleEntry.Parent;
+                if (fmgEntryGroup.Title != null)
+                {
+                    var titleEntry = fmgEntryGroup.Title;
+                    var titleFmg = titleEntry.Parent;
 
-                actions.Add(new DeleteFmgEntry(Parent, selectedContainer, titleFmg, titleEntry));
+                    actions.Add(new DeleteFmgEntry(Parent, selectedContainer, titleFmg, titleEntry));
+                }
+
+                if (fmgEntryGroup.Summary != null)
+                {
+                    var summaryEntry = fmgEntryGroup.Summary;
+                    var summaryFmg = summaryEntry.Parent;
+
+                    actions.Add(new DeleteFmgEntry(Parent, selectedContainer, summaryFmg, summaryEntry));
+                }
+
+                if (fmgEntryGroup.Description != null)
+                {
+                    var descriptionEntry = fmgEntryGroup.Description;
+                    var descriptionFmg = descriptionEntry.Parent;
+
+                    actions.Add(new DeleteFmgEntry(Parent, selectedContainer, descriptionFmg, descriptionEntry));
+                }
+
+                if (fmgEntryGroup.Effect != null)
+                {
+                    var effectEntry = fmgEntryGroup.Effect;
+                    var effectFmg = effectEntry.Parent;
+
+                    actions.Add(new DeleteFmgEntry(Parent, selectedContainer, effectFmg, effectEntry));
+                }
             }
-
-            if (fmgEntryGroup.Summary != null)
+            // Otherwise just duplicate selection
+            else
             {
-                var summaryEntry = fmgEntryGroup.Summary;
-                var summaryFmg = summaryEntry.Parent;
-
-                actions.Add(new DeleteFmgEntry(Parent, selectedContainer, summaryFmg, summaryEntry));
+                actions.Add(new DeleteFmgEntry(Parent, selectedContainer, selectedFmg, curEntry));
             }
-
-            if (fmgEntryGroup.Description != null)
-            {
-                var descriptionEntry = fmgEntryGroup.Description;
-                var descriptionFmg = descriptionEntry.Parent;
-
-                actions.Add(new DeleteFmgEntry(Parent, selectedContainer, descriptionFmg, descriptionEntry));
-            }
-
-            if (fmgEntryGroup.Effect != null)
-            {
-                var effectEntry = fmgEntryGroup.Effect;
-                var effectFmg = effectEntry.Parent;
-
-                actions.Add(new DeleteFmgEntry(Parent, selectedContainer, effectFmg, effectEntry));
-            }
-        }
-        // Otherwise just duplicate selection
-        else
-        {
-            actions.Add(new DeleteFmgEntry(Parent, selectedContainer, selectedFmg, curEntry));
         }
 
         return actions;
@@ -381,9 +387,9 @@ public class TextActionHandler
 
             TaskManager.LiveTask task = new(
                 "textEditor_copyTextEntryContents",
-                "[Text Editor]",
-                "Selected text entry has been copied to the clipboard.",
-                "Clipboard copy failed.",
+                LOC.Get("SYS_Header"),
+                LOC.Get("TEXT_Tools_Copy_Entry_Text_to_Clipboard_PASS"),
+                LOC.Get("TEXT_Tools_Copy_Entry_Text_to_Clipboard_FAIL"),
                 TaskManager.RequeueType.None,
                 false,
                 () =>
@@ -397,7 +403,19 @@ public class TextActionHandler
                         {
                             var entry = Parent.Selection.SelectedFmgWrapper.File.Entries[i];
 
-                            if (Parent.Filters.IsFmgEntryFilterMatch(entry))
+                            var input = Parent.TextEntryList.EntryListFilter;
+                            var exactMatch = Parent.TextEntryList.ExactEntryListFilter;
+
+                            var isMatch = EditorFilters.IsMatch(
+                                input, entry.ID.ToString(), exactMatch, entry.Text);
+
+                            // Ignore normal match if a special conditional commands has been used
+                            if (Parent.TextEntryList.UsedMatchCommands(input))
+                            {
+                                isMatch = Parent.TextEntryList.HandleMatchCommands(input, entry);
+                            }
+
+                            if (isMatch)
                             {
                                 if (Parent.Selection.FmgEntryMultiselect.IsMultiselected(i))
                                 {
@@ -438,7 +456,8 @@ public class TextActionHandler
                     }
 
                     PlatformUtils.Instance.SetClipboardText(copyText);
-                    PlatformUtils.Instance.MessageBox("Text Entry Contents copied to clipboard", "Clipboard", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                    Smithbox.Log<TextActionHandler>(LOC.Get("TEXT_Tools_Copy_Entry_Text_to_Clipboard_Result"));
                     IsCurrentlyCopyingContents = false;
                 }
             );

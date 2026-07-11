@@ -1,22 +1,15 @@
 ﻿using Andre.Formats;
 using Hexa.NET.ImGui;
 using Hexa.NET.ImPlot;
-using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.Extensions.Logging;
 using SoulsFormats;
-using StudioCore.Application;
 using StudioCore.Editors.Common;
+using StudioCore.Editors.MetadataEditor;
 using StudioCore.Editors.TextEditor;
-using StudioCore.Interface;
 using StudioCore.Keybinds;
-using StudioCore.Logger;
 using StudioCore.Renderer;
 using StudioCore.Utilities;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using System.Numerics;
 using System.Reflection;
 
@@ -145,14 +138,7 @@ public class ParamFieldDecorators
 
             if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
             {
-                if (CFG.Current.ParamEditor_Field_Context_Split)
-                {
-                    ImGui.OpenPopup("ParamRowNameMenu");
-                }
-                else
-                {
-                    ImGui.OpenPopup("ParamRowCommonMenu");
-                }
+                ImGui.OpenPopup("ParamRowNameMenu");
             }
         }
     }
@@ -259,7 +245,7 @@ public class ParamFieldDecorators
                 if (Editor.Project.Handler.ProjectData.Aliases.TryGetValue(
                     ProjectAliasType.Characters, out List<AliasEntry> characters))
                 {
-                    AliasEnumHelper.Hint(ParentView, characters, oldval.ToString());
+                    AliasEnumHelper.Hint(ParentView, characters, oldval.ToString(), true);
                 }
             }
 
@@ -709,7 +695,7 @@ public static class FieldTooltipHelper
                         $"Increment: {col.Def.Increment}";
                     }
 
-                    UIHelper.Tooltip(helpIconText);
+                    GUI.Tooltip(helpIconText);
                 }
             }
         }
@@ -721,7 +707,8 @@ public static class FieldTooltipHelper
 #region Enum Helper
 public static class EnumHelper
 {
-    public static string enumSearchStr = "";
+    private static string EnumListFilter = "";
+    private static bool ExactEnumListFilter = false;
 
     public static void Label(ParamEditorView curView, ParamEnum pEnum)
     {
@@ -748,23 +735,21 @@ public static class EnumHelper
 
     public static bool ContextMenu(ParamEditorView curView, ParamEnum en, object oldval, ref object newval)
     {
-        ImGui.InputText("##enumSearch", ref enumSearchStr, 255);
+        EditorFilters.DisplayFramedListFilter("enumListFilter", ref EnumListFilter, ref ExactEnumListFilter);
 
         var count = 1;
         if (en.Values.Count > 0)
             count = en.Values.Count;
 
-        var listHeight = ImGui.GetTextLineHeightWithSpacing() * Math.Min(12, count) * 1f;
-
-        if (ImGui.BeginChild("EnumList", new Vector2(350f, listHeight)))
+        if (ImGui.BeginChild("EnumList", new Vector2(350f, GUI.GetEnumListHeight(count)), ImGuiChildFlags.Borders))
         {
             try
             {
                 foreach (KeyValuePair<string, string> option in en.Values)
                 {
-                    if (ParamSearchFilters.IsEditorSearchMatch(enumSearchStr, option.Key, " ")
-                        || ParamSearchFilters.IsEditorSearchMatch(enumSearchStr, option.Value, " ")
-                        || enumSearchStr == "")
+                    var isMatch = EditorFilters.IsMatch(EnumListFilter, option.Key, ExactEnumListFilter, option.Value);
+
+                    if (isMatch)
                     {
                         if (ImGui.Selectable($"{option.Key}: {option.Value}"))
                         {
@@ -790,7 +775,8 @@ public static class EnumHelper
 #region Project Enum Helper
 public static class ProjectEnumHelper
 {
-    public static string enumSearchStr = "";
+    private static string EnumListFilter = "";
+    private static bool ExactEnumListFilter = false;
 
     public static void Label(ParamEditorView curView, string enumType)
     {
@@ -833,23 +819,21 @@ public static class ProjectEnumHelper
 
     public static bool ContextMenu(ParamEditorView curView, ParamEnumEntry en, object oldval, ref object newval)
     {
-        ImGui.InputText("##enumSearch", ref enumSearchStr, 255);
+        EditorFilters.DisplayFramedListFilter("enumListFilter", ref EnumListFilter, ref ExactEnumListFilter);
 
         var count = 1;
         if (en.Options.Count > 0)
             count = en.Options.Count;
 
-        var listHeight = ImGui.GetTextLineHeightWithSpacing() * Math.Min(12, count) * 1f;
-
-        if (ImGui.BeginChild("EnumList", new Vector2(350f, listHeight)))
+        if (ImGui.BeginChild("EnumList", new Vector2(350f, GUI.GetEnumListHeight(count)), ImGuiChildFlags.Borders))
         {
             try
             {
                 foreach (var option in en.Options)
                 {
-                    if (ParamSearchFilters.IsEditorSearchMatch(enumSearchStr, option.Key, " ")
-                        || ParamSearchFilters.IsEditorSearchMatch(enumSearchStr, option.GetName(), " ")
-                        || enumSearchStr == "")
+                    var isMatch = EditorFilters.IsMatch(EnumListFilter, option.Key, ExactEnumListFilter, option.GetName());
+
+                    if (isMatch)
                     {
                         if (ImGui.Selectable($"{option.Key}: {option.GetName()}"))
                         {
@@ -875,7 +859,8 @@ public static class ProjectEnumHelper
 #region Alias Enum Helper
 public static class AliasEnumHelper
 {
-    public static string enumSearchStr = "";
+    private static string EnumListFilter = "";
+    private static bool ExactEnumListFilter = false;
 
     public static void Label(ParamEditorView curView, string name)
     {
@@ -945,15 +930,13 @@ public static class AliasEnumHelper
 
     public static bool ContextMenu(ParamEditorView curView, List<AliasEntry> entries, object oldval, ref object newval)
     {
-        ImGui.InputText("##enumSearch", ref enumSearchStr, 255);
+        EditorFilters.DisplayFramedListFilter("enumListFilter", ref EnumListFilter, ref ExactEnumListFilter);
 
         var count = 1;
         if (entries.Count > 0)
             count = entries.Count;
 
-        var listHeight = ImGui.GetTextLineHeightWithSpacing() * Math.Min(12, count) * 1f;
-
-        if (ImGui.BeginChild("EnumList", new Vector2(350f, listHeight)))
+        if (ImGui.BeginChild("EnumList", new Vector2(350f, GUI.GetEnumListHeight(count)), ImGuiChildFlags.Borders))
         {
             try
             {
@@ -961,9 +944,9 @@ public static class AliasEnumHelper
                 {
                     var id = entry.ID.Replace("c", "");
 
-                    if (ParamSearchFilters.IsEditorSearchMatch(enumSearchStr, id, " ")
-                        || ParamSearchFilters.IsEditorSearchMatch(enumSearchStr, entry.Name, " ")
-                        || enumSearchStr == "")
+                    var isMatch = EditorFilters.IsMatch(EnumListFilter, entry.ID, ExactEnumListFilter, entry.Name);
+
+                    if (isMatch)
                     {
                         if (ImGui.Selectable($"{id}: {entry.Name}"))
                         {
@@ -989,7 +972,8 @@ public static class AliasEnumHelper
 #region Conditional Alias Enum Helper
 public static class ConditionalAliasEnumHelper
 {
-    public static string enumSearchStr = "";
+    private static string EnumListFilter = "";
+    private static bool ExactEnumListFilter = false;
 
     public static void Label(ParamEditorView curView, string name, Param.Row row, string limitField, string limitValue)
     {
@@ -1058,15 +1042,13 @@ public static class ConditionalAliasEnumHelper
 
     public static bool ContextMenu(ParamEditorView curView, List<AliasEntry> entries, object oldval, ref object newval)
     {
-        ImGui.InputText("##enumSearch", ref enumSearchStr, 255);
+        EditorFilters.DisplayFramedListFilter("enumListFilter", ref EnumListFilter, ref ExactEnumListFilter);
 
         var count = 1;
         if (entries.Count > 0)
             count = entries.Count;
 
-        var listHeight = ImGui.GetTextLineHeightWithSpacing() * Math.Min(12, count) * 1f;
-
-        if (ImGui.BeginChild("EnumList", new Vector2(350f, listHeight)))
+        if (ImGui.BeginChild("EnumList", new Vector2(350f, GUI.GetEnumListHeight(count)), ImGuiChildFlags.Borders))
         {
             try
             {
@@ -1074,9 +1056,9 @@ public static class ConditionalAliasEnumHelper
                 {
                     var id = entry.ID.Replace("c", "");
 
-                    if (ParamSearchFilters.IsEditorSearchMatch(enumSearchStr, id, " ")
-                        || ParamSearchFilters.IsEditorSearchMatch(enumSearchStr, entry.Name, " ")
-                        || enumSearchStr == "")
+                    var isMatch = EditorFilters.IsMatch(EnumListFilter, entry.ID, ExactEnumListFilter, entry.Name);
+
+                    if (isMatch)
                     {
                         if (ImGui.Selectable($"{id}: {entry.Name}"))
                         {
@@ -1102,8 +1084,6 @@ public static class ConditionalAliasEnumHelper
 #region Param Reference Helper
 public static class ParamReferenceHelper
 {
-    private static string _refContextCurrentAutoComplete = "";
-
     public static void Label(ParamEditorView curView, List<ParamRef> paramRefs, Param.Row context)
     {
         if (!CFG.Current.ParamEditor_Field_List_Display_References)
@@ -1115,6 +1095,8 @@ public static class ParamReferenceHelper
         }
 
         ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(0, ImGui.GetStyle().ItemSpacing.Y));
+
+        ImGui.AlignTextToFramePadding();
         ImGui.TextUnformatted(@"   <");
 
         List<string> inactiveRefs = new();
@@ -1150,10 +1132,12 @@ public static class ParamReferenceHelper
                 if (first)
                 {
                     ImGui.SameLine();
+                    ImGui.AlignTextToFramePadding();
                     ImGui.TextUnformatted(r.ParamName);
                 }
                 else
                 {
+                    ImGui.AlignTextToFramePadding();
                     ImGui.TextUnformatted("    " + r.ParamName);
                 }
 
@@ -1168,10 +1152,12 @@ public static class ParamReferenceHelper
             ImGui.SameLine();
             if (first)
             {
+                ImGui.AlignTextToFramePadding();
                 ImGui.TextUnformatted("!" + inactive);
             }
             else
             {
+                ImGui.AlignTextToFramePadding();
                 ImGui.TextUnformatted("!" + inactive);
             }
 
@@ -1182,6 +1168,7 @@ public static class ParamReferenceHelper
 
         ImGui.SameLine();
 
+        ImGui.AlignTextToFramePadding();
         ImGui.TextUnformatted(">");
 
         ImGui.PopStyleVar();
@@ -1200,7 +1187,7 @@ public static class ParamReferenceHelper
         // Add named row and context menu
         // Lists located params
         // May span lines
-        List<(string, Param.Row, string)> matches = ParamReferenceResolver.ResolveParamReferences(curView, paramRefs, context, oldval);
+        List<(string, Param.Row, string)> matches = ParamReferenceResolver.ResolveParamReferences(curView, paramRefs, "", context, oldval);
 
         var entryFound = matches.Count > 0;
 
@@ -1209,6 +1196,7 @@ public static class ParamReferenceHelper
 
         foreach ((var param, Param.Row row, var adjName) in matches)
         {
+            ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted(adjName);
         }
 
@@ -1216,12 +1204,16 @@ public static class ParamReferenceHelper
         if (!entryFound)
         {
             ImGui.PushStyleColor(ImGuiCol.Text, UI.Current.ImGui_ParamRefMissing_Text);
-            ImGui.TextUnformatted("___");
+
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextUnformatted("---");
             ImGui.PopStyleColor();
         }
 
         ImGui.EndGroup();
     }
+
+    private static string QuickEditTerm = "";
 
     public static bool ContextMenu(ParamEditorView curView, List<ParamRef> reftypes, Param.Row context,
         object oldval, ref object newval, ActionManager executor)
@@ -1231,8 +1223,10 @@ public static class ParamReferenceHelper
             return false;
         }
 
+        ImGui.PushStyleColor(ImGuiCol.Text, UI.Current.ImGui_AliasName_Text);
+
         // Add Goto statements
-        List<(string, Param.Row, string)> refs = ParamReferenceResolver.ResolveParamReferences(curView, reftypes, context, oldval);
+        List<(string, Param.Row, string)> refs = ParamReferenceResolver.ResolveParamReferences(curView, reftypes, "", context, oldval);
 
         int index = 0;
 
@@ -1271,12 +1265,18 @@ public static class ParamReferenceHelper
             index++;
         }
 
-        // Add searchbar for named editing
-        ImGui.InputTextWithHint("##value", "Search...", ref _refContextCurrentAutoComplete, 128);
+        ImGui.PopStyleColor();
 
-        // This should be replaced by a proper search box with a scroll and everything
-        if (_refContextCurrentAutoComplete != "")
+        ImGui.Separator();
+
+        // Quick Edit
+        ImGui.InputTextWithHint("##value", "Enter term to find row...", ref QuickEditTerm, 128);
+        GUI.Tooltip("Quickly find a row in the referenced param by searching for a term in the row's name or ID. Click on a result to set the field's value to that row's ID.");
+
+        if (QuickEditTerm != "")
         {
+            ImGui.BeginChild("quickEditSection", new Vector2(0, 250), ImGuiChildFlags.Borders);
+
             foreach (ParamRef rf in reftypes)
             {
                 var rt = rf.ParamName;
@@ -1291,7 +1291,7 @@ public static class ParamReferenceHelper
                 var maxResultsPerRefType = 15 / reftypes.Count;
 
                 List<Param.Row> rows = curView.MassEdit.RSE.Search((curView.GetPrimaryBank(), curView.GetPrimaryBank().Params[rt]),
-                    _refContextCurrentAutoComplete, true, true);
+                    QuickEditTerm, true, true);
 
                 foreach (Param.Row r in rows)
                 {
@@ -1300,7 +1300,7 @@ public static class ParamReferenceHelper
                         break;
                     }
 
-                    if (ImGui.Selectable($@"({rt}){r.ID}: {r.Name}"))
+                    if (ImGui.Selectable($@"{r.ID}: {r.Name}"))
                     {
                         try
                         {
@@ -1313,19 +1313,23 @@ public static class ParamReferenceHelper
                                 newval = Convert.ChangeType(r.ID - rf.Offset, oldval.GetType());
                             }
 
-                            _refContextCurrentAutoComplete = "";
+                            QuickEditTerm = "";
+                            ImGui.EndChild();
+
                             return true;
                         }
                         catch (Exception e)
                         {
-                            Smithbox.Log(typeof(ParamReferenceHelper), "Unable to convert value into param field's type'", LogLevel.Warning,
-                                LogPriority.Normal, e);
+                            Smithbox.LogError(typeof(ParamReferenceHelper), "Unable to convert value into param field's type'", e);
                         }
                     }
+                    GUI.Tooltip($"From {rt}");
 
                     maxResultsPerRefType--;
                 }
             }
+
+            ImGui.EndChild();
         }
 
         return false;
@@ -1338,7 +1342,7 @@ public static class ParamReferenceHelper
             if (RefTypes != null)
             {
                 (string, Param.Row, string)? primaryRef =
-                    ParamReferenceResolver.ResolveParamReferences(curView, RefTypes, context, oldval)?.FirstOrDefault();
+                    ParamReferenceResolver.ResolveParamReferences(curView, RefTypes, "", context, oldval)?.FirstOrDefault();
 
                 if (primaryRef?.Item2 != null)
                 {
@@ -1376,7 +1380,7 @@ public static class ParamReferenceHelper
                 {
                     if (InputManager.IsPressed(KeybindID.ParamEditor_RowList_Inherit_Referenced_Row_Name))
                     {
-                        List<(string, Param.Row, string)> refs = ParamReferenceResolver.ResolveParamReferences(curView, context.ParamReferences, row, oldval);
+                        List<(string, Param.Row, string)> refs = ParamReferenceResolver.ResolveParamReferences(curView, context.ParamReferences, "", row, oldval);
 
                         foreach ((string, Param.Row, string) rf in refs)
                         {
@@ -1405,6 +1409,8 @@ public static class VirtualParamReferenceHelper
     public static bool ContextMenu(ParamEditorView curView, string virtualRefName, object searchValue,
         Param.Row context, string fieldName)
     {
+        ImGui.PushStyleColor(ImGuiCol.Text, UI.Current.ImGui_Benefit_Text_Color);
+
         // Add Goto statements
         if (curView.GetPrimaryBank().Params != null)
         {
@@ -1438,6 +1444,8 @@ public static class VirtualParamReferenceHelper
             }
         }
 
+        ImGui.PopStyleColor();
+
         return false;
     }
 }
@@ -1449,6 +1457,8 @@ public static class ExternalReferenceHelper
     public static bool ContextMenu(ParamEditorView curView, string virtualRefName, object searchValue,
         Param.Row context, string fieldName, List<ExtRef> ExtRefs)
     {
+        ImGui.PushStyleColor(ImGuiCol.Text, UI.Current.ImGui_Benefit_Text_Color);
+
         if (ExtRefs != null)
         {
             foreach (ExtRef currentRef in ExtRefs)
@@ -1461,6 +1471,8 @@ public static class ExternalReferenceHelper
                 Item(curView, context, fieldName, $"vanilla {currentRef.name}", matchedExtRefPath, curView.Project.Descriptor.DataPath);
             }
         }
+
+        ImGui.PopStyleColor();
 
         return false;
     }
@@ -1507,6 +1519,7 @@ public static class TextReferenceHelper
 
         if (overrideName == "")
         {
+            ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted(@"   [");
 
             List<string> inactiveRefs = new();
@@ -1525,10 +1538,12 @@ public static class TextReferenceHelper
                     if (first)
                     {
                         ImGui.SameLine();
+                        ImGui.AlignTextToFramePadding();
                         ImGui.TextUnformatted(r.fmg);
                     }
                     else
                     {
+                        ImGui.AlignTextToFramePadding();
                         ImGui.TextUnformatted("    " + r.fmg);
                     }
 
@@ -1542,10 +1557,12 @@ public static class TextReferenceHelper
                 ImGui.SameLine();
                 if (first)
                 {
+                    ImGui.AlignTextToFramePadding();
                     ImGui.TextUnformatted("!" + inactive);
                 }
                 else
                 {
+                    ImGui.AlignTextToFramePadding();
                     ImGui.TextUnformatted("!" + inactive);
                 }
 
@@ -1555,10 +1572,12 @@ public static class TextReferenceHelper
             ImGui.PopStyleColor();
 
             ImGui.SameLine();
+            ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted("]");
         }
         else
         {
+            ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted($@"   [{overrideName}]");
         }
 
@@ -1587,10 +1606,12 @@ public static class TextReferenceHelper
         {
             if (string.IsNullOrWhiteSpace(text))
             {
+                ImGui.AlignTextToFramePadding();
                 ImGui.TextUnformatted("%null%");
             }
             else
             {
+                ImGui.AlignTextToFramePadding();
                 ImGui.TextUnformatted(text);
             }
         }
@@ -1636,15 +1657,19 @@ public static class TextReferenceHelper
     public static bool ContextMenu(ParamEditorView curView, List<FMGRef> reftypes, Param.Row context, dynamic oldval,
         ActionManager executor, string roleOverride = "")
     {
+        ImGui.PushStyleColor(ImGuiCol.Text, UI.Current.ImGui_AliasName_Text);
+
         List<TextResult> refs = ParamReferenceResolver.ResolveTextReferences(curView, reftypes, context, oldval);
 
         var language = CFG.Current.TextEditor_Primary_Category;
+
+        int index = 0;
 
         foreach (var result in refs)
         {
             if (result != null && result.Entry != null)
             {
-                if (ImGui.Selectable($@"Go to FMG entry text"))
+                if (ImGui.Selectable($@"Go to FMG entry text##fmgEntryGoTo{index}"))
                 {
                     EditorCommandQueue.AddCommand($@"text/select/{result.ContainerWrapper.ContainerDisplayCategory}/{result.ContainerWrapper.FileEntry.Filename}/{result.FmgName}/{result.Entry.ID}");
                 }
@@ -1657,7 +1682,7 @@ public static class TextReferenceHelper
                 // Set Row Name to X
                 if (!string.IsNullOrWhiteSpace(result.Entry.Text))
                 {
-                    if (ImGui.Selectable($@"Replace row name with referenced FMG entry text"))
+                    if (ImGui.Selectable($@"Replace row name with referenced FMG entry text##replaceRowFmgEntry{index}"))
                     {
                         executor.ExecuteAction(
                             new PropertiesChangedAction(
@@ -1670,7 +1695,7 @@ public static class TextReferenceHelper
                 // Apply Row Name to X
                 if (!string.IsNullOrWhiteSpace(context.Name))
                 {
-                    if (ImGui.Selectable($@"Replace FMG entry text with current row name"))
+                    if (ImGui.Selectable($@"Replace FMG entry text with current row name##replaceFmgRowEntry{index}"))
                     {
                         executor.ExecuteAction(
                             new PropertiesChangedAction(
@@ -1680,7 +1705,16 @@ public static class TextReferenceHelper
                     }
                 }
             }
+
+            if (refs.Count > 1 && index < refs.Count)
+            {
+                ImGui.Separator();
+            }
+
+            index++;
         }
+
+        ImGui.PopStyleColor();
 
         return false;
     }
@@ -1754,6 +1788,7 @@ public static class TextureReferenceHelper
             return;
 
         ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(0, 0));
+        ImGui.AlignTextToFramePadding();
         ImGui.TextUnformatted(@"   [Icon]");
         ImGui.PopStyleVar();
     }
@@ -1798,8 +1833,11 @@ public static class AC6_FieldOffsetHelper
         if (activeParam == "MenuPropertySpecParam")
         {
             ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(0, ImGui.GetStyle().ItemSpacing.Y));
+            ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted(@"   <PARAM>");
+            ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted(@"   <FIELD>");
+            ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted(@"   <NAME>");
             ImGui.PopStyleVar();
         }
@@ -1915,8 +1953,11 @@ public static class AC6_FieldOffsetHelper
 
             ImGui.PushStyleColor(ImGuiCol.Text, UI.Current.ImGui_AliasName_Text);
 
+            ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted($"{paramString}:");
+            ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted($"{internalName}");
+            ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted($"{displayName}");
 
             ImGui.PopStyleColor();
@@ -2003,6 +2044,7 @@ public static class CalcCorrectGraphHelper
 
                 if (!validAxis_X || !validAxis_Y)
                 {
+                    ImGui.AlignTextToFramePadding();
                     ImGui.Text("Invalid axis limits.");
                     ImGui.Unindent();
                     return;
@@ -2011,6 +2053,7 @@ public static class CalcCorrectGraphHelper
                 // Length Validation
                 if (values.Length != xValues.Length || values.Length < 2)
                 {
+                    ImGui.AlignTextToFramePadding();
                     ImGui.Text("Mismatched graph data.");
                     ImGui.Unindent();
                     return;
@@ -2019,6 +2062,7 @@ public static class CalcCorrectGraphHelper
                 // Value Validation
                 if (!ImPlotHelper.SanitizeSeries(values))
                 {
+                    ImGui.AlignTextToFramePadding();
                     ImGui.Text("Graph contains invalid values.");
                     ImGui.Unindent();
                     return;
@@ -2069,13 +2113,15 @@ public static class CalcCorrectGraphHelper
                         }
                     }
                 }
-                UIHelper.Tooltip("This will export the graph data for each point on the graph as generated by this row.");
+                GUI.Tooltip("This will export the graph data for each point on the graph as generated by this row.");
 
             }
         }
         catch (Exception e)
         {
+            ImGui.AlignTextToFramePadding();
             ImGui.TextColored(new Vector4(1, 0, 0, 1), "Unable to draw graph");
+            ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted(e.Message);
         }
 
@@ -2117,6 +2163,7 @@ public static class TileReferenceHelper
         if (!CFG.Current.ParamEditor_Field_List_Display_Enums)
             return;
 
+        ImGui.AlignTextToFramePadding();
         ImGui.TextUnformatted($@"   <Tile>");
     }
 
@@ -2149,6 +2196,7 @@ public static class TileReferenceHelper
             if (resultID != "")
             {
                 ImGui.PushStyleColor(ImGuiCol.Text, UI.Current.ImGui_AliasName_Text);
+                ImGui.AlignTextToFramePadding();
                 ImGui.TextUnformatted(resultName);
                 ImGui.PopStyleColor(1);
             }
@@ -2394,6 +2442,11 @@ public static class GroupReferenceHelper
 {
     private static List<GroupReferenceState> refCache = new();
 
+    public static List<GroupReferenceState> GetCache()
+    {
+        return refCache;
+    }
+
     public static void BuildCache(ParamEditorView curView, string groupRef, Param.Row context, dynamic oldval)
     {
         var groupRefData = curView.Project.Handler.ParamData.FieldReferenceGroups;
@@ -2422,10 +2475,12 @@ public static class GroupReferenceHelper
         {
             if (CFG.Current.ParamEditor_Field_List_GroupReference_DisplayCommunityName)
             {
+                ImGui.AlignTextToFramePadding();
                 ImGui.TextUnformatted($"  <{entry.DisplayName}>");
             }
             else
             {
+                ImGui.AlignTextToFramePadding();
                 ImGui.TextUnformatted($"  <{entry.Param}>");
             }
         }
@@ -2449,6 +2504,7 @@ public static class GroupReferenceHelper
             if (entry.Row.ID == oldval)
             {
                 ImGui.PushStyleColor(ImGuiCol.Text, UI.Current.ImGui_ParamRef_Text);
+                ImGui.AlignTextToFramePadding();
                 ImGui.TextUnformatted(entry.Hint);
                 ImGui.PopStyleColor();
             }
@@ -2462,6 +2518,9 @@ public static class GroupReferenceHelper
         {
             return false;
         }
+
+        ImGui.Separator();
+        ImGui.PushStyleColor(ImGuiCol.Text, UI.Current.ImGui_AliasName_Text);
 
         int index = 0;
 
@@ -2496,6 +2555,8 @@ public static class GroupReferenceHelper
                 index++;
             }
         }
+
+        ImGui.PopStyleColor();
 
         return false;
     }

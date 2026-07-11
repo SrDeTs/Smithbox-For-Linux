@@ -12,7 +12,7 @@ namespace StudioCore.Editors.ParamEditor;
 
 public class IdSetFinder
 {
-    public ParamEditorScreen Editor;
+    public ParamEditorView View;
     public ProjectEntry Project;
 
     public string imguiID = "IdSetFinder";
@@ -22,58 +22,63 @@ public class IdSetFinder
 
     public List<string> Results = new();
 
-    public IdSetFinder(ParamEditorScreen editor, ProjectEntry project)
+    public IdSetFinder(ParamEditorView view, ProjectEntry project)
     {
-        Editor = editor;
+        View = view;
         Project = project;
     }
     public void Display()
     {
-        if (Editor.Project.Handler.ParamData.PrimaryBank.Params == null)
+        if (View.Editor.Project.Handler.ParamData.PrimaryBank.Params == null)
         {
             return;
         }
 
         var windowWidth = ImGui.GetWindowWidth();
 
-        var Size = ImGui.GetWindowSize();
-        float EditX = (Size.X / 100) * 95;
-        float EditY = (Size.Y / 100) * 25;
+        GUI.WrappedText(LOC.Get("PARAM_IdSetFinder_Hint"));
 
-        UIHelper.WrappedText("Display param that contains the specified set of rows.");
-        UIHelper.WrappedText("");
+        // Search Text
+        GUI.Spacer();
+        GUI.SimpleHeader(
+            LOC.Get("PARAM_DataFinder_Header_Search"),
+            LOC.Get("PARAM_DataFinder_Header_Search_TT"));
 
-        /// Search Configuration
-        UIHelper.SimpleHeader("Search Configuration", "The configuration parameters for the search.");
+        GUI.SetInputWidth();
+        ImGui.InputTextWithHint($"{LOC.Get("PARAM_IdSetFinder_ID_Set")}##searchValue_{imguiID}", LOC.Get("PARAM_DataFinder_Search_Hint"), ref SearchText, 255);
+        GUI.Tooltip(LOC.Get("PARAM_IdSetFinder_Search_TT"));
 
-        UIHelper.WrappedText("Search Value:");
+        GUI.MultiButtonInput("searchActions",
+            "search",
+            LOC.Get("PARAM_DataFinder_Action_Search"),
+            LOC.Get("PARAM_DataFinder_Action_Search_TT"),
+            ConductSearch,
 
-        ImGui.InputText($"##searchValue_{imguiID}", ref SearchText, 255);
-        UIHelper.Tooltip("The values to search for. Split with a space.");
+            "clearSearch",
+            LOC.Get("PARAM_DataFinder_Action_Clear"),
+            LOC.Get("PARAM_DataFinder_Action_Clear_TT"),
+            ClearSearch);
 
-        if (ImGui.Button($"Search##searchButton_{imguiID}"))
-        {
-            CachedSearchText = SearchText;
-
-            Results = ConstructResults();
-        }
+        GUI.Spacer();
 
         // Result List
         if (Results.Count > 0)
         {
-            UIHelper.SimpleHeader("Search Results", "The results of the last search performed.");
+            GUI.SimpleHeader(
+                LOC.Get("PARAM_DataFinder_Header_Search_Results"),
+                LOC.Get("PARAM_DataFinder_Header_Search_Results_TT"));
 
-            UIHelper.WrappedText($"Search Term:");
-            UIHelper.DisplayAlias(CachedSearchText);
+            GUI.WrappedText(LOC.Get("PARAM_DataFinder_Search_Term"));
+            GUI.DisplayAlias(CachedSearchText);
 
-            UIHelper.WrappedText($"Result Count:");
-            UIHelper.DisplayAlias($"{Results.Count}");
+            GUI.WrappedText(LOC.Get("PARAM_DataFinder_Result_Count"));
+            GUI.DisplayAlias($"{Results.Count}");
 
-            UIHelper.WrappedText($"");
-            UIHelper.WrappedText($"Param: Row ID: Field Name: Field Value");
+            GUI.Spacer();
+            GUI.WrappedText(LOC.Get("PARAM_IdSetFinder_Results_Column_Header"));
 
             ImGui.BeginChild($"##resultSection_{imguiID}",
-                new Vector2(EditX, EditY));
+               new Vector2(0, ImGui.GetContentRegionAvail().Y * 0.9f), ImGuiChildFlags.Borders);
 
             foreach (var result in Results)
             {
@@ -86,11 +91,25 @@ public class IdSetFinder
         }
         else
         {
-            ImGui.Text("No results to display.");
+            ImGui.Text(LOC.Get("PARAM_DataFinder_No_Results"));
         }
 
-        UIHelper.WrappedText("");
+        GUI.WrappedText("");
 
+    }
+
+    public void ConductSearch()
+    {
+        CachedSearchText = SearchText;
+
+        Results = ConstructResults();
+    }
+
+    public void ClearSearch()
+    {
+        SearchText = "";
+        CachedSearchText = "";
+        Results = new();
     }
 
     /// <summary>
@@ -121,7 +140,7 @@ public class IdSetFinder
             }
         }
 
-        foreach (var p in Editor.Project.Handler.ParamData.PrimaryBank.Params)
+        foreach (var p in View.Editor.Project.Handler.ParamData.PrimaryBank.Params)
         {
             ProcessParam(ref output, p.Key, p.Value, Values);
         }

@@ -80,7 +80,6 @@ public class TextBank : IDisposable
             containerWrapper.CompressionType = compressionType;
             containerWrapper.ContainerType = containerType;
             containerWrapper.ContainerDisplayCategory = containerCategory;
-            containerWrapper.ContainerData = containerBytes.ToArray();
             containerWrapper.FmgWrappers = new();
 
             if (containerCategory == CFG.Current.TextEditor_Primary_Category)
@@ -97,7 +96,8 @@ public class TextBank : IDisposable
         {
             var filename = Path.GetFileNameWithoutExtension(entry.Path);
 
-            Smithbox.LogError(this, $"[Text Editor] Failed to load FMG container: {filename} at {entry.Path} for {Name}", e);
+            Smithbox.LogError(this,
+                LOC.Get("TEXT_Data_Load_FMG_Container_FAIL", filename, entry.Path, Name), e);
         }
     }
 
@@ -117,14 +117,28 @@ public class TextBank : IDisposable
         }
     }
 
+    public async Task LoadFmgWrappersAsync(TextContainerWrapper container)
+    {
+        try
+        {
+            await Task.Run(() => LoadFmgWrappers(container));
+        }
+        catch (Exception ex)
+        {
+            Smithbox.LogError(this, LOC.Get("TEXT_Data_Load_FMG_Wrapper_FAIL"), ex);
+        }
+    }
+
     public void LoadFmgWrappers(TextContainerWrapper container)
     {
+        var containerBytes = TargetFS.ReadFileOrThrow(container.FileEntry.Path);
+
         // Populate the Text Fmg wrappers with their contents
         List<TextFmgWrapper> fmgWrappers = new List<TextFmgWrapper>();
 
         if (Project.Descriptor.ProjectType is ProjectType.DS1 or ProjectType.DS1R or ProjectType.DES)
         {
-            using (IBinder binder = BND3.Read(container.ContainerData))
+            using (IBinder binder = BND3.Read(containerBytes))
             {
                 foreach (var file in binder.Files)
                 {
@@ -148,7 +162,7 @@ public class TextBank : IDisposable
         }
         else
         {
-            using (IBinder binder = BND4.Read(container.ContainerData))
+            using (IBinder binder = BND4.Read(containerBytes))
             {
                 foreach (var file in binder.Files)
                 {
@@ -225,7 +239,8 @@ public class TextBank : IDisposable
         {
             var filename = Path.GetFileNameWithoutExtension(entry.Path);
 
-            Smithbox.LogError(this, $"[Text Editor] Failed to load FMG: {filename} at {entry.Path} for {Name}", e);
+            Smithbox.LogError(this,
+                LOC.Get("TEXT_Data_Load_FMG_FAIL", filename, entry.Path, Name), e);
         }
     }
 
@@ -316,13 +331,17 @@ public class TextBank : IDisposable
             }
             catch (Exception e)
             {
-                Smithbox.LogError(this, $"[Text Editor] Failed to write {entry.Filename} as file for {Name}.", e);
+                Smithbox.LogError(this, 
+                    LOC.Get("TEXT_Data_Write_File_FAIL", entry.Filename, Name), e);
+
                 return false;
             }
         }
         catch (Exception e)
         {
-            Smithbox.LogError(this, $"[Text Editor] Failed to read {entry.Filename} from VFS for {Name}.", e);
+            Smithbox.LogError(this,
+                LOC.Get("TEXT_Data_Read_File_VFS_FAIL", entry.Filename, Name), e);
+
             return false;
         }
 
@@ -343,7 +362,8 @@ public class TextBank : IDisposable
                     }
                     catch (Exception ex)
                     {
-                        Smithbox.LogError(this, $"[Text Editor] Failed to write FMG file: {file.ID} for {Name}", ex);
+                        Smithbox.LogError(this,
+                            LOC.Get("TEXT_Data_Write_FMG_FAIL", file.ID, Name), ex);
                     }
                 }
             }
@@ -370,13 +390,16 @@ public class TextBank : IDisposable
             }
             catch (Exception e)
             {
-                Smithbox.LogError(this, $"[Text Editor] Failed to write {entry.Filename} as file for {Name}.", e);
+                Smithbox.LogError(this,
+                    LOC.Get("TEXT_Data_Write_File_FAIL", entry.Filename, Name), e);
+
                 return false;
             }
         }
         catch (Exception e)
         {
-            Smithbox.LogError(this, $"[Text Editor] Failed to write {entry.Filename} as FMG for {Name}.", e);
+            Smithbox.LogError(this,
+                LOC.Get("TEXT_Data_Write_FMG_FAIL", entry.Filename, Name), e);
 
             return false;
         }

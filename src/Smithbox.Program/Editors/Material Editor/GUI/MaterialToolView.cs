@@ -13,13 +13,17 @@ namespace StudioCore.Editors.MaterialEditor;
 
 public class MaterialToolWindow
 {
-    public MaterialEditorScreen Editor;
+    public MaterialEditorView View;
     public ProjectEntry Project;
 
-    public MaterialToolWindow(MaterialEditorScreen editor, ProjectEntry project)
+    public MatDataTransferTool DataTransferTool;
+
+    public MaterialToolWindow(MaterialEditorView view, ProjectEntry project)
     {
-        Editor = editor;
+        View = view;
         Project = project;
+
+        DataTransferTool = new(view, project);
     }
 
     public void Draw()
@@ -27,29 +31,32 @@ public class MaterialToolWindow
         if (!CFG.Current.Interface_MaterialEditor_ToolWindow)
             return;
 
-        if (ImGui.Begin("Tools##ToolConfigureWindow_MaterialEditor", UIHelper.GetMainWindowFlags()))
+        if (ImGui.BeginMenuBar())
         {
-            FocusManager.SetFocus(EditorFocusContext.MaterialEditor_Tools);
+            ViewMenu();
 
-            var windowHeight = ImGui.GetWindowHeight();
-            var windowWidth = ImGui.GetWindowWidth();
-
-            if (ImGui.BeginMenuBar())
-            {
-                ViewMenu();
-
-                ImGui.EndMenuBar();
-            }
-
+            ImGui.EndMenuBar();
         }
 
-        ImGui.End();
+        // Data Transfer
+        //if(CFG.Current.MaterialEditor_Tool_Data_Transfer)
+        //{
+        //    if (ImGui.CollapsingHeader("Data Transfer"))
+        //    {
+        //        DataTransferTool.Display();
+        //    }
+        //}
     }
 
     public void ViewMenu()
     {
         if (ImGui.BeginMenu("View"))
         {
+            if (ImGui.MenuItem("Data Transfer"))
+            {
+                CFG.Current.MaterialEditor_Tool_Data_Transfer = !CFG.Current.MaterialEditor_Tool_Data_Transfer;
+            }
+            GUI.ShowActiveStatus(CFG.Current.MaterialEditor_Tool_Data_Transfer);
 
             ImGui.EndMenu();
         }
@@ -59,14 +66,10 @@ public class MaterialToolWindow
     {
         if (ImGui.BeginMenu("Tools"))
         {
+            DataTransferTool.DisplayDropdown();
 
             ImGui.EndMenu();
         }
-    }
-
-    public void OnMenubar()
-    {
-
     }
 }
 

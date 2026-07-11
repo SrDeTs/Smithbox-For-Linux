@@ -1,8 +1,10 @@
 ﻿using Hexa.NET.ImGui;
+using Microsoft.AspNetCore.Components.Forms;
 using StudioCore.Application;
 using StudioCore.Editors.Common;
 using StudioCore.Keybinds;
 using StudioCore.Utilities;
+using System.IO;
 using System.Linq;
 using System.Numerics;
 
@@ -19,7 +21,6 @@ public class GparamEditorScreen : EditorScreen
     public GparamShortcuts Shortcuts;
     public GparamCommandQueue CommandQueue;
 
-    public GparamToolView ToolView;
 
     public GparamEditorScreen(ProjectEntry project)
     {
@@ -29,8 +30,6 @@ public class GparamEditorScreen : EditorScreen
 
         Shortcuts = new GparamShortcuts(this, project);
         CommandQueue = new GparamCommandQueue(this, Project);
-
-        ToolView = new GparamToolView(this, Project);
     }
 
     public string EditorName => "Gparam Editor##GparamEditor";
@@ -56,18 +55,19 @@ public class GparamEditorScreen : EditorScreen
             EditMenu();
             ViewMenu();
 
+            var activeView = ViewHandler.ActiveView;
+            if(activeView != null)
+            {
+                activeView.ToolView.DisplayDropdown();
+            }
+
             ImGui.EndMenuBar();
         }
 
         var dsid = ImGui.GetID("DockSpace_GparamEditor");
-        ImGui.DockSpace(dsid, new Vector2(0, 0), ImGuiDockNodeFlags.None);
+        ImGui.DockSpace(dsid, new Vector2(0, 0), ImGuiDockNodeFlags.None, ref GUI.DockGroup_GparamEditor);
 
-        ViewHandler.HandleViews();
-
-        if (ViewHandler.ActiveView != null)
-        {
-            ToolView.Display();
-        }
+        ViewHandler.HandleViews(dsid);
     }
 
     public void FileMenu()
@@ -92,13 +92,13 @@ public class GparamEditorScreen : EditorScreen
                 {
                     CFG.Current.GparamEditor_ManualSave_IncludeGPARAM = !CFG.Current.GparamEditor_ManualSave_IncludeGPARAM;
                 }
-                UIHelper.Tooltip("If enabled, the graphical param files are outputted on save.");
-                UIHelper.ShowActiveStatus(CFG.Current.GparamEditor_ManualSave_IncludeGPARAM);
+                GUI.Tooltip("If enabled, the graphical param files are outputted on save.");
+                GUI.ShowActiveStatus(CFG.Current.GparamEditor_ManualSave_IncludeGPARAM);
 
 
                 ImGui.EndMenu();
             }
-            UIHelper.Tooltip("Determines which files are outputted during the manual saving process.");
+            GUI.Tooltip("Determines which files are outputted during the manual saving process.");
 
             if (ImGui.BeginMenu("Output on Automatic Save"))
             {
@@ -106,12 +106,12 @@ public class GparamEditorScreen : EditorScreen
                 {
                     CFG.Current.GparamEditor_AutomaticSave_IncludeGPARAM = !CFG.Current.GparamEditor_AutomaticSave_IncludeGPARAM;
                 }
-                UIHelper.Tooltip("If enabled, the graphical param files are outputted on save.");
-                UIHelper.ShowActiveStatus(CFG.Current.GparamEditor_AutomaticSave_IncludeGPARAM);
+                GUI.Tooltip("If enabled, the graphical param files are outputted on save.");
+                GUI.ShowActiveStatus(CFG.Current.GparamEditor_AutomaticSave_IncludeGPARAM);
 
                 ImGui.EndMenu();
             }
-            UIHelper.Tooltip("Determines which files are outputted during the automatic saving process.");
+            GUI.Tooltip("Determines which files are outputted during the automatic saving process.");
 
 
             ImGui.EndMenu();
@@ -155,21 +155,55 @@ public class GparamEditorScreen : EditorScreen
 
                 ImGui.Separator();
 
-                if (ImGui.BeginMenu("Value Row"))
+                // Groups
+                if (ImGui.BeginMenu("Groups"))
+                {
+                    if (ImGui.MenuItem("Add All Missing", InputManager.GetHint(KeybindID.Add)))
+                    {
+                        activeView.GroupListView.AddGroupsShortcut();
+                    }
+                    GUI.Tooltip("Adds all missing groups.");
+
+                    if (ImGui.MenuItem("Delete", InputManager.GetHint(KeybindID.Delete)))
+                    {
+                        activeView.GroupListView.DeleteGroupsShortcut();
+                    }
+                    GUI.Tooltip("Delete the currently selected group.");
+
+                    ImGui.EndMenu();
+                }
+
+                // Fields
+                if (ImGui.BeginMenu("Fields"))
                 {
                     if (ImGui.MenuItem("Duplicate", InputManager.GetHint(KeybindID.Duplicate)))
                     {
-                        activeView.ActionHandler.DuplicateValueRow();
+                        activeView.FieldListView.AddFieldsShortcut();
                     }
 
                     if (ImGui.MenuItem("Delete", InputManager.GetHint(KeybindID.Delete)))
                     {
-                        activeView.ActionHandler.DeleteValueRow();
+                        activeView.FieldListView.DeleteFieldsShortcut();
                     }
 
                     ImGui.EndMenu();
                 }
 
+                // Values
+                if (ImGui.BeginMenu("Values"))
+                {
+                    if (ImGui.MenuItem("Duplicate", InputManager.GetHint(KeybindID.Duplicate)))
+                    {
+                        activeView.FieldValueListView.AddValuesShortcut();
+                    }
+
+                    if (ImGui.MenuItem("Delete", InputManager.GetHint(KeybindID.Delete)))
+                    {
+                        activeView.FieldValueListView.DeleteValuesShortcut();
+                    }
+
+                    ImGui.EndMenu();
+                }
             }
 
             ImGui.EndMenu();
@@ -184,7 +218,7 @@ public class GparamEditorScreen : EditorScreen
             {
                 CFG.Current.Interface_GparamEditor_ToolWindow = !CFG.Current.Interface_GparamEditor_ToolWindow;
             }
-            UIHelper.ShowActiveStatus(CFG.Current.Interface_GparamEditor_ToolWindow);
+            GUI.ShowActiveStatus(CFG.Current.Interface_GparamEditor_ToolWindow);
 
             ImGui.Separator();
 
@@ -204,13 +238,13 @@ public class GparamEditorScreen : EditorScreen
         if (!autoSave && CFG.Current.GparamEditor_ManualSave_IncludeGPARAM ||
             autoSave && CFG.Current.GparamEditor_AutomaticSave_IncludeGPARAM)
         {
-            var targetScript = Project.Handler.GparamData.PrimaryBank.Entries.FirstOrDefault(e => e.Key.Filename == activeView.Selection.SelectedFileEntry.Filename);
+            var targetScript = Project.Handler.GparamData.PrimaryBank.Entries.FirstOrDefault(e => e.Key.Filename == activeView.Selection.SelectedFileEntry.Filename && e.Key.Extension == activeView.Selection.SelectedFileEntry.Extension);
 
             if (targetScript.Key != null)
             {
                 await Project.Handler.GparamData.PrimaryBank.SaveGraphicsParam(targetScript.Key, targetScript.Value);
 
-                Smithbox.Log(this, $"[Graphics Param Editor] Saved {activeView.Selection.SelectedFileEntry.Filename}.gparam.dcx");
+                Smithbox.Log(this, $"[Graphics Param Editor] Saved {targetScript.Key.Filename}.{targetScript.Key.Extension}");
             }
         }
 

@@ -1,39 +1,38 @@
 ﻿using Hexa.NET.ImGui;
-using Microsoft.AspNetCore.Components.Forms;
 using SoulsFormats;
-using StudioCore.Application;
-using StudioCore.Utilities;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using System.Numerics;
 
 namespace StudioCore.Editors.TextEditor;
 
-public static class TextMerge
+public class TextMerge
 {
-    public static ProjectEntry TargetProject = null;
+    public TextEditorView View;
+    public ProjectEntry Project;
 
-    public static bool ReplaceModifiedRows = true;
+    private ProjectEntry targetProject = null;
+    private bool replaceModifiedRows = true;
+    private bool isMergeInProgress = false;
+    private bool mergePrimaryLanguageOnly = true;
 
-    public static bool MergeInProgress = false;
-
-    public static bool PrimaryLanguageOnly = true;
-
-    public static void Display(TextEditorView view)
+    public TextMerge(TextEditorView view, ProjectEntry project)
     {
-        ImGui.BeginChild("TextMergeToolSection");
+        View = view;
+        Project = project;
+    }
 
-        var windowWidth = ImGui.GetWindowWidth();
+    public void Display()
+    {
+        ImGui.BeginChild("TextMergeSection", ImGuiChildFlags.Borders);
 
-        UIHelper.WrappedText("Use this to merge a target project's text files into your current project.");
-        UIHelper.WrappedText("");
-        UIHelper.WrappedText("Merging will bring all unique text from the target project into your project.\nIncludes modified text if enabled.");
-        UIHelper.WrappedText("");
+        GUI.WrappedText(LOC.Get("TEXT_TextMerge_Hint"));
 
-        UIHelper.SimpleHeader("targetProject", "Target Project", "The project you want to merge text from.", UI.Current.ImGui_AliasName_Text);
+        GUI.Spacer();
+        GUI.SimpleHeader(
+            LOC.Get("TEXT_TextMerge_Header_Target_Project"),
+            LOC.Get("TEXT_TextMerge_Header_Target_Project"));
 
         // Project list
-
+        ImGui.BeginChild("mergeProjectListSection", new Vector2(0, 200), ImGuiChildFlags.Borders);
         int index = 0;
 
         foreach (var proj in Smithbox.Orchestrator.Projects)
@@ -41,7 +40,7 @@ public static class TextMerge
             if (proj == null)
                 continue;
 
-            if (proj.Descriptor.ProjectType != view.Project.Descriptor.ProjectType)
+            if (proj.Descriptor.ProjectType != View.Project.Descriptor.ProjectType)
                 continue;
 
             if (proj == Smithbox.Orchestrator.SelectedProject)
@@ -49,77 +48,90 @@ public static class TextMerge
 
             var isSelected = false;
 
-            if (TargetProject != null)
+            if (targetProject != null)
             {
-                isSelected = TargetProject.Descriptor.ProjectName == proj.Descriptor.ProjectName;
+                isSelected = targetProject.Descriptor.ProjectName == proj.Descriptor.ProjectName;
             }
 
             if (ImGui.Selectable($"{proj.Descriptor.ProjectName}##targetProject{index}", isSelected))
             {
-                TargetProject = proj;
+                targetProject = proj;
             }
 
             index++;
         }
+        ImGui.EndChild();
 
-        UIHelper.WrappedText("");
-        ImGui.Checkbox("Merge Primary Language Only##primaryLanguageOnly", ref PrimaryLanguageOnly);
-        UIHelper.Tooltip("If enabled, then only the primary language FMGs will be merged.");
+        GUI.Spacer();
+        GUI.SimpleHeader(
+            LOC.Get("TEXT_TextMerge_Header_Options"),
+            LOC.Get("TEXT_TextMerge_Header_Options_TT"));
 
-        ImGui.Checkbox("Replace Modified Entries##replaceModified", ref ReplaceModifiedRows);
-        UIHelper.Tooltip("If enabled, then modified rows from the target will overwrite existing rows in our project. If not, then they will be ignored, and only unique rows will be merged.");
+        ImGui.Checkbox($"{LOC.Get("TEXT_TextMerge_Checkbox_Merge_Primary_Lang")}##primaryLanguageOnly", ref mergePrimaryLanguageOnly);
+        GUI.Tooltip(LOC.Get("TEXT_TextMerge_Checkbox_Merge_Primary_Lang_TT"));
 
-        if (TargetProject == null || MergeInProgress)
-        {
-            ImGui.BeginDisabled();
-            if (ImGui.Button("Merge##action_MergeText", DPI.WholeWidthButton(windowWidth, 24)))
-            {
-            }
-            ImGui.EndDisabled();
-        }
-        else if (!MergeInProgress)
-        {
-            if (ImGui.Button("Merge##action_MergeText", DPI.WholeWidthButton(windowWidth, 24)))
-            {
-                HandleMergeAction(view);
-            }
-        }
+        ImGui.Checkbox($"{LOC.Get("TEXT_TextMerge_Checkbox_Replace_Modified")}##replaceModified", ref replaceModifiedRows);
+        GUI.Tooltip(LOC.Get("TEXT_TextMerge_Checkbox_Replace_Modified_TT"));
 
-        if(MergeInProgress)
-        {
-            UIHelper.WrappedText("");
-            UIHelper.WrappedText("Text merge is in progress...");
-        }
+        GUI.Spacer();
+        GUI.SimpleHeader(
+            LOC.Get("TEXT_TextMerge_Header_Actions"),
+            LOC.Get("TEXT_TextMerge_Header_Actions_TT"));
+
+        GUI.MultiButtonInput("mergeActions",
+            "mergeText", 
+            LOC.Get("TEXT_TextMerge_Action_Merge"), 
+            LOC.Get("TEXT_TextMerge_Action_Merge_TT"), 
+            MergeText);
 
         ImGui.EndChild();
     }
 
-    public static async void HandleMergeAction(TextEditorView view)
+    public void MergeText()
     {
-        MergeInProgress = true;
+        if(targetProject == null)
+        {
+            Smithbox.LogError<TextMerge>(LOC.Get("TEXT_TextMerge_Log_No_Target_Project"));
+            return;
+        }
 
-        await view.Project.Handler.TextData.LoadAuxBank(TargetProject, true);
+        if(isMergeInProgress)
+        {
+            Smithbox.LogError<TextMerge>(LOC.Get("TEXT_TextMerge_Log_Merge_In_Progress"));
+            return;
+        }
+
+        HandleMergeAction(View);
+    }
+
+    public async void HandleMergeAction(TextEditorView view)
+    {
+        isMergeInProgress = true;
+
+        await view.Project.Handler.TextData.LoadAuxBank(targetProject, true);
 
         Task<bool> mergeTask = StartFmgMerge(view);
         bool mergeTaskResult = await mergeTask;
 
         if (mergeTaskResult)
         {
-            Smithbox.Log(typeof(TextMerge), $"[Text Editor] Merged text from {TargetProject.Descriptor.ProjectName} into this project.");
+            Smithbox.Log(typeof(TextMerge),
+                LOC.Get("TEXT_TextMerge_Log_Merged_Text_PASS", targetProject.Descriptor.ProjectName));
         }
         else
         {
-            Smithbox.Log(typeof(TextMerge), $"[Text Editor] Failed to merge text from {TargetProject.Descriptor.ProjectName}.");
+            Smithbox.Log(typeof(TextMerge),
+                LOC.Get("TEXT_TextMerge_Log_Merged_Text_FAIL", targetProject.Descriptor.ProjectName));
         }
 
-        MergeInProgress = false;
+        isMergeInProgress = false;
     }
 
-    private static async Task<bool> StartFmgMerge(TextEditorView view)
+    private async Task<bool> StartFmgMerge(TextEditorView view)
     {
         await Task.Yield();
 
-        if (!view.Project.Handler.TextData.AuxBanks.TryGetValue(TargetProject.Descriptor.ProjectName, out var targetAuxBank))
+        if (!view.Project.Handler.TextData.AuxBanks.TryGetValue(targetProject.Descriptor.ProjectName, out var targetAuxBank))
             return false;
 
         foreach (var primaryEntry in view.Project.Handler.TextData.PrimaryBank.Containers)
@@ -127,7 +139,7 @@ public static class TextMerge
             var primaryKey = primaryEntry.Key.Filename;
             var currentContainer = primaryEntry.Value;
 
-            if (PrimaryLanguageOnly &&
+            if (mergePrimaryLanguageOnly &&
                 CFG.Current.TextEditor_Primary_Category != currentContainer.ContainerDisplayCategory)
             {
                 continue;
@@ -174,7 +186,7 @@ public static class TextMerge
         return true;
     }
 
-    private static async Task<bool> ProcessFmg(TextFmgWrapper sourceWrapper, TextFmgWrapper targetWrapper)
+    private async Task<bool> ProcessFmg(TextFmgWrapper sourceWrapper, TextFmgWrapper targetWrapper)
     {
         await Task.Yield();
 
@@ -209,7 +221,7 @@ public static class TextMerge
             sourceList.Insert(insertIndex + 1, newEntry);
         }
 
-        if (ReplaceModifiedRows)
+        if (replaceModifiedRows)
         {
             foreach (var entry in modifiedEntries)
             {

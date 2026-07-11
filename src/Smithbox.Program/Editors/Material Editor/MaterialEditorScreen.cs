@@ -20,8 +20,6 @@ public class MaterialEditorScreen : EditorScreen
     public MaterialCommandQueue CommandQueue;
     public MaterialShortcuts Shortcuts;
 
-    public MaterialToolWindow ToolWindow;
-
     public MaterialEditorScreen(ProjectEntry project)
     {
         Project = project;
@@ -30,8 +28,6 @@ public class MaterialEditorScreen : EditorScreen
 
         CommandQueue = new(this, project);
         Shortcuts = new(this, project);
-
-        ToolWindow = new(this, project);
     }
 
     public string EditorName => "Material Editor##MaterialEditor";
@@ -53,20 +49,22 @@ public class MaterialEditorScreen : EditorScreen
             FileMenu();
             EditMenu();
             ViewMenu();
-            ToolWindow.ToolMenu();
+
+            var activeView = ViewHandler.ActiveView;
+            if(activeView != null)
+            {
+                activeView.ToolView.ToolMenu();
+            }
+
+            //OptionsMenu();
 
             ImGui.EndMenuBar();
         }
 
         var dsid = ImGui.GetID("DockSpace_MaterialEditor");
-        ImGui.DockSpace(dsid, new Vector2(0, 0), ImGuiDockNodeFlags.None);
+        ImGui.DockSpace(dsid, new Vector2(0, 0), ImGuiDockNodeFlags.None, ref GUI.DockGroup_MaterialEditor);
 
-        ViewHandler.HandleViews();
-
-        if (ViewHandler.ActiveView != null)
-        {
-            ToolWindow.Draw();
-        }
+        ViewHandler.HandleViews(dsid);
     }
 
     public void FileMenu()
@@ -86,19 +84,19 @@ public class MaterialEditorScreen : EditorScreen
                 {
                     CFG.Current.MaterialEditor_ManualSave_IncludeMTD = !CFG.Current.MaterialEditor_ManualSave_IncludeMTD;
                 }
-                UIHelper.Tooltip("If enabled, the material files are outputted on save.");
-                UIHelper.ShowActiveStatus(CFG.Current.MaterialEditor_ManualSave_IncludeMTD);
+                GUI.Tooltip("If enabled, the material files are outputted on save.");
+                GUI.ShowActiveStatus(CFG.Current.MaterialEditor_ManualSave_IncludeMTD);
 
                 if (ImGui.MenuItem($"MATBIN"))
                 {
                     CFG.Current.MaterialEditor_ManualSave_IncludeMATBIN = !CFG.Current.MaterialEditor_ManualSave_IncludeMATBIN;
                 }
-                UIHelper.Tooltip("If enabled, the material bin files are outputted on save.");
-                UIHelper.ShowActiveStatus(CFG.Current.MaterialEditor_ManualSave_IncludeMATBIN);
+                GUI.Tooltip("If enabled, the material bin files are outputted on save.");
+                GUI.ShowActiveStatus(CFG.Current.MaterialEditor_ManualSave_IncludeMATBIN);
 
                 ImGui.EndMenu();
             }
-            UIHelper.Tooltip("Determines which files are outputted during the manual saving process.");
+            GUI.Tooltip("Determines which files are outputted during the manual saving process.");
 
             if (ImGui.BeginMenu("Output on Automatic Save"))
             {
@@ -106,19 +104,19 @@ public class MaterialEditorScreen : EditorScreen
                 {
                     CFG.Current.MaterialEditor_AutomaticSave_IncludeMTD = !CFG.Current.MaterialEditor_AutomaticSave_IncludeMTD;
                 }
-                UIHelper.Tooltip("If enabled, the material files are outputted on save.");
-                UIHelper.ShowActiveStatus(CFG.Current.MaterialEditor_AutomaticSave_IncludeMTD);
+                GUI.Tooltip("If enabled, the material files are outputted on save.");
+                GUI.ShowActiveStatus(CFG.Current.MaterialEditor_AutomaticSave_IncludeMTD);
 
                 if (ImGui.MenuItem($"MATBIN"))
                 {
                     CFG.Current.MaterialEditor_AutomaticSave_IncludeMATBIN = !CFG.Current.MaterialEditor_AutomaticSave_IncludeMATBIN;
                 }
-                UIHelper.Tooltip("If enabled, the material bin files are outputted on save.");
-                UIHelper.ShowActiveStatus(CFG.Current.MaterialEditor_AutomaticSave_IncludeMATBIN);
+                GUI.Tooltip("If enabled, the material bin files are outputted on save.");
+                GUI.ShowActiveStatus(CFG.Current.MaterialEditor_AutomaticSave_IncludeMATBIN);
 
                 ImGui.EndMenu();
             }
-            UIHelper.Tooltip("Determines which files are outputted during the automatic saving process.");
+            GUI.Tooltip("Determines which files are outputted during the automatic saving process.");
 
 
             ImGui.EndMenu();
@@ -173,12 +171,20 @@ public class MaterialEditorScreen : EditorScreen
             {
                 CFG.Current.Interface_MaterialEditor_ToolWindow = !CFG.Current.Interface_MaterialEditor_ToolWindow;
             }
-            UIHelper.ShowActiveStatus(CFG.Current.Interface_MaterialEditor_ToolWindow);
+            GUI.ShowActiveStatus(CFG.Current.Interface_MaterialEditor_ToolWindow);
 
             ImGui.Separator();
 
             ViewHandler.DisplayMenu();
 
+            ImGui.EndMenu();
+        }
+    }
+
+    public void OptionsMenu()
+    {
+        if (ImGui.BeginMenu("Options"))
+        {
             ImGui.EndMenu();
         }
     }

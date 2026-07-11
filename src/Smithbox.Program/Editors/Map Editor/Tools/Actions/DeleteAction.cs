@@ -41,7 +41,7 @@ public class DeleteAction
         {
             ApplyDelete();
         }
-        UIHelper.Tooltip($"Delete the currently selected map objects.\n\nShortcut: {InputManager.GetHint(KeybindID.Delete)}");
+        GUI.Tooltip($"Delete the currently selected map objects.\n\nShortcut: {InputManager.GetHint(KeybindID.Delete)}");
     }
 
     /// <summary>
@@ -53,7 +53,7 @@ public class DeleteAction
         {
             ApplyDelete();
         }
-        UIHelper.Tooltip($"Delete the currently selected map objects.");
+        GUI.Tooltip($"Delete the currently selected map objects.");
     }
 
     /// <summary>
@@ -73,14 +73,14 @@ public class DeleteAction
     {
         if (View.ViewportSelection.IsSelection())
         {
-            DeleteMapObjectsAction action = new(View,
+            EntDeleteAction action = new(View,
             View.ViewportSelection.GetFilteredSelection<MsbEntity>().ToList(), true);
 
             View.ViewportActionManager.ExecuteAction(action);
         }
         else
         {
-            PlatformUtils.Instance.MessageBox("No object selected.", "Smithbox", MessageBoxButtons.OK);
+            Smithbox.LogError<DeleteAction>("No object selected.");
         }
 
         View.DelayPicking();

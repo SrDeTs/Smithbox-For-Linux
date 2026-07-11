@@ -1,4 +1,4 @@
-using Andre.Formats;
+﻿using Andre.Formats;
 using Hexa.NET.ImGui;
 using Octokit;
 using StudioCore.Application;
@@ -124,13 +124,13 @@ public class ParamShortcuts
         // Sort Rows
         if (InputManager.IsPressed(KeybindID.ParamEditor_RowList_Sort_Rows))
         {
-            ParamRowTools.SortRows(activeView);
+            Editor.ViewHandler.ActiveView.ToolMenu.SortTool.SortRows();
         }
 
         // Apply Mass Edit
         if (InputManager.IsPressed(KeybindID.ParamEditor_Apply_Mass_Edit))
         {
-            activeView.MassEdit.ApplyMassEdit(activeView.MassEdit.CurrentMassEditInput);
+            activeView.MassEdit.ApplyMassEdit(activeView.MassEdit.State.CurrentMassEditInput);
         }
 
         // Open Mass Edit Menu
@@ -145,11 +145,6 @@ public class ParamShortcuts
             if (InputManager.IsPressed(KeybindID.ParamEditor_Import_CSV))
             {
                 EditorCommandQueue.AddCommand(@"param/menu/massEditCSVImport");
-            }
-
-            if (InputManager.IsPressed(KeybindID.ParamEditor_Import_CSV_All_Fields))
-            {
-                EditorCommandQueue.AddCommand(@"param/menu/massEditCSVImport/AllFields");
             }
 
             if (InputManager.IsPressed(KeybindID.ParamEditor_Export_CSV))
@@ -189,7 +184,7 @@ public class ParamShortcuts
         // Reload All Params
         if (InputManager.IsPressed(KeybindID.ParamEditor_Reload_All_Params))
         {
-            Editor.ToolMenu.ParamReloader.ReloadMemoryParams(
+            Editor.ViewHandler.ActiveView.ToolMenu.ParamReloader.ReloadMemoryParams(
                 activeView.GetPrimaryBank(),
                 activeView.GetPrimaryBank().Params.Keys.ToArray());
         }
@@ -199,7 +194,7 @@ public class ParamShortcuts
         {
             if (activeView.Selection.GetActiveParam() != null)
             {
-                Editor.ToolMenu.ParamReloader.ReloadMemoryParam(
+                Editor.ViewHandler.ActiveView.ToolMenu.ParamReloader.ReloadMemoryParam(
                     activeView.GetPrimaryBank(),
                     activeView.Selection.GetActiveParam());
             }
@@ -212,7 +207,7 @@ public class ParamShortcuts
             return false;
         }
 
-        if (curView.MassEdit.DisplayMassEditPopup)
+        if (curView.MassEdit.State.DisplayMassEditPopup)
         {
             return false;
         }

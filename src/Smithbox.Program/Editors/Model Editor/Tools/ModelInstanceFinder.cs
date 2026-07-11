@@ -40,29 +40,32 @@ public class ModelInstanceFinder
 
         if (ImGui.CollapsingHeader("Model Instance Finder"))
         {
-            ImGui.BeginChild("ModelInstanceFinderToolSection");
+            ImGui.BeginChild("ModelInstanceFinderToolSection", ImGuiChildFlags.Borders);
 
-            UIHelper.WrappedText("Search through all maps for usage of the specificed model name.");
-            UIHelper.WrappedText("");
+            GUI.WrappedText("Search through all maps for usage of the specificed model name.");
 
-            UIHelper.WrappedText("Model Name:");
-            ImGui.InputText("##modelNameInput", ref _searchInput, 255);
+            GUI.Spacer();
+            GUI.SimpleHeader("Model Name", "");
 
-            UIHelper.WrappedText("");
+            GUI.SinglelineTextInput("ModelNameInput", ref _searchInput);
+
+            GUI.Spacer();
+            GUI.SimpleHeader("Options", "");
+
             ImGui.Checkbox("Target Project Files", ref _targetProjectFiles);
-            UIHelper.Tooltip("Uses the project map files instead of game root.");
+            GUI.Tooltip("Uses the project map files instead of game root.");
+
             ImGui.Checkbox("Loose Name Match", ref _looseModelNameMatch);
-            UIHelper.Tooltip("Only require the Model Name field to contain the search string, instead of requiring an exact match.");
+            GUI.Tooltip("Only require the Model Name field to contain the search string, instead of requiring an exact match.");
 
-            UIHelper.WrappedText("");
+            GUI.Spacer();
+            GUI.SimpleHeader("Actions", "");
 
-            if (ImGui.Button("Search", DPI.WholeWidthButton(windowWidth, 24)))
-            {
-                SearchMaps();
-            }
-            UIHelper.Tooltip("Initial usage will be slow as all maps have to be loaded. Subsequent usage will be instant.");
+            GUI.MultiButtonInput("instanceActions",
+                "search", "Search", "", SearchMaps);
 
-            UIHelper.WrappedText("");
+            GUI.Spacer();
+            GUI.SimpleHeader("Results", "");
 
             DisplayInstances();
 
@@ -74,10 +77,6 @@ public class ModelInstanceFinder
     {
         if (Matches.Count > 0)
         {
-            ImGui.Separator();
-            UIHelper.WrappedText($"Instances of {_searchInput}:");
-            ImGui.Separator();
-
             ImGui.BeginChild("ModelInstanceList");
 
             foreach (var entry in Matches)
@@ -88,11 +87,15 @@ public class ModelInstanceFinder
                     EditorCommandQueue.AddCommand($"map/select/{entry.MapName}/{entry.EntityName}/Part");
                 }
                 var aliasName = AliasHelper.GetMapNameAlias(View.Project, entry.MapName);
-                UIHelper.DisplayAlias(aliasName);
-                UIHelper.Tooltip("The value in the [] is the number of instances with the map.");
+                GUI.DisplayAlias(aliasName);
+                GUI.Tooltip("The value in the [] is the number of instances with the map.");
             }
 
             ImGui.EndChild();
+        }
+        else
+        {
+            GUI.WrappedText("No results.");
         }
     }
 

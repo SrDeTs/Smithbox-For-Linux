@@ -14,7 +14,7 @@ namespace StudioCore.Editors.ParamEditor;
 
 public class FieldNameFinder
 {
-    public ParamEditorScreen Editor;
+    public ParamEditorView View;
     public ProjectEntry Project;
 
     public string imguiID = "FieldNameFinder";
@@ -30,37 +30,62 @@ public class FieldNameFinder
 
     public List<DataSearchResult> Results = new();
 
-    public FieldNameFinder(ParamEditorScreen editor, ProjectEntry project)
+    public FieldNameFinder(ParamEditorView view, ProjectEntry project)
     {
-        Editor = editor;
+        View = view;
         Project = project;
     }
 
     public void Display()
     {
-        if (Editor.Project.Handler.ParamData.PrimaryBank.Params == null)
+        if (View.Editor.Project.Handler.ParamData.PrimaryBank.Params == null)
         {
             return;
         }
 
         var windowWidth = ImGui.GetWindowWidth();
 
-        var Size = ImGui.GetWindowSize();
-        float EditX = (Size.X / 100) * 95;
-        float EditY = (Size.Y / 100) * 25;
+        // Header
+        GUI.WrappedText(LOC.Get("PARAM_FieldNameFinder_Hint"));
 
-        UIHelper.WrappedText("Display all fields and the respective params they appear in based on the search text.");
-        UIHelper.WrappedText("");
+        // Options
+        GUI.Spacer();
+        GUI.SimpleHeader(
+            LOC.Get("PARAM_DataFinder_Header_Options"),
+            LOC.Get("PARAM_DataFinder_Header_Options_TT"));
 
-        /// Targeted Param
-        UIHelper.SimpleHeader("Targeted Params", "Leave blank to target all params.");
+        // Toggle: Include Community Name in Search
+        ImGui.Checkbox($"{LOC.Get("PARAM_FieldNameFinder_Checkbox_Include_Community_Name")}##includeCommunityName_{imguiID}",
+            ref IncludeCommunityNameInSearch);
+        GUI.Tooltip(LOC.Get("PARAM_FieldNameFinder_Checkbox_Include_Community_Name_TT"));
+
+        // Toggle: Include Descriptions in Search
+        ImGui.Checkbox($"{LOC.Get("PARAM_FieldNameFinder_Checkbox_Include_Description")}##includeDescriptions_{imguiID}",
+            ref IncludeDescriptionInSearch);
+        GUI.Tooltip(LOC.Get("PARAM_FieldNameFinder_Checkbox_Include_Description_TT"));
+
+        // Toggle: Match Exactly
+        ImGui.Checkbox($"{LOC.Get("PARAM_FieldNameFinder_Checkbox_Complete_Word_Match")}##matchExact_{imguiID}",
+            ref MatchTextExactly);
+        GUI.Tooltip(LOC.Get("PARAM_FieldNameFinder_Checkbox_Complete_Word_Match_TT"));
+
+        // Toggle: Display Community Name in Results
+        ImGui.Checkbox($"{LOC.Get("PARAM_FieldNameFinder_Checkbox_Display_Community_Name")}##useCommunityNames_{imguiID}",
+            ref DisplayCommunityNameInResult);
+        GUI.Tooltip(LOC.Get("PARAM_FieldNameFinder_Checkbox_Display_Community_Name_TT"));
+
+        // Targeted Params
+        GUI.Spacer();
+        GUI.SimpleHeader(
+            LOC.Get("PARAM_DataFinder_Header_Target_Params"),
+            LOC.Get("PARAM_DataFinder_Header_Target_Params_TT"));
 
         // Add
-        if (ImGui.Button($"{Icons.Plus}##paramTargetAdd_fieldIdFinder"))
+        if (ImGui.Button($"{Icons.Plus}##paramTargetAdd_{imguiID}"))
         {
             TargetedParams.Add("");
         }
-        UIHelper.Tooltip("Add new param target input row.");
+        GUI.Tooltip(LOC.Get("PARAM_DataFinder_Action_Add_Param_Target_TT"));
 
         ImGui.SameLine();
 
@@ -69,111 +94,88 @@ public class FieldNameFinder
         {
             ImGui.BeginDisabled();
 
-            if (ImGui.Button($"{Icons.Minus}##paramTargetRemove_fieldIdFinder"))
+            if (ImGui.Button($"{Icons.Minus}##paramTargetRemove_{imguiID}"))
             {
                 TargetedParams.RemoveAt(TargetedParams.Count - 1);
             }
-            UIHelper.Tooltip("Remove last added param target input row.");
+            GUI.Tooltip(LOC.Get("PARAM_DataFinder_Action_Remove_Param_Target_TT"));
 
             ImGui.EndDisabled();
         }
         else
         {
-            if (ImGui.Button($"{Icons.Minus}##paramTargetRemove_fieldIdFinder"))
+            if (ImGui.Button($"{Icons.Minus}##paramTargetRemove_{imguiID}"))
             {
                 TargetedParams.RemoveAt(TargetedParams.Count - 1);
-                UIHelper.Tooltip("Remove last added param target input row.");
             }
+            GUI.Tooltip(LOC.Get("PARAM_DataFinder_Action_Remove_Param_Target_TT"));
         }
 
         ImGui.SameLine();
 
         // Reset
-        if (ImGui.Button("Reset##paramTargetReset_fieldIdFinder"))
+        if (ImGui.Button($"{LOC.Get("PARAM_DataFinder_Action_Reset_Param_Target")}##paramTargetReset_{imguiID}"))
         {
             TargetedParams = new List<string>();
         }
-        UIHelper.Tooltip("Reset param target input rows.");
+        GUI.Tooltip(LOC.Get("PARAM_DataFinder_Action_Reset_Param_Target_TT"));
 
+        // Param Target Entries
         for (int i = 0; i < TargetedParams.Count; i++)
         {
             var curCommand = TargetedParams[i];
             var curText = curCommand;
 
-            if (ImGui.InputText($"##paramTargetInput{i}_fieldIdFinder", ref curText, 255))
+            ImGui.PushItemWidth(ImGui.GetWindowWidth() * 0.5f);
+            if (ImGui.InputText($"##paramTargetInput{i}_{imguiID}", ref curText, 255))
             {
                 TargetedParams[i] = curText;
             }
-            UIHelper.Tooltip("The param target to include.");
+            GUI.Tooltip(LOC.Get("PARAM_DataFinder_Param_Target_Include_TT"));
         }
 
-        UIHelper.WrappedText("");
-
-        /// Search Configuration
-        UIHelper.SimpleHeader("Search Configuration", "The configuration parameters for the search.");
-
-        // Checkbox: Include Community Name in Search
-        ImGui.Checkbox($"Include Community Name in Search##includeCommunityName_{imguiID}",
-            ref IncludeCommunityNameInSearch);
-
-        UIHelper.Tooltip("Include the community name text for a field in the search.");
-
-        // Checkbox: Include Descriptions in Search
-        ImGui.Checkbox($"Include Descriptions in Search##includeDescriptions_{imguiID}",
-            ref IncludeDescriptionInSearch);
-
-        UIHelper.Tooltip("Include the description text for a field in the search.");
-
-        // Checkbox: Match Exactly
-        ImGui.Checkbox($"Complete Word Match##matchExact_{imguiID}",
-            ref MatchTextExactly);
-
-        UIHelper.Tooltip("When matching, ensure the search term is an exact match for a word, not a partial element of the word." +
-            "\nFor internal names, this will split the string based on capitalization before checking.");
-
-        // Checkbox: Display Community Name in Results
-        ImGui.Checkbox($"Display Community Name in Results##useCommunityNames_{imguiID}",
-            ref DisplayCommunityNameInResult);
-        UIHelper.Tooltip("Display the community name for the field instead of the internal name.");
-
-        UIHelper.WrappedText("");
+        GUI.Spacer();
 
         // Search Text
-        UIHelper.WrappedText("Search Text:");
+        GUI.SimpleHeader(
+            LOC.Get("PARAM_DataFinder_Header_Search"),
+            LOC.Get("PARAM_DataFinder_Header_Search_TT"));
 
-        ImGui.InputText("##searchString", ref SearchText, 255);
-        UIHelper.Tooltip("The text to search for. Matches loosely by default.");
+        GUI.SetInputWidth();
+        ImGui.InputTextWithHint($"{LOC.Get("PARAM_FieldNameFinder_Name")}##searchInput_{imguiID}", LOC.Get("PARAM_DataFinder_Search_Hint"), ref SearchText, 255);
 
-        // Search Button
-        if (ImGui.Button($"Search##searchButton_{imguiID}"))
-        {
-            if (Editor.Project.Handler.ParamData.PrimaryBank.Params != null)
-            {
-                CachedSearchText = SearchText;
+        // Actions
+        GUI.MultiButtonInput("searchActions",
+            "search", 
+            LOC.Get("PARAM_DataFinder_Action_Search"),
+            LOC.Get("PARAM_DataFinder_Action_Search_TT"),
+            ConductSearch,
 
-                Results = ConstructResults();
-                Results.Sort();
-            }
-        }
+            "clearSearch",
+            LOC.Get("PARAM_DataFinder_Action_Clear"),
+            LOC.Get("PARAM_DataFinder_Action_Clear_TT"),
+            ClearSearch);
 
-        UIHelper.WrappedText("");
+        GUI.Spacer();
 
         // Results List
         if (Results.Count > 0)
         {
-            UIHelper.SimpleHeader("Search Results", "The results of the last search performed.");
+            GUI.SimpleHeader(
+                LOC.Get("PARAM_DataFinder_Header_Search_Results"),
+                LOC.Get("PARAM_DataFinder_Header_Search_Results_TT"));
 
-            UIHelper.WrappedText($"Search Term:");
-            UIHelper.DisplayAlias(CachedSearchText);
+            GUI.WrappedText(LOC.Get("PARAM_DataFinder_Search_Term"));
+            GUI.DisplayAlias(CachedSearchText);
 
-            UIHelper.WrappedText($"Result Count:");
-            UIHelper.DisplayAlias($"{Results.Count}");
+            GUI.WrappedText(LOC.Get("PARAM_DataFinder_Result_Count"));
+            GUI.DisplayAlias($"{Results.Count}");
 
-            UIHelper.WrappedText($"");
-            UIHelper.WrappedText($"Param: Row Name");
+            GUI.Spacer();
+            GUI.WrappedText(LOC.Get("PARAM_FieldNameFinder_Results_Column_Header"));
 
             ImGui.BeginChild($"##resultSection_{imguiID}",
-                new Vector2(EditX, EditY));
+                new Vector2(0, ImGui.GetContentRegionAvail().Y * 0.9f), ImGuiChildFlags.Borders);
 
             foreach (var result in Results)
             {
@@ -194,10 +196,28 @@ public class FieldNameFinder
         }
         else
         {
-            ImGui.Text("No results to display.");
+            ImGui.Text(LOC.Get("PARAM_DataFinder_No_Results"));
         }
 
-        UIHelper.WrappedText("");
+        GUI.WrappedText("");
+    }
+
+    public void ConductSearch()
+    {
+        if (View.Editor.Project.Handler.ParamData.PrimaryBank.Params != null)
+        {
+            CachedSearchText = SearchText;
+
+            Results = ConstructResults();
+            Results.Sort();
+        }
+    }
+
+    public void ClearSearch()
+    {
+        SearchText = "";
+        CachedSearchText = "";
+        Results = new();
     }
 
     /// <summary>
@@ -209,7 +229,7 @@ public class FieldNameFinder
 
         var searchComponents = SearchText.ToLower().Split(" ");
 
-        foreach (var p in Editor.Project.Handler.ParamData.PrimaryBank.Params)
+        foreach (var p in View.Editor.Project.Handler.ParamData.PrimaryBank.Params)
         {
             if (TargetedParams.Count > 0)
             {
@@ -220,14 +240,14 @@ public class FieldNameFinder
             }
 
             var def = p.Value.AppliedParamdef;
-            var meta = Editor.Project.Handler.ParamData.GetParamMeta(def);
-            var annotations = Editor.Project.Handler.ParamData.GetParamAnnotations(def.ParamType);
+            var meta = View.Editor.Project.Handler.ParamData.GetParamMeta(def);
+            var annotations = View.Editor.Project.Handler.ParamData.GetParamAnnotations(def.ParamType);
 
             foreach (var field in def.Fields)
             {
                 bool addResult = false;
-                var fieldMeta = Editor.Project.Handler.ParamData.GetParamFieldMeta(meta, field);
-                var fieldAnnotation = Editor.Project.Handler.ParamData.GetFieldAnnotation(annotations, field.InternalName);
+                var fieldMeta = View.Editor.Project.Handler.ParamData.GetParamFieldMeta(meta, field);
+                var fieldAnnotation = View.Editor.Project.Handler.ParamData.GetFieldAnnotation(annotations, field.InternalName);
 
                 foreach (var entry in searchComponents)
                 {
@@ -261,7 +281,7 @@ public class FieldNameFinder
                     }
 
                     // Display Name
-                    if (fieldAnnotation.Name != null && IncludeCommunityNameInSearch)
+                    if (fieldAnnotation != null && fieldAnnotation.Name != null && IncludeCommunityNameInSearch)
                     {
                         var displayNameComponents = fieldAnnotation.Name.Split(" ");
 
@@ -285,7 +305,7 @@ public class FieldNameFinder
                     }
 
                     // Wiki
-                    if (fieldAnnotation.Description != null && IncludeDescriptionInSearch)
+                    if (fieldAnnotation != null && fieldAnnotation.Description != null && IncludeDescriptionInSearch)
                     {
                         var descriptionComponents = fieldAnnotation.Description.Split(" ");
 
@@ -313,7 +333,16 @@ public class FieldNameFinder
                 {
                     var result = new DataSearchResult();
                     result.FieldInternalName = field.InternalName;
-                    result.FieldDisplayName = fieldAnnotation.Name;
+
+                    if (fieldAnnotation == null)
+                    {
+                        result.FieldDisplayName = p.Key;
+                    }
+                    else
+                    {
+                        result.FieldDisplayName = fieldAnnotation.Name;
+                    }
+
                     result.ParamName = p.Key;
 
                     output.Add(result);

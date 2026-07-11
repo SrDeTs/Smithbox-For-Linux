@@ -45,7 +45,7 @@ public class PullToCameraAction
         {
             ApplyMoveToCamera();
         }
-        UIHelper.Tooltip($"Move the current selection to the camera position.\n\nShortcut: {InputManager.GetHint(KeybindID.Pull)}");
+        GUI.Tooltip($"Move the current selection to the camera position.\n\nShortcut: {InputManager.GetHint(KeybindID.Pull)}");
     }
 
     /// <summary>
@@ -57,7 +57,7 @@ public class PullToCameraAction
         {
             ApplyMoveToCamera();
         }
-        UIHelper.Tooltip("Move the current selection to the camera position.");
+        GUI.Tooltip("Move the current selection to the camera position.");
     }
 
     /// <summary>
@@ -132,7 +132,7 @@ public class PullToCameraAction
         }
         else
         {
-            PlatformUtils.Instance.MessageBox("No object selected.", "Smithbox", MessageBoxButtons.OK);
+            Smithbox.LogError<PullToCameraAction>("No object selected.");
         }
     }
 }

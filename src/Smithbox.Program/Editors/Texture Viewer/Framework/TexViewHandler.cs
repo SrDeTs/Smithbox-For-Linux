@@ -19,6 +19,7 @@ public class TexViewHandler
     public List<TexEditorView> TexViews = new();
     public TexEditorView ActiveView;
 
+    public bool AddNewView = false;
     public TexEditorView ViewToClose = null;
 
     public TexViewHandler(TextureViewerScreen editor, ProjectEntry project)
@@ -34,12 +35,13 @@ public class TexViewHandler
 
     public void DisplayMenu()
     {
-        if (ImGui.MenuItem("New Editor View"))
+        if (ImGui.MenuItem($"{LOC.Get("EDITOR_Add_New_View")}##addNewView", false))
         {
             AddView();
         }
 
-        if (ImGui.MenuItem("Close Current Editor View"))
+        var canClose = CountViews() > 1;
+        if (ImGui.MenuItem($"{LOC.Get("EDITOR_Close_Current_View")}##closeCurrentView", false, canClose))
         {
             if (CountViews() > 1)
             {
@@ -99,7 +101,7 @@ public class TexViewHandler
         return TexViews.Where(e => e != null).Count();
     }
 
-    public void HandleViews()
+    public void HandleViews(uint editorDockspaceId)
     {
         var activeView = ActiveView;
 
@@ -112,11 +114,11 @@ public class TexViewHandler
 
             var name = view.Selection.SelectedFileEntry != null ? view.Selection.SelectedFileEntry.Filename : null;
 
-            var displayTitle = "Active View";
+            var displayTitle = LOC.Get("EDITOR_Active_View");
 
             if (view != activeView)
             {
-                displayTitle = "Inactive View";
+                displayTitle = LOC.Get("EDITOR_Inactive_View");
             }
 
             displayTitle = $"{displayTitle} [{view.ViewIndex}]";
@@ -125,34 +127,51 @@ public class TexViewHandler
 
             if (CountViews() == 1)
             {
-                displayTitle = "Active View";
+                displayTitle = LOC.Get("EDITOR_Active_View");
             }
 
-            if (ImGui.Begin($@"{displayTitle}###TextureEditorView##{view.ViewIndex}", UIHelper.GetDisplayViewWindowFlags()))
+            ImGui.SetNextWindowDockID(editorDockspaceId, ImGuiCond.FirstUseEver);
+            ImGui.SetNextWindowClass(ref GUI.DockGroup_TextureViewer);
+            if (ImGui.Begin($@"{displayTitle}###TextureEditorView##{view.ViewIndex}", GUI.GetInnerWindowFlags()))
             {
                 if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
                 {
                     ActiveView = view;
                 }
 
-                // Don't let the user close if their is only 1 view
-                if (CountViews() > 1)
+                if (ImGui.BeginPopupContextItem())
                 {
-                    if (ImGui.BeginPopupContextItem())
+                    if (ImGui.MenuItem($"{LOC.Get("EDITOR_Add_View")}##addView"))
                     {
-                        if (ImGui.MenuItem("Close View"))
+                        AddNewView = true;
+                    }
+
+                    // Don't let the user close if their is only 1 view
+                    if (CountViews() > 1)
+                    {
+                        if (ImGui.MenuItem($"{LOC.Get("EDITOR_Close_View")}##closeView"))
                         {
                             ViewToClose = view;
                         }
-
-                        ImGui.EndMenu();
                     }
+
+                    ImGui.EndMenu();
                 }
             }
 
-            view.Display(Editor.CommandQueue.DoFocus && view == activeView, view == activeView);
+            var dsid = ImGui.GetID($"DockSpace_TextureViewer_View{view.ViewIndex}");
+            ImGui.DockSpace(dsid, new Vector2(0, 0), ref GUI.DockGroup_TextureViewerView);
+
+            view.Display(dsid, view.ViewIndex, Editor.CommandQueue.DoFocus && view == activeView, view == activeView);
 
             ImGui.End();
+        }
+
+        if(AddNewView)
+        {
+            AddView();
+
+            AddNewView = false;
         }
 
         if (ViewToClose != null)

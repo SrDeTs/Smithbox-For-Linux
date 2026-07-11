@@ -16,6 +16,7 @@ public class MaterialViewHandler
     public List<MaterialEditorView> MaterialViews = new();
     public MaterialEditorView ActiveView;
 
+    public bool AddNewView = false;
     public MaterialEditorView ViewToClose = null;
 
     public MaterialViewHandler(MaterialEditorScreen editor, ProjectEntry project)
@@ -31,12 +32,13 @@ public class MaterialViewHandler
 
     public void DisplayMenu()
     {
-        if (ImGui.MenuItem("New Editor View"))
+        if (ImGui.MenuItem("Add New View", false))
         {
             AddView();
         }
 
-        if (ImGui.MenuItem("Close Current Editor View"))
+        var canClose = CountViews() > 1;
+        if (ImGui.MenuItem("Close Current View", false, canClose))
         {
             if (CountViews() > 1)
             {
@@ -96,7 +98,7 @@ public class MaterialViewHandler
         return MaterialViews.Where(e => e != null).Count();
     }
 
-    public void HandleViews()
+    public void HandleViews(uint editorDockspaceId)
     {
         var activeView = ActiveView;
 
@@ -123,31 +125,48 @@ public class MaterialViewHandler
                 displayTitle = "Active View";
             }
 
-            if (ImGui.Begin($@"{displayTitle}###MaterialEditorView##{view.ViewIndex}", UIHelper.GetDisplayViewWindowFlags()))
+            ImGui.SetNextWindowDockID(editorDockspaceId, ImGuiCond.FirstUseEver);
+            ImGui.SetNextWindowClass(ref GUI.DockGroup_MaterialEditor);
+            if (ImGui.Begin($@"{displayTitle}###MaterialEditorView##{view.ViewIndex}", GUI.GetInnerWindowFlags()))
             {
                 if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
                 {
                     ActiveView = view;
                 }
 
-                // Don't let the user close if their is only 1 view
-                if (CountViews() > 1)
+                if (ImGui.BeginPopupContextItem())
                 {
-                    if (ImGui.BeginPopupContextItem())
+                    if (ImGui.MenuItem("Add View"))
+                    {
+                        AddNewView = true;
+                    }
+
+                    // Don't let the user close if their is only 1 view
+                    if (CountViews() > 1)
                     {
                         if (ImGui.MenuItem("Close View"))
                         {
                             ViewToClose = view;
                         }
-
-                        ImGui.EndMenu();
                     }
+
+                    ImGui.EndMenu();
                 }
             }
 
-            view.Display(Editor.CommandQueue.DoFocus && view == activeView, view == activeView);
+            var dsid = ImGui.GetID($"DockSpace_MaterialEditor_View{view.ViewIndex}");
+            ImGui.DockSpace(dsid, new Vector2(0, 0), ref GUI.DockGroup_MaterialEditorView);
+
+            view.Display(dsid, view.ViewIndex, Editor.CommandQueue.DoFocus && view == activeView, view == activeView);
 
             ImGui.End();
+        }
+
+        if (AddNewView)
+        {
+            AddView();
+
+            AddNewView = false;
         }
 
         if (ViewToClose != null)

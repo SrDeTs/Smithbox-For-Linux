@@ -37,7 +37,7 @@ public class MapViewportView
 
     }
 
-    public void Display()
+    public void Display(uint dockspaceId)
     {
         foreach (var viewport in View.ViewportHandler.Viewports)
         {
@@ -46,7 +46,10 @@ public class MapViewportView
                 continue;
             }
 
-            if(viewport.Viewport is VulkanViewport vulkanViewport)
+            ImGui.SetNextWindowDockID(dockspaceId, ImGuiCond.FirstUseEver);
+            ImGui.SetNextWindowClass(ref GUI.DockGroup_MapEditorView);
+
+            if (viewport.Viewport is VulkanViewport vulkanViewport)
             {
                 vulkanViewport.Display();
 
@@ -74,6 +77,9 @@ public class MapViewportView
     {
         foreach (var viewport in View.ViewportHandler.Viewports)
         {
+            if (viewport == null)
+                continue;
+
             if (viewport == View.ViewportHandler.ActiveViewport)
             {
                 ViewportUsingKeyboard = viewport.Viewport.Update(View.Window, deltatime);
@@ -208,6 +214,7 @@ public class MapViewportView
                 View.DuplicateAction.OnContext();
                 View.DeleteAction.OnContext();
                 View.DuplicateToMapAction.OnContext();
+                View.TranslateAction.OnContext();
                 View.RotateAction.OnContext();
 
                 if (targetedEnt != null)
@@ -226,10 +233,6 @@ public class MapViewportView
 
                 View.EditorVisibilityAction.OnContext();
                 View.GameVisibilityAction.OnContext();
-
-                ImGui.Separator();
-
-                View.SelectionGroupTool.OnContext();
 
                 if (targetedEnt != null)
                 {

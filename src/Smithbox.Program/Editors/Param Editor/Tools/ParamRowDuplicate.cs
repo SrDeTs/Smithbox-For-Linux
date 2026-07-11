@@ -75,7 +75,7 @@ public static class ParamRowDuplicate
 
                 if (curView.ParamTableWindow.IsInTableGroupMode(curParam))
                 {
-                    var curGroup = curView.ParamTableWindow.CurrentTableGroup;
+                    var curGroup = curView.ParamTableWindow.CurrentTableGroupID;
                     curView.ParamTableWindow.UpdateTableGroupSelection(curGroup);
                 }
             });
@@ -124,7 +124,7 @@ public static class ParamRowDuplicate
 
                 if (curView.ParamTableWindow.IsInTableGroupMode(curParam))
                 {
-                    var curGroup = curView.ParamTableWindow.CurrentTableGroup;
+                    var curGroup = curView.ParamTableWindow.CurrentTableGroupID;
                     curView.ParamTableWindow.UpdateTableGroupSelection(curGroup);
                 }
             });
@@ -176,7 +176,7 @@ public static class ParamRowDuplicate
             if (targetGroup == null)
                 return;
 
-            UIHelper.WrappedText("Target Param:");
+            GUI.WrappedText(LOC.Get("PARAM_DuplicateTool_Target_Param"));
 
             foreach (var entry in targetGroup.Params)
             {

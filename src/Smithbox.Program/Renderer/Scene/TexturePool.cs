@@ -1,6 +1,10 @@
 ﻿using SoulsFormats;
+using StudioCore.Application;
+using StudioCore.Developer;
+using StudioCore.Editors.MapEditor;
 using StudioCore.Editors.ParamEditor;
 using StudioCore.Editors.TextureViewer;
+using StudioCore.Editors.Viewport;
 using StudioCore.Memory;
 using StudioCore.Utilities;
 using System;
@@ -78,7 +82,8 @@ public class TexturePool
             case "q\0\0\0":
                 return VkFormat.R16G16B16A16Sfloat;
             default:
-                throw new Exception($"Unknown DDS Type: {str}");
+                throw new Exception(
+                    LOC.Get("REND_Unknown_DDS_Type", str));
         }
     }
 
@@ -139,7 +144,8 @@ public class TexturePool
             case DDS.DXGI_FORMAT.R16G16B16A16_FLOAT:
                 return VkFormat.R16G16B16A16Sfloat;
             default:
-                throw new Exception($"Unimplemented DXGI Type: {fmt.ToString()}");
+                throw new Exception(
+                    LOC.Get("REND_Unimplemented_DXGI_Type", fmt.ToString()));
         }
     }
 
@@ -226,7 +232,8 @@ public class TexturePool
             case 110:
                 return 16;
             default:
-                throw new NotImplementedException($"TPF Texture format {tpfTexFormat} BlockSize unknown.");
+                throw new NotImplementedException(
+                    LOC.Get("REND_Invalid_TPF_Texture_BlockSize", tpfTexFormat));
         }
     }
 
@@ -326,8 +333,10 @@ public class TexturePool
         lock (_disposalLock)
         {
             _framesToDisposal++;
-            if (_framesToDisposal == 5)
+            if (_framesToDisposal >= 5)
             {
+                _framesToDisposal = 0;
+
                 foreach (Texture t in _disposalQueue)
                 {
                     t.Dispose();
@@ -390,6 +399,12 @@ public class TexturePool
         public unsafe void FillWithTPF(GraphicsDevice d, CommandList cl, TPF.TPFPlatform platform, TPF.Texture tex,
             string name)
         {
+            if (CFG.Current.Developer_Enable_Tools)
+            {
+                ResourceViewer.ProcessedTextures.Add(name);
+                ResourceViewer.TexConsumptionSize += tex.Bytes.Length;
+            }
+
             TpfTexture = tex;
 
             DDS dds;
@@ -451,28 +466,13 @@ public class TexturePool
             }
             catch (Exception e)
             {
-                Smithbox.Log(this, ""+
-                    $"Error loading texture:\n" +
-                    $"Name: {tex.Name}\n" +
-                    $"Format: {tex.Format}\n" +
-                    $"{e}",
-                    Microsoft.Extensions.Logging.LogLevel.Warning);
+                Smithbox.LogError(this,
+                    LOC.Get("REND_Texture_Load_Error", tex.Name, tex.Format), e);
 
                 return;
             }
 
             Format = format;
-
-            var exlusions = new List<string>()
-            {
-                "world_map_vanilla",
-                "world_map_sote",
-                "world_map_limveld",
-                "world_map_limveld_mountaintops",
-                "world_map_limveld_crater",
-                "world_map_limveld_rotted_woods",
-                "world_map_limveld_noklateo"
-            };
 
             var curProject = Smithbox.Orchestrator.SelectedProject;
 
@@ -481,13 +481,13 @@ public class TexturePool
                 var checkPow = true;
 
                 // Ignore the World Map textures
-                if (exlusions.Contains(tex.Name))
+                if (WorldMapTool.TextureExlusions.Contains(tex.Name))
                 {
                     checkPow = false;
                 }
 
                 // Ignore for Icon Preview
-                if(curProject.Handler.FocusedEditor is ParamEditorScreen)
+                if (curProject.Handler.FocusedEditor is ParamEditorScreen)
                 {
                     checkPow = false;
                 }
@@ -568,6 +568,10 @@ public class TexturePool
             _texture = d.ResourceFactory.CreateTexture(desc);
             _texture.Name = name;
             cl.CopyTexture(_staging, _texture);
+
+            _staging.Dispose();
+            _staging = null;
+
             Resident = true;
             _pool.DescriptorTableDirty = true;
         }
@@ -880,6 +884,10 @@ public class TexturePool
             _texture = d.ResourceFactory.CreateTexture(desc);
             _texture.Name = name;
             cl.CopyTexture(_staging, _texture);
+
+            _staging.Dispose();
+            _staging = null;
+
             Resident = true;
             _pool.DescriptorTableDirty = true;
         }
@@ -920,6 +928,11 @@ public class TexturePool
                 _texture = d.ResourceFactory.CreateTexture(desc);
                 _texture.Name = name;
                 cl.CopyTexture(_staging, _texture);
+
+                // Dispose staging immediately after the copy is issued.
+                _staging.Dispose();
+                _staging = null;
+
                 Resident = true;
                 _pool.DescriptorTableDirty = true;
             });
@@ -965,6 +978,11 @@ public class TexturePool
                 desc.Tiling = VkImageTiling.Optimal;
                 _texture = d.ResourceFactory.CreateTexture(desc);
                 cl.CopyTexture(_staging, _texture);
+
+                // Dispose staging immediately after the copy is issued.
+                _staging.Dispose();
+                _staging = null;
+
                 Resident = true;
                 _pool.DescriptorTableDirty = true;
             });

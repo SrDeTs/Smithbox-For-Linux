@@ -36,17 +36,17 @@ public class ModelProperties
 
     public bool Focus = false;
 
-    private string PropertySearch = "";
-
+    private string PropertyListFilter = "";
+    private bool ExactPropertyListFilter = false;
 
     public void Display()
     {
         HashSet<Entity> entSelection = View.ViewportSelection.GetFilteredSelection<Entity>();
 
-        // Header
-        ImGui.AlignTextToFramePadding();
-        ImGui.InputText("##modelPropertySearch", ref PropertySearch, 255);
-        UIHelper.Tooltip("Filter the properties by field names that exactly or partially match your input.");
+        var searchHeight = new Vector2(0, 36) * DPI.UIScale();
+        ImGui.BeginChild($"framedListFilter_modelEditor_Properties", searchHeight, ImGuiChildFlags.Borders);
+
+        EditorFilters.DisplayListFilter("modelEditor_Properties", ref PropertyListFilter, ref ExactPropertyListFilter);
 
         // Toggle Community Field Names
         ImGui.SameLine();
@@ -60,12 +60,12 @@ public class ModelProperties
         if (CFG.Current.ModelEditor_Properties_Enable_Commmunity_Names)
             communityFieldNameMode = "Community";
 
-        UIHelper.Tooltip($"Toggle field name display type between Internal and Community.\nCurrent Mode: {communityFieldNameMode}");
+        GUI.Tooltip($"Toggle field name display type between Internal and Community.\nCurrent Mode: {communityFieldNameMode}");
 
-        ImGui.Separator();
+        ImGui.EndChild();
 
         // Properties
-        ImGui.BeginChild("propedit");
+        ImGui.BeginChild("propedit", ImGuiChildFlags.Borders);
 
         if(View.Selection.SelectedModelWrapper != null && View.Selection.SelectedModelWrapper.Container != null)
         {
@@ -184,14 +184,11 @@ public class ModelProperties
             //}
 
             // Filter by Search
-            var filterTerm = PropertySearch.ToLower();
+            var isMatch = EditorFilters.IsMatch(PropertyListFilter, prop.Name, ExactPropertyListFilter);
 
-            if (PropertySearch != "")
+            if(!isMatch)
             {
-                if (!prop.Name.ToLower().Contains(filterTerm))
-                {
-                    continue;
-                }
+                continue;
             }
 
             var ignoreProp = prop.GetCustomAttribute<IgnoreInModelEditor>();
@@ -400,7 +397,7 @@ public class ModelProperties
         }
 
         // Final description
-        UIHelper.Tooltip(text);
+        GUI.Tooltip(text);
     }
 
     private void DisplayModelPropertyLine(
@@ -976,12 +973,9 @@ public class ModelProperties
         {
             if (_lastUncommittedAction != null && View.ViewportActionManager.PeekUndoAction() == _lastUncommittedAction)
             {
-                if (_lastUncommittedAction is MultipleEntityPropertyChangeAction a)
+                if (_lastUncommittedAction is PropMultChangeAction a)
                 {
                     View.ViewportActionManager.UndoAction();
-
-                    a.UpdateRenderModel = true; // Update render model on commit execution, and update on undo/redo.
-
                     View.ViewportActionManager.ExecuteAction(a);
                 }
 
@@ -1043,14 +1037,14 @@ public class ModelProperties
         }
         else
         {
-            PropertiesChangedAction action;
+            PropChangeAction action;
             if (arrayindex != -1)
             {
-                action = new PropertiesChangedAction((PropertyInfo)prop, arrayindex, obj, newval);
+                action = new PropChangeAction(selection, (PropertyInfo)prop, arrayindex, obj, newval);
             }
             else
             {
-                action = new PropertiesChangedAction((PropertyInfo)prop, obj, newval);
+                action = new PropChangeAction(selection, (PropertyInfo)prop, obj, newval);
             }
 
             View.ViewportActionManager.ExecuteAction(action);
@@ -1071,36 +1065,35 @@ public class ModelProperties
 
         selection.BuildReferenceMap();
 
-        // Undo and redo the last action with a rendering update
-        if (_lastUncommittedAction != null && View.ViewportActionManager.PeekUndoAction() == _lastUncommittedAction)
-        {
-            if (_lastUncommittedAction is PropertiesChangedAction a)
-            {
-                // Kinda a hack to prevent a jumping glitch
-                a.SetPostExecutionAction(null);
+        //// Undo and redo the last action with a rendering update
+        //if (_lastUncommittedAction != null && View.ViewportActionManager.PeekUndoAction() == _lastUncommittedAction)
+        //{
+        //    if (_lastUncommittedAction is PropertiesChangedAction a)
+        //    {
+        //        // Kinda a hack to prevent a jumping glitch
+        //        a.SetPostExecutionAction(null);
 
-                View.ViewportActionManager.UndoAction();
+        //        View.ViewportActionManager.UndoAction();
 
-                if (selection != null)
-                {
-                    a.SetPostExecutionAction(undo =>
-                    {
-                        if (destroyRenderModel)
-                        {
-                            if (selection.RenderSceneMesh != null)
-                            {
-                                selection.RenderSceneMesh.Dispose();
-                                selection.RenderSceneMesh = null;
-                            }
-                        }
+        //        if (selection != null)
+        //        {
+        //            a.SetPostExecutionAction(undo =>
+        //            {
+        //                if (destroyRenderModel)
+        //                {
+        //                    if (selection.RenderSceneMesh != null)
+        //                    {
+        //                        selection.RenderSceneMesh = null;
+        //                    }
+        //                }
 
-                        selection.UpdateRenderModel();
-                    });
-                }
+        //                selection.UpdateRenderModel();
+        //            });
+        //        }
 
-                View.ViewportActionManager.ExecuteAction(a);
-            }
-        }
+        //        View.ViewportActionManager.ExecuteAction(a);
+        //    }
+        //}
 
         _lastUncommittedAction = null;
         _changingPropery = null;

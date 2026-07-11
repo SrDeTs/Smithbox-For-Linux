@@ -1,6 +1,9 @@
 ﻿using Hexa.NET.ImGui;
+using SoulsFormats.KF4;
 using StudioCore.Application;
 using StudioCore.Editors.Common;
+using StudioCore.Editors.MetadataEditor;
+using StudioCore.Keybinds;
 using StudioCore.Utilities;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,21 +14,32 @@ namespace StudioCore.Editors.ModelEditor;
 /// <summary>
 /// Select the flver container (or the flver directly for some projects)
 /// </summary>
-public class ModelSourceList
+public class ModelContainerList
 {
     public ModelEditorView View;
     public ProjectEntry Project;
 
-    private string ImguiID = "ModelSourceListView";
+    private string ContainerListFilter = "";
+    private bool ExactContainerListFilter = false;
 
-    public string SearchBarText = "";
-    private string _lastSearchText = "";
+    private bool UpdateModelSourceList = true;
 
-    private HashSet<string> _cachedSearchMatches = new HashSet<string>();
+    private ModelListType CurrentTab = ModelListType.Character;
+    private ModelListType _previousTab = ModelListType.Character;
 
-    private bool _updateModelSourceList = true;
+    private Dictionary<ModelListType, HashSet<string>> CachedSearchMatches = new();
 
-    public ModelSourceList(ModelEditorView view, ProjectEntry project)
+    private bool _arrowKeyPressed = false;
+
+    private static readonly Dictionary<ModelListType, ProjectAliasType> AliasTypeMap = new()
+    {
+        { ModelListType.Character, ProjectAliasType.Characters },
+        { ModelListType.Asset,     ProjectAliasType.Assets     },
+        { ModelListType.Part,      ProjectAliasType.Parts      },
+        { ModelListType.MapPiece,  ProjectAliasType.MapPieces  },
+    };
+
+    public ModelContainerList(ModelEditorView view, ProjectEntry project)
     {
         View = view;
         Project = project;
@@ -33,17 +47,19 @@ public class ModelSourceList
 
     public void Display(float width, float height)
     {
-        UIHelper.SimpleHeader("Containers", "");
+        GUI.SimpleHeader("Containers", "");
 
-        ImGui.BeginChild("ContainerList", new System.Numerics.Vector2(width, height), ImGuiChildFlags.Borders);
+        DisplayHeader();
+
+        ImGui.BeginChild("ContainerList", new Vector2(0, 0), ImGuiChildFlags.Borders);
 
         ImGui.BeginTabBar("sourceTabs");
 
         if (ImGui.BeginTabItem("Characters"))
         {
-            DisplaySearchbar(ModelListType.Character);
+            CurrentTab = ModelListType.Character;
 
-            ImGui.BeginChild($"characterSourceList");
+            ImGui.BeginChild($"characterSourceList", new Vector2(0, 0), ImGuiChildFlags.Borders);
 
             DisplayModelSourceList(ModelListType.Character, Project.Locator.ChrFiles);
 
@@ -59,9 +75,9 @@ public class ModelSourceList
 
         if (ImGui.BeginTabItem($"{name}"))
         {
-            DisplaySearchbar(ModelListType.Asset);
+            CurrentTab = ModelListType.Asset;
 
-            ImGui.BeginChild($"assetSourceList");
+            ImGui.BeginChild($"assetSourceList", new Vector2(0, 0), ImGuiChildFlags.Borders);
 
             DisplayModelSourceList(ModelListType.Asset, Project.Locator.AssetFiles);
 
@@ -71,9 +87,9 @@ public class ModelSourceList
 
         if (ImGui.BeginTabItem("Parts"))
         {
-            DisplaySearchbar(ModelListType.Part);
+            CurrentTab = ModelListType.Part;
 
-            ImGui.BeginChild($"partsSourceList");
+            ImGui.BeginChild($"partsSourceList", new Vector2(0, 0), ImGuiChildFlags.Borders);
 
             DisplayModelSourceList(ModelListType.Part, Project.Locator.PartFiles);
 
@@ -83,9 +99,9 @@ public class ModelSourceList
 
         if (ImGui.BeginTabItem("Map Pieces"))
         {
-            DisplaySearchbar(ModelListType.MapPiece);
+            CurrentTab = ModelListType.MapPiece;
 
-            ImGui.BeginChild($"mapPieceSourceList");
+            ImGui.BeginChild($"mapPieceSourceList", new Vector2(0, 0), ImGuiChildFlags.Borders);
 
             DisplayModelSourceList(ModelListType.MapPiece, Project.Locator.MapPieceFiles);
 
@@ -98,82 +114,94 @@ public class ModelSourceList
         ImGui.EndChild();
     }
 
-    public void DisplaySearchbar(ModelListType type)
+    public void DisplayHeader()
     {
-        var windowWidth = ImGui.GetWindowWidth();
+        var searchHeight = new Vector2(0, 36) * DPI.UIScale();
+        ImGui.BeginChild($"framedListFilter_modelEditor_SourceList", searchHeight, ImGuiChildFlags.Borders);
 
-        DPI.ApplyInputWidth(windowWidth * 0.75f);
-        ImGui.InputText($"##modelListSearch{ImguiID}", ref SearchBarText, 255);
-        if (ImGui.IsItemDeactivatedAfterEdit())
+        EditorFilters.DisplayListFilter("modelEditor_SourceList", ref ContainerListFilter, ref ExactContainerListFilter);
+
+        bool filterChanged = ImGui.IsItemDeactivatedAfterEdit();
+        bool tabChanged = _previousTab != CurrentTab;
+
+        GUI.Tooltip("Filter the model list entries.");
+
+        ImGui.SameLine();
+
+        // Load Mode
+        var loadMode = "Load on Select";
+        if (CFG.Current.ModelEditor_ModelSourceList_RequireDoubleClick)
+            loadMode = "Load on Double-Click";
+
+        ImGui.AlignTextToFramePadding();
+        if (ImGui.Button($"{Icons.Bars}"))
         {
-            if (_lastSearchText != SearchBarText)
-            {
-                _lastSearchText = SearchBarText;
-                _updateModelSourceList = true;
-            }
+            CFG.Current.ModelEditor_ModelSourceList_RequireDoubleClick = !CFG.Current.ModelEditor_ModelSourceList_RequireDoubleClick;
         }
-        UIHelper.Tooltip("Filter the model list entries.");
+        GUI.Tooltip($"Determines the loading behavior in the model source lists.\nLoad Type: {loadMode}");
 
-        if (_updateModelSourceList)
+        ImGui.EndChild();
+
+        if (filterChanged)
         {
-            _updateModelSourceList = false;
-
-            _cachedSearchMatches.Clear();
-
-            foreach (var entry in Project.Handler.ModelData.PrimaryBank.Models)
-            {
-                var modelName = entry.Key.Filename;
-                var nameAlias = "";
-
-                if (CFG.Current.ModelEditor_Containers_IncludeAliasInSearch)
-                {
-                    if (type is ModelListType.Character)
-                    {
-                        nameAlias = AliasHelper.GetCharacterAlias(Project, modelName);
-                    }
-
-                    if (type is ModelListType.Asset)
-                    {
-                        nameAlias = AliasHelper.GetAssetAlias(Project, modelName);
-                    }
-
-                    if (type is ModelListType.Part)
-                    {
-                        nameAlias = AliasHelper.GetPartAlias(Project, modelName);
-                    }
-
-                    if (type is ModelListType.MapPiece)
-                    {
-                        nameAlias = AliasHelper.GetMapPieceAlias(Project, modelName);
-
-                    }
-                }
-
-                bool isMatch = SearchFilters.IsMapSearchMatch(_lastSearchText, modelName, nameAlias, new List<string>());
-
-                if (isMatch || _lastSearchText == "")
-                {
-                    _cachedSearchMatches.Add(modelName);
-                }
-            }
+            UpdateModelSourceList = true;
         }
+
+        if (tabChanged)
+        {
+            _previousTab = CurrentTab;
+            UpdateModelSourceList = true;
+        }
+
+        if (!UpdateModelSourceList) 
+            return;
+
+        UpdateModelSourceList = false;
+
+        // Get the right file dictionary for the current tab
+        var fileDict = CurrentTab switch
+        {
+            ModelListType.Character => Project.Locator.ChrFiles,
+            ModelListType.Asset => Project.Locator.AssetFiles,
+            ModelListType.Part => Project.Locator.PartFiles,
+            ModelListType.MapPiece => Project.Locator.MapPieceFiles,
+            _ => null
+        };
+        if (fileDict == null) return;
+
+        var matches = new HashSet<string>();
+
+        foreach (var entry in fileDict.Entries)
+        {
+            var modelName = entry.Filename;
+            var nameAlias = "";
+
+            if (CFG.Current.ModelEditor_Containers_IncludeAliasInSearch
+                && AliasTypeMap.TryGetValue(CurrentTab, out var aliasType))
+            {
+                nameAlias = AliasHelper.GetAlias(Project, modelName, CurrentTab); // collapsed below
+            }
+
+            if (EditorFilters.IsMatch(ContainerListFilter, modelName, ExactContainerListFilter, nameAlias, true, true))
+                matches.Add(modelName);
+        }
+
+        CachedSearchMatches[CurrentTab] = matches;
     }
 
     public void DisplayModelSourceList(ModelListType modelListType, FileDictionary fileDictionary)
     {
-        var filteredEntries = new List<FileDictionaryEntry>();
+        if (!CachedSearchMatches.TryGetValue(modelListType, out var matches))
+            return;
 
-        foreach (var entry in fileDictionary.Entries)
+        if (InputManager.HasArrowSelection())
         {
-            var modelName = entry.Filename;
-
-            if (!_cachedSearchMatches.Contains(modelName))
-            {
-                continue;
-            }
-
-            filteredEntries.Add(entry);
+            _arrowKeyPressed = true;
         }
+
+        var filteredEntries = fileDictionary.Entries
+            .Where(e => matches.Contains(e.Filename))
+            .ToList();
 
         var clipper = new ImGuiListClipper();
         clipper.Begin(filteredEntries.Count);
@@ -198,27 +226,42 @@ public class ModelSourceList
                 var alias = ModelEditorUtils.GetAliasForSourceListEntry(Project,
                     displayedName, modelListType);
 
-                if (ImGui.Selectable($"{displayedName}##modelSourceListEntry{modelListType.ToString()}{i}", selected, ImGuiSelectableFlags.AllowDoubleClick))
+                var flags = ImGuiSelectableFlags.None;
+                if (CFG.Current.ModelEditor_ModelSourceList_RequireDoubleClick)
                 {
-                    if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
+                    flags = ImGuiSelectableFlags.AllowDoubleClick;
+                }
+
+                if (ImGui.Selectable($"{displayedName}##modelSourceListEntry{modelListType.ToString()}{i}", selected, 
+                    flags))
+                {
+                    SelectModel(fileEntry);
+
+                    if (CFG.Current.ModelEditor_ModelSourceList_RequireDoubleClick)
                     {
-                        var entry = Project.Handler.ModelData.PrimaryBank.Models.FirstOrDefault(e => e.Key.Filename == fileEntry.Filename);
-                        if (entry.Value != null)
+                        if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
                         {
-                            View.Selection.SelectedModelContainerWrapper = entry.Value;
-
-                            // Populates the Files list so we can display the list in select view
-                            entry.Value.PopulateModelList();
-
-                            View.SelectionList.ApplyAutoSelectPass = true;
-                            View.SelectionList.ApplyAutoLoadFirst = true;
+                            LoadModel(View.Selection.SelectedModelContainerWrapper);
                         }
                     }
+                    else
+                    {
+                        LoadModel(View.Selection.SelectedModelContainerWrapper);
+                    }
+                }
+
+
+                if (_arrowKeyPressed && ImGui.IsItemFocused() && !selected)
+                {
+                    SelectModel(fileEntry);
+                    LoadModel(View.Selection.SelectedModelContainerWrapper);
+
+                    _arrowKeyPressed = false;
                 }
 
                 if (alias != "")
                 {
-                    UIHelper.DisplayAlias(alias, CFG.Current.Interface_Alias_Wordwrap_Model_Editor);
+                    GUI.DisplayAlias(alias, CFG.Current.Interface_Alias_Wordwrap_Model_Editor);
                 }
 
                 // Context Menu
@@ -227,6 +270,24 @@ public class ModelSourceList
         }
 
         clipper.End();
+    }
+
+    private void SelectModel(FileDictionaryEntry fileEntry)
+    {
+        var entry = Project.Handler.ModelData.PrimaryBank.Models.FirstOrDefault(e => e.Key.Filename == fileEntry.Filename);
+        if (entry.Value != null)
+        {
+            View.Selection.SelectedModelContainerWrapper = entry.Value;
+        }
+    }
+
+    private void LoadModel(ModelContainerWrapper entry)
+    {
+        // Populates the Files list so we can display the list in select view
+        entry.PopulateModelList();
+
+        View.FileList.ApplyAutoSelectPass = true;
+        View.FileList.ApplyAutoLoadFirst = true;
     }
 
     private void DisplayContextMenu(FileDictionaryEntry fileEntry, ModelListType modelListType)
@@ -243,8 +304,8 @@ public class ModelSourceList
                     // Populates the Files list so we can display the list in select view
                     entry.Value.PopulateModelList();
 
-                    View.SelectionList.ApplyAutoSelectPass = true;
-                    View.SelectionList.ApplyAutoLoadFirst = true;
+                    View.FileList.ApplyAutoSelectPass = true;
+                    View.FileList.ApplyAutoLoadFirst = true;
                 }
             }
 
@@ -269,115 +330,46 @@ public class ModelSourceList
 
     private void DisplayAliasUpdateMenu(FileDictionaryEntry fileEntry, ModelListType modelListType)
     {
-        var newAlias = true;
+        if (!AliasTypeMap.TryGetValue(modelListType, out var aliasType)) 
+            return;
 
-        List<AliasEntry> checkedEntries = new();
+        var entries = Project.Handler.ProjectData.Aliases[aliasType];
+        var existing = entries.FirstOrDefault(e => e.ID == fileEntry.Filename);
 
-        if (modelListType is ModelListType.Character)
-        {
-            checkedEntries = Project.Handler.ProjectData.Aliases[ProjectAliasType.Characters];
-        }
-
-        if (modelListType is ModelListType.Asset)
-        {
-            checkedEntries = Project.Handler.ProjectData.Aliases[ProjectAliasType.Assets];
-        }
-
-        if (modelListType is ModelListType.Part)
-        {
-            checkedEntries = Project.Handler.ProjectData.Aliases[ProjectAliasType.Parts];
-        }
-
-        if (modelListType is ModelListType.MapPiece)
-        {
-            checkedEntries = Project.Handler.ProjectData.Aliases[ProjectAliasType.MapPieces];
-        }
-
-        if (checkedEntries.Any(e => e.ID == fileEntry.Filename))
-        {
-            newAlias = false;
-        }
-
-        // Name
+        GUI.SimpleHeader("Alias Name", "");
         ImGui.InputText("##aliasName", ref CurrentAliasName, 255);
 
-        // Commit
-        if(ImGui.Button("Commit##commitAlias", DPI.WholeWidthButton(300f * DPI.UIScale(), 24)))
+        var tblFlags = ImGuiTableFlags.SizingFixedFit;
+
+        if (ImGui.BeginTable($"aliasActions", 1, tblFlags))
         {
-            List<AliasEntry> entries = new();
+            ImGui.TableSetupColumn("Title", ImGuiTableColumnFlags.WidthFixed);
 
-            if (modelListType is ModelListType.Character)
-            {
-                entries = Project.Handler.ProjectData.Aliases[ProjectAliasType.Characters];
-            }
+            ImGui.TableNextRow();
+            ImGui.TableSetColumnIndex(0);
 
-            if (modelListType is ModelListType.Asset)
-            {
-                entries = Project.Handler.ProjectData.Aliases[ProjectAliasType.Assets];
-            }
+            ImGui.PushStyleVar(ImGuiStyleVar.ButtonTextAlign, new Vector2(0.01f, 0.5f));
 
-            if (modelListType is ModelListType.Part)
+            if (ImGui.Button("Commit##commitAlias"))
             {
-                entries = Project.Handler.ProjectData.Aliases[ProjectAliasType.Parts];
-            }
-
-            if (modelListType is ModelListType.MapPiece)
-            {
-                entries = Project.Handler.ProjectData.Aliases[ProjectAliasType.MapPieces];
-            }
-
-            if (!newAlias)
-            {
-                if (entries.Any(e => e.ID == fileEntry.Filename))
+                if (existing != null)
                 {
-                    var curAlias = entries.FirstOrDefault(e => e.ID == fileEntry.Filename);
-                    var index = entries.IndexOf(curAlias);
-
-                    entries[index].Name = CurrentAliasName;
-
+                    existing.Name = CurrentAliasName;
                 }
-            }
-            else
-            {
-                var newAliasEntry = new AliasEntry();
-                newAliasEntry.ID = fileEntry.Filename;
-                newAliasEntry.Name = CurrentAliasName;
-                newAliasEntry.Tags = new List<string>();
+                else
+                {
+                    entries.Add(new AliasEntry { ID = fileEntry.Filename, Name = CurrentAliasName, Tags = new() });
+                }
 
-                if (!entries.Any(e => e.ID == newAliasEntry.ID))
-                    entries.Add(newAliasEntry);
+                Project.Handler.ProjectData.Aliases[aliasType] = entries;
+                Smithbox.Orchestrator.ProjectMetadataEditor.AliasMenu.SaveIndividualAlias(aliasType);
 
+                Smithbox.Log<ModelContainerList>("Updated aliases.");
             }
 
-            if (modelListType is ModelListType.Character)
-            {
-                Project.Handler.ProjectData.Aliases[ProjectAliasType.Characters] = entries;
+            ImGui.PopStyleVar();
 
-                Smithbox.Orchestrator.AliasMenu.SaveIndividual(ProjectAliasType.Characters);
-            }
-
-            if (modelListType is ModelListType.Asset)
-            {
-                Project.Handler.ProjectData.Aliases[ProjectAliasType.Assets] = entries;
-
-                Smithbox.Orchestrator.AliasMenu.SaveIndividual(ProjectAliasType.Assets);
-            }
-
-            if (modelListType is ModelListType.Part)
-            {
-                Project.Handler.ProjectData.Aliases[ProjectAliasType.Parts] = entries;
-
-                Smithbox.Orchestrator.AliasMenu.SaveIndividual(ProjectAliasType.Parts);
-            }
-
-            if (modelListType is ModelListType.MapPiece)
-            {
-                Project.Handler.ProjectData.Aliases[ProjectAliasType.MapPieces] = entries;
-
-                Smithbox.Orchestrator.AliasMenu.SaveIndividual(ProjectAliasType.MapPieces);
-            }
-
-            Smithbox.Log(this, "[Model Editor] Updated aliases.");
+            ImGui.EndTable();
         }
     }
 }

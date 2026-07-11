@@ -29,8 +29,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.General,
 
-            Title = "Annotation Language",
-            Description = "Determines the language used for meta annotations (i.e. community field names).",
+            Title = "PREF_ParamEditor_Annotation_Language",
+            Description = "PREF_ParamEditor_Annotation_Language_TT",
 
             Draw = () => {
                 var curProject = Smithbox.Orchestrator.SelectedProject;
@@ -38,14 +38,23 @@ public class ParamEditorPrefs
                 if (curProject == null)
                     return;
 
+                if (curProject.Handler == null)
+                    return;
+
                 var languages = curProject.Handler.ParamData.ParamAnnotationLanguages;
 
+                var curLanguage = languages.Languages.FirstOrDefault(e => e.Name == CFG.Current.ParamEditor_Annotation_Language);
+
+                var previewName = LOC.Get(curLanguage.Key);
+
                 DPI.ApplyInputWidth();
-                if (ImGui.BeginCombo("##inputValue", CFG.Current.ParamEditor_Annotation_Language))
+                if (ImGui.BeginCombo("##inputValue", previewName))
                 {
                     foreach (var entry in languages.Languages)
                     {
-                        if (ImGui.Selectable(entry.Name))
+                        var displayName = LOC.Get(entry.Key);
+
+                        if (ImGui.Selectable(displayName))
                         {
                             CFG.Current.ParamEditor_Annotation_Language = entry.Name;
                         }
@@ -66,8 +75,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.General,
 
-            Title = "Row Import Language",
-            Description = "Determines the language used for community row imports.",
+            Title = "PREF_ParamEditor_Import_Language",
+            Description = "PREF_ParamEditor_Import_Language_TT",
 
             Draw = () => {
                 var curProject = Smithbox.Orchestrator.SelectedProject;
@@ -75,14 +84,23 @@ public class ParamEditorPrefs
                 if (curProject == null)
                     return;
 
+                if (curProject.Handler == null)
+                    return;
+
                 var languages = curProject.Handler.ParamData.RowImportLanguages;
 
+                var curLanguage = languages.Options.FirstOrDefault(e => e.Name == CFG.Current.ParamEditor_Import_Language);
+
+                var previewName = LOC.Get(curLanguage.Key);
+
                 DPI.ApplyInputWidth();
-                if (ImGui.BeginCombo("##inputValue", CFG.Current.ParamEditor_Import_Language))
+                if (ImGui.BeginCombo("##inputValue", previewName))
                 {
                     foreach (var entry in languages.Options)
                     {
-                        if (ImGui.Selectable(entry.Name))
+                        var displayName = LOC.Get(entry.Key);
+
+                        if (ImGui.Selectable(displayName))
                         {
                             CFG.Current.ParamEditor_Import_Language = entry.Name;
                         }
@@ -103,11 +121,30 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.General,
 
-            Title = "Enable Compact Presentation",
-            Description = "If enabled, the line height between elements is reduced, allow more params, rows and fields to be visible.",
+            Title = "PREF_ParamEditor_Enable_Compact_Mode",
+            Description = "PREF_ParamEditor_Enable_Compact_Mode_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Enable_Compact_Mode);
+            }
+        };
+    }
+
+    public static PreferenceItem ParamEditor_Enable_Table_Borders()
+    {
+        return new PreferenceItem
+        {
+            OrderID = 3,
+            Category = PreferenceCategory.ParamEditor,
+            Spacer = true,
+
+            Section = SectionCategory.General,
+
+            Title = "PREF_ParamEditor_Enable_Table_Borders",
+            Description = "PREF_ParamEditor_Enable_Table_Borders_TT",
+
+            Draw = () => {
+                ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Enable_Table_Borders);
             }
         };
     }
@@ -130,8 +167,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Regulation,
 
-            Title = "Enable Loose Param Mode",
-            Description = "If enabled, loose .param files will be considered during the param loading and saving processes.",
+            Title = "PREF_ParamEditor_Loose_Param_Mode_DS2",
+            Description = "PREF_ParamEditor_Loose_Param_Mode_DS2_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Loose_Param_Mode_DS2);
@@ -153,8 +190,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Regulation,
 
-            Title = "Enable Loose Param Repack",
-            Description = "If enabled, any loose .param files will be repacked into the enc_regulation.bin",
+            Title = "PREF_ParamEditor_Repack_Loose_Params_DS2",
+            Description = "PREF_ParamEditor_Repack_Loose_Params_DS2_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Repack_Loose_Params_DS2);
@@ -176,8 +213,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Regulation,
 
-            Title = "Enable Loose Param Mode",
-            Description = "If enabled, loose .param files will be considered during the param loading and saving processes.",
+            Title = "PREF_ParamEditor_Loose_Param_Mode_DS3",
+            Description = "PREF_ParamEditor_Loose_Param_Mode_DS3_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Loose_Param_Mode_DS3);
@@ -199,8 +236,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Regulation,
 
-            Title = "Strip Row Names on Save",
-            Description = "If enabled, row names are stripped upon save, meaning no row names will be stored within the regulation.",
+            Title = "PREF_ParamEditor_Row_Name_Strip_DES",
+            Description = "PREF_ParamEditor_Row_Name_Strip_DES_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Row_Name_Strip_DES);
@@ -223,8 +260,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Regulation,
 
-            Title = "Strip Row Names on Save",
-            Description = "If enabled, row names are stripped upon save, meaning no row names will be stored within the regulation.",
+            Title = "PREF_ParamEditor_Row_Name_Strip_DS1",
+            Description = "PREF_ParamEditor_Row_Name_Strip_DS1_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Row_Name_Strip_DS1);
@@ -247,8 +284,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Regulation,
 
-            Title = "Strip Row Names on Save",
-            Description = "If enabled, row names are stripped upon save, meaning no row names will be stored within the regulation.",
+            Title = "PREF_ParamEditor_Row_Name_Strip_DS2",
+            Description = "PREF_ParamEditor_Row_Name_Strip_DS2_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Row_Name_Strip_DS2);
@@ -270,8 +307,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Regulation,
 
-            Title = "Strip Row Names on Save",
-            Description = "If enabled, row names are stripped upon save, meaning no row names will be stored within the regulation.",
+            Title = "PREF_ParamEditor_Row_Name_Strip_BB",
+            Description = "PREF_ParamEditor_Row_Name_Strip_BB_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Row_Name_Strip_BB);
@@ -293,8 +330,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Regulation,
 
-            Title = "Strip Row Names on Save",
-            Description = "If enabled, row names are stripped upon save, meaning no row names will be stored within the regulation.",
+            Title = "PREF_ParamEditor_Row_Name_Strip_DS3",
+            Description = "PREF_ParamEditor_Row_Name_Strip_DS3_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Row_Name_Strip_DS3);
@@ -316,8 +353,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Regulation,
 
-            Title = "Strip Row Names on Save",
-            Description = "If enabled, row names are stripped upon save, meaning no row names will be stored within the regulation.",
+            Title = "PREF_ParamEditor_Row_Name_Strip_SDT",
+            Description = "PREF_ParamEditor_Row_Name_Strip_SDT_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Row_Name_Strip_SDT);
@@ -339,8 +376,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Regulation,
 
-            Title = "Strip Row Names on Save",
-            Description = "If enabled, row names are stripped upon save, meaning no row names will be stored within the regulation.",
+            Title = "PREF_ParamEditor_Row_Name_Strip_ER",
+            Description = "PREF_ParamEditor_Row_Name_Strip_ER_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Row_Name_Strip_ER);
@@ -362,8 +399,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Regulation,
 
-            Title = "Strip Row Names on Save",
-            Description = "If enabled, row names are stripped upon save, meaning no row names will be stored within the regulation.",
+            Title = "PREF_ParamEditor_Row_Name_Strip_AC6e",
+            Description = "PREF_ParamEditor_Row_Name_Strip_AC6_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Row_Name_Strip_AC6);
@@ -385,8 +422,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Regulation,
 
-            Title = "Strip Row Names on Save",
-            Description = "If enabled, row names are stripped upon save, meaning no row names will be stored within the regulation.",
+            Title = "PREF_ParamEditor_Row_Name_Strip_NR",
+            Description = "PREF_ParamEditor_Row_Name_Strip_NR_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Row_Name_Strip_NR);
@@ -408,8 +445,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Regulation,
 
-            Title = "Restore Row Names on Load",
-            Description = "If enabled, and stripped row names have been stored, row names will be re-apply upon loading.",
+            Title = "PREF_ParamEditor_Stripped_Row_Name_Load_DES",
+            Description = "PREF_ParamEditor_Stripped_Row_Name_Load_DES_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Stripped_Row_Name_Load_DES);
@@ -432,8 +469,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Regulation,
 
-            Title = "Restore Row Names on Load",
-            Description = "If enabled, and stripped row names have been stored, row names will be re-apply upon loading.",
+            Title = "PREF_ParamEditor_Stripped_Row_Name_Load_DS1",
+            Description = "PREF_ParamEditor_Stripped_Row_Name_Load_DS1_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Stripped_Row_Name_Load_DS1);
@@ -456,8 +493,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Regulation,
 
-            Title = "Restore Row Names on Load",
-            Description = "If enabled, and stripped row names have been stored, row names will be re-apply upon loading.",
+            Title = "PREF_ParamEditor_Stripped_Row_Name_Load_DS2",
+            Description = "PREF_ParamEditor_Stripped_Row_Name_Load_DS2_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Stripped_Row_Name_Load_DS2);
@@ -479,8 +516,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Regulation,
 
-            Title = "Restore Row Names on Load",
-            Description = "If enabled, and stripped row names have been stored, row names will be re-apply upon loading.",
+            Title = "PREF_ParamEditor_Stripped_Row_Name_Load_BB",
+            Description = "PREF_ParamEditor_Stripped_Row_Name_Load_BB_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Stripped_Row_Name_Load_BB);
@@ -502,8 +539,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Regulation,
 
-            Title = "Restore Row Names on Load",
-            Description = "If enabled, and stripped row names have been stored, row names will be re-apply upon loading.",
+            Title = "PREF_ParamEditor_Stripped_Row_Name_Load_DS3",
+            Description = "PREF_ParamEditor_Stripped_Row_Name_Load_DS3_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Stripped_Row_Name_Load_DS3);
@@ -525,8 +562,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Regulation,
 
-            Title = "Restore Row Names on Load",
-            Description = "If enabled, and stripped row names have been stored, row names will be re-apply upon loading.",
+            Title = "PREF_ParamEditor_Stripped_Row_Name_Load_SDT",
+            Description = "PREF_ParamEditor_Stripped_Row_Name_Load_SDT_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Stripped_Row_Name_Load_SDT);
@@ -548,8 +585,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Regulation,
 
-            Title = "Restore Row Names on Load",
-            Description = "If enabled, and stripped row names have been stored, row names will be re-apply upon loading.",
+            Title = "PREF_ParamEditor_Stripped_Row_Name_Load_ER",
+            Description = "PREF_ParamEditor_Stripped_Row_Name_Load_ER_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Stripped_Row_Name_Load_ER);
@@ -571,8 +608,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Regulation,
 
-            Title = "Restore Row Names on Load",
-            Description = "If enabled, and stripped row names have been stored, row names will be re-apply upon loading.",
+            Title = "PREF_ParamEditor_Stripped_Row_Name_Load_AC6",
+            Description = "PREF_ParamEditor_Stripped_Row_Name_Load_AC6_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Stripped_Row_Name_Load_AC6);
@@ -594,8 +631,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Regulation,
 
-            Title = "Restore Row Names on Load",
-            Description = "If enabled, and stripped row names have been stored, row names will be re-apply upon loading.",
+            Title = "PREF_ParamEditor_Stripped_Row_Name_Load_NR",
+            Description = "PREF_ParamEditor_Stripped_Row_Name_Load_NR_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Stripped_Row_Name_Load_NR);
@@ -613,8 +650,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Regulation,
 
-            Title = "Param Save Compression",
-            Description = "Determine which form of DCX compression to apply to the saved regulation file.",
+            Title = "PREF_ParamEditor_CompressionOverride",
+            Description = "PREF_ParamEditor_CompressionOverride_TT",
 
             Draw = () => {
                 var curProject = Smithbox.Orchestrator.SelectedProject;
@@ -661,8 +698,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Param_Reloader,
 
-            Title = "Automatically Use Latest",
-            Description = "If enabled, the param reloader version will be set to the latest executable version whenever Smithbox is started.",
+            Title = "PREF_ParamReloader_Use_Latest_Offset",
+            Description = "PREF_ParamReloader_Use_Latest_Offset_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamReloader_Use_Latest_Offset);
@@ -691,12 +728,33 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Param_Reloader,
 
-            Title = "Param Reloader Version",
-            Description = "This should match the executable version you wish to target, otherwise the memory offsets will be incorrect.",
+            Title = "PREF_ParamReloader_Current_Offsets",
+            Description = "PREF_ParamReloader_Current_Offsets_TT",
 
             Draw = () => {
                 var curProject = Smithbox.Orchestrator.SelectedProject;
+
+                if (curProject == null)
+                    return;
+
+                if (curProject.Handler == null)
+                    return;
+
+                var paramData = curProject.Handler.ParamData;
+
                 var index = CFG.Current.ParamReloader_Current_Offsets;
+
+                if (curProject.Descriptor.ProjectType is ProjectType.Undefined)
+                    return;
+
+                if (paramData == null)
+                    return;
+
+                if (paramData.ParamReloaderOffsets == null)
+                    return;
+
+                if (paramData.ParamReloaderOffsets.Groups == null)
+                    return;
 
                 string[] options = curProject.Handler.ParamData.ParamReloaderOffsets.Groups.Select(entry => entry.exeVersion).ToArray();
 
@@ -722,8 +780,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Param_List,
 
-            Title = "Always Display Pinned Entries",
-            Description = "If enabled, pinned param entries will always be visible at the top of the list, even when scrolling.",
+            Title = "PREF_ParamEditor_Param_List_Pinned_Stay_Visible",
+            Description = "PREF_ParamEditor_Param_List_Pinned_Stay_Visible_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Param_List_Pinned_Stay_Visible);
@@ -740,8 +798,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Param_List,
 
-            Title = "Sort List Alphabetically",
-            Description = "If enabled, the param list will be sorted alphabetically.",
+            Title = "PREF_ParamEditor_Param_List_Sort_Alphabetically",
+            Description = "PREF_ParamEditor_Param_List_Sort_Alphabetically_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Param_List_Sort_Alphabetically);
@@ -758,8 +816,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Param_List,
 
-            Title = "Display Community Names",
-            Description = "If enabled, community names will be used instead of the raw filename.",
+            Title = "PREF_ParamEditor_Param_List_Display_Community_Names",
+            Description = "PREF_ParamEditor_Param_List_Display_Community_Names_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue_param", ref CFG.Current.ParamEditor_Param_List_Display_Community_Names);
@@ -776,8 +834,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Param_List,
 
-            Title = "Display Categories",
-            Description = "If enabled, the params will be grouped into collapsible categories.",
+            Title = "PREF_ParamEditor_Param_List_Display_Categories",
+            Description = "PREF_ParamEditor_Param_List_Display_Categories_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Param_List_Display_Categories);
@@ -797,8 +855,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Row_List,
 
-            Title = "Always Display Pinned Entries",
-            Description = "If enabled, pinned row entries will always be visible at the top of the list, even when scrolling.",
+            Title = "PREF_ParamEditor_Row_List_Pinned_Stay_Visible",
+            Description = "PREF_ParamEditor_Row_List_Pinned_Stay_Visible_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue_row", ref CFG.Current.ParamEditor_Row_List_Pinned_Stay_Visible);
@@ -815,8 +873,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Row_List,
 
-            Title = "Enable Row Name Word-Wrap",
-            Description = "If enabled, the row names will be word-wrapped.",
+            Title = "PREF_ParamEditor_Row_List_Enable_Line_Wrapping",
+            Description = "PREF_ParamEditor_Row_List_Enable_Line_Wrapping_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Row_List_Enable_Line_Wrapping);
@@ -833,8 +891,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Row_List,
 
-            Title = "Enable Row Grouping for Item Lots",
-            Description = "If enabled, the rows within Item Lot params will be grouped.",
+            Title = "PREF_ParamEditor_Row_List_Enable_Row_Grouping",
+            Description = "PREF_ParamEditor_Row_List_Enable_Row_Grouping_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Row_List_Enable_Row_Grouping);
@@ -851,14 +909,33 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Row_List,
 
-            Title = "Display Decorators",
-            Description = "If enabled, the row decorators are displayed.",
+            Title = "PREF_ParamEditor_Row_List_Display_Decorators",
+            Description = "PREF_ParamEditor_Row_List_Display_Decorators_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue_row", ref CFG.Current.ParamEditor_Row_List_Display_Decorators);
             }
         };
     }
+    public static PreferenceItem ParamEditor_Row_List_Row_FMG_Prefer_Base()
+    {
+        return new PreferenceItem
+        {
+            OrderID = 4,
+            Category = PreferenceCategory.ParamEditor,
+            Spacer = true,
+
+            Section = SectionCategory.ParamEditor_Row_List,
+
+            Title = "PREF_ParamEditor_Row_List_Row_FMG_Prefer_Base",
+            Description = "PREF_ParamEditor_Row_List_Row_FMG_Prefer_Base_TT",
+
+            Draw = () => {
+                ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Row_List_Row_FMG_Prefer_Base);
+            }
+        };
+    }
+
     #endregion
 
     #region Field List
@@ -872,8 +949,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_List,
 
-            Title = "Always Display Pinned Entries",
-            Description = "If enabled, pinned field entries will always be visible at the top of the list, even when scrolling.",
+            Title = "PREF_ParamEditor_Field_List_Pinned_Stay_Visible",
+            Description = "PREF_ParamEditor_Field_List_Pinned_Stay_Visible_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue_field", ref CFG.Current.ParamEditor_Field_List_Pinned_Stay_Visible);
@@ -890,8 +967,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_List,
 
-            Title = "Enable Field Rearrangement",
-            Description = "If enabled, fields will be re-arranged according to the grouping arrangement specified in the Param Meta file.",
+            Title = "PREF_ParamEditor_Field_List_Allow_Rearrangement",
+            Description = "PREF_ParamEditor_Field_List_Allow_Rearrangement_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Field_List_Allow_Rearrangement);
@@ -909,18 +986,23 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_List,
 
-            Title = "Field Name Mode",
-            Description = "Determines how the field naming is displayed.\nSource is the original param definition name.\nCommunity is a more readable and descriptive name.",
+            Title = "PREF_ParamEditor_FieldNameMode",
+            Description = "PREF_ParamEditor_FieldNameMode_TT",
 
             Draw = () => {
                 DPI.ApplyInputWidth();
-                if (ImGui.BeginCombo("##inputValue", CFG.Current.ParamEditor_FieldNameMode.GetDisplayName()))
+
+                var previewName = LOC.Get(CFG.Current.ParamEditor_FieldNameMode.GetDisplayName());
+
+                if (ImGui.BeginCombo("##inputValue", previewName))
                 {
                     foreach (var entry in Enum.GetValues(typeof(ParamFieldNameMode)))
                     {
                         var type = (ParamFieldNameMode)entry;
 
-                        if (ImGui.Selectable(type.GetDisplayName()))
+                        var displayName = LOC.Get(type.GetDisplayName());
+
+                        if (ImGui.Selectable(displayName))
                         {
                             CFG.Current.ParamEditor_FieldNameMode = (ParamFieldNameMode)entry;
                         }
@@ -940,8 +1022,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_List,
 
-            Title = "Display Offsets",
-            Description = "If enabled, the data offset for a field will be displayed.",
+            Title = "PREF_ParamEditor_Field_List_Display_Offsets",
+            Description = "PREF_ParamEditor_Field_List_Display_Offsets_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Field_List_Display_Offsets);
@@ -958,8 +1040,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_List,
 
-            Title = "Display Color Picker",
-            Description = "If enabled, a color picker is displayed (when suitable for the field).",
+            Title = "PREF_ParamEditor_Field_List_Display_Color_Picker",
+            Description = "PREF_ParamEditor_Field_List_Display_Color_Picker_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Field_List_Display_Color_Picker);
@@ -976,8 +1058,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_List,
 
-            Title = "Display Graph",
-            Description = "If enabled, a graph is displayed (when suitable for the field).",
+            Title = "PREF_ParamEditor_Field_List_Display_Graph",
+            Description = "PREF_ParamEditor_Field_List_Display_Graph_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Field_List_Display_Graph);
@@ -994,8 +1076,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_List,
 
-            Title = "Display Map Link",
-            Description = "If enabled, a map link button is displayed (when suitable for the field).",
+            Title = "PREF_ParamEditor_Field_List_Display_Map_Link",
+            Description = "PREF_ParamEditor_Field_List_Display_Map_Link_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Field_List_Display_Map_Link);
@@ -1012,8 +1094,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_List,
 
-            Title = "Display Model Link",
-            Description = "If enabled, a model link button is displayed (when suitable for the field).",
+            Title = "PREF_ParamEditor_Field_List_Display_Model_Link",
+            Description = "PREF_ParamEditor_Field_List_Display_Model_Link_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Field_List_Display_Model_Link);
@@ -1030,8 +1112,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_List,
 
-            Title = "Display Padding",
-            Description = "If enabled, padding fields are displayed.",
+            Title = "PREF_ParamEditor_Field_List_Display_Padding",
+            Description = "PREF_ParamEditor_Field_List_Display_Padding_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Field_List_Display_Padding);
@@ -1048,8 +1130,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_List,
 
-            Title = "Display Decorators",
-            Description = "If enabled, field decorators are displayed.",
+            Title = "PREF_ParamEditor_Field_List_Display_Decorators",
+            Description = "PREF_ParamEditor_Field_List_Display_Decorators_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue_field", ref CFG.Current.ParamEditor_Field_List_Display_Decorators);
@@ -1067,8 +1149,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_List,
 
-            Title = "Display References",
-            Description = "If enabled, field references are displayed.",
+            Title = "PREF_ParamEditor_Field_List_Display_References",
+            Description = "PREF_ParamEditor_Field_List_Display_References_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue_field", ref CFG.Current.ParamEditor_Field_List_Display_References);
@@ -1086,8 +1168,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_List,
 
-            Title = "Display Enums",
-            Description = "If enabled, field enums are displayed.",
+            Title = "PREF_ParamEditor_Field_List_Display_Enums",
+            Description = "PREF_ParamEditor_Field_List_Display_Enums_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue_field", ref CFG.Current.ParamEditor_Field_List_Display_Enums);
@@ -1105,8 +1187,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_List,
 
-            Title = "Display Attributes",
-            Description = "If enabled, field attributes are displayed in the tooltip.",
+            Title = "PREF_ParamEditor_Field_List_Display_Field_Attributes",
+            Description = "PREF_ParamEditor_Field_List_Display_Field_Attributes_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Field_List_Display_Field_Attributes);
@@ -1123,8 +1205,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_List,
 
-            Title = "Display Icon Preview",
-            Description = "If enabled, a referenced icon will be displayed visually by the field.",
+            Title = "PREF_ParamEditor_Field_List_Display_Icon_Preview",
+            Description = "PREF_ParamEditor_Field_List_Display_Icon_Preview_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Field_List_Display_Icon_Preview);
@@ -1142,8 +1224,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_List,
 
-            Title = "Icon Preview Scale",
-            Description = "The image scale of the icon preview.",
+            Title = "PREF_ParamEditor_Field_List_Icon_Preview_Scale",
+            Description = "PREF_ParamEditor_Field_List_Icon_Preview_Scale_TT",
 
             Draw = () => {
                 DPI.ApplyInputWidth();
@@ -1162,18 +1244,23 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_List,
 
-            Title = "Field Tooltip Mode",
-            Description = "Determines how the field tooltip is shown.",
+            Title = "PREF_ParamEditor_Field_List_Tooltip_Mode",
+            Description = "PREF_ParamEditor_Field_List_Tooltip_Mode_TT",
 
             Draw = () => {
                 DPI.ApplyInputWidth();
-                if (ImGui.BeginCombo("##inputValue", CFG.Current.ParamEditor_Field_List_Tooltip_Mode.GetDisplayName()))
+
+                var previewName = LOC.Get(CFG.Current.ParamEditor_Field_List_Tooltip_Mode.GetDisplayName());
+
+                if (ImGui.BeginCombo("##inputValue", previewName))
                 {
                     foreach (var entry in Enum.GetValues(typeof(ParamTooltipMode)))
                     {
                         var type = (ParamTooltipMode)entry;
 
-                        if (ImGui.Selectable(type.GetDisplayName()))
+                        var displayName = LOC.Get(type.GetDisplayName());
+
+                        if (ImGui.Selectable(displayName))
                         {
                             CFG.Current.ParamEditor_Field_List_Tooltip_Mode = (ParamTooltipMode)entry;
                         }
@@ -1193,8 +1280,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_List,
 
-            Title = "Display Group Reference Community Names",
-            Description = "If enabled, group references will use community name labels.",
+            Title = "PREF_ParamEditor_Field_List_GroupReference_DisplayCommunityName",
+            Description = "PREF_ParamEditor_Field_List_GroupReference_DisplayCommunityName_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Field_List_GroupReference_DisplayCommunityName);
@@ -1216,8 +1303,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_Layouts,
 
-            Title = "Enable Field Layouts",
-            Description = "If enabled, fields will be arranged based on field layout data (if applicable).",
+            Title = "PREF_ParamEditor_Field_List_Enable_Field_Layouts",
+            Description = "PREF_ParamEditor_Field_List_Enable_Field_Layouts_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Field_List_Enable_Field_Layouts);
@@ -1234,8 +1321,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_Layouts,
 
-            Title = "Enable Group Names",
-            Description = "If enabled, the grouping headers will have names.",
+            Title = "PREF_ParamEditor_Field_List_Enable_Field_Layout_Category_Names",
+            Description = "PREF_ParamEditor_Field_List_Enable_Field_Layout_Category_Names_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Field_List_Enable_Field_Layout_Category_Names);
@@ -1252,8 +1339,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_Layouts,
 
-            Title = "Enable Chance Hints",
-            Description = "If enabled, the chance percentages for item lots will be displayed.",
+            Title = "PREF_ParamEditor_Field_List_Enable_Field_Layout_Chance_Hints",
+            Description = "PREF_ParamEditor_Field_List_Enable_Field_Layout_Chance_Hints_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Field_List_Enable_Field_Layout_Chance_Hints);
@@ -1272,20 +1359,25 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_Layouts,
 
-            Title = "Field Layout Mode",
-            Description = "Determines how the field layouts are displayed.",
+            Title = "PREF_ParamEditor_Field_List_Field_Layout_Display_Type",
+            Description = "PREF_ParamEditor_Field_List_Field_Layout_Display_Type_TT",
 
             Draw = () => {
                 DPI.ApplyInputWidth();
-                if (ImGui.BeginCombo("##inputValue", CFG.Current.ParamEditor_Field_List_Enable_Field_Layout_Type.GetDisplayName()))
+
+                var previewName = LOC.Get(CFG.Current.ParamEditor_Field_List_Field_Layout_Display_Type.GetDisplayName());
+
+                if (ImGui.BeginCombo("##inputValue", previewName))
                 {
                     foreach (var entry in Enum.GetValues(typeof(FieldLayoutMode)))
                     {
                         var type = (FieldLayoutMode)entry;
 
-                        if (ImGui.Selectable(type.GetDisplayName()))
+                        var displayName = LOC.Get(type.GetDisplayName());
+
+                        if (ImGui.Selectable(displayName))
                         {
-                            CFG.Current.ParamEditor_Field_List_Enable_Field_Layout_Type = (FieldLayoutMode)entry;
+                            CFG.Current.ParamEditor_Field_List_Field_Layout_Display_Type = (FieldLayoutMode)entry;
                         }
                     }
                     ImGui.EndCombo();
@@ -1304,18 +1396,23 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_Layouts,
 
-            Title = "Unsorted Field Placement",
-            Description = "Determines where the unsorted fields are placed when Field Layouts are active.",
+            Title = "PREF_ParamEditor_Field_List_Unsorted_Field_Placement",
+            Description = "PREF_ParamEditor_Field_List_Unsorted_Field_Placement_TT",
 
             Draw = () => {
                 DPI.ApplyInputWidth();
-                if (ImGui.BeginCombo("##inputValue", CFG.Current.ParamEditor_Field_List_Unsorted_Field_Placement.GetDisplayName()))
+
+                var previewName = LOC.Get(CFG.Current.ParamEditor_Field_List_Unsorted_Field_Placement.GetDisplayName());
+
+                if (ImGui.BeginCombo("##inputValue", previewName))
                 {
                     foreach (var entry in Enum.GetValues(typeof(FieldLayoutUnsortedPlacement)))
                     {
                         var type = (FieldLayoutUnsortedPlacement)entry;
 
-                        if (ImGui.Selectable(type.GetDisplayName()))
+                        var displayName = LOC.Get(type.GetDisplayName());
+
+                        if (ImGui.Selectable(displayName))
                         {
                             CFG.Current.ParamEditor_Field_List_Unsorted_Field_Placement = (FieldLayoutUnsortedPlacement)entry;
                         }
@@ -1338,8 +1435,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_Input,
 
-            Title = "Display Traditional Percentages",
-            Description = "If enabled, fields that represent a percentage will be displayed in a normal fashion, with the value representing the percentage. Typically, the value in represented as 1 - <value>.",
+            Title = "PREF_ParamEditor_Field_Input_Display_Traditional_Percentage",
+            Description = "PREF_ParamEditor_Field_Input_Display_Traditional_Percentage_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Field_Input_Display_Traditional_Percentage);
@@ -1349,24 +1446,6 @@ public class ParamEditorPrefs
     #endregion
 
     #region Row Context Menu
-    public static PreferenceItem ParamEditor_Row_Context_Display_Advanced_Options()
-    {
-        return new PreferenceItem
-        {
-            OrderID = 0,
-            Category = PreferenceCategory.ParamEditor,
-            Spacer = true,
-
-            Section = SectionCategory.ParamEditor_Row_Context_Menu,
-
-            Title = "Display Advanced Options",
-            Description = "If enabled, the advanced options in the row context menu will be displayed.",
-
-            Draw = () => {
-                ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Row_Context_Display_Advanced_Options);
-            }
-        };
-    }
     public static PreferenceItem ParamEditor_Row_Context_Display_Row_Name_Input()
     {
         return new PreferenceItem
@@ -1377,8 +1456,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Row_Context_Menu,
 
-            Title = "Display Row Name Input",
-            Description = "If enabled, display the row name input box within the context menu.",
+            Title = "PREF_ParamEditor_Row_Context_Display_Row_Name_Input",
+            Description = "PREF_ParamEditor_Row_Context_Display_Row_Name_Input_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Row_Context_Display_Row_Name_Input);
@@ -1395,8 +1474,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Row_Context_Menu,
 
-            Title = "Display Shortcut Tools",
-            Description = "If enabled, display the shortcut tools within the context menu.",
+            Title = "PREF_ParamEditor_Row_Context_Display_Shortcut_Tools",
+            Description = "PREF_ParamEditor_Row_Context_Display_Shortcut_Tools_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Row_Context_Display_Shortcut_Tools);
@@ -1413,8 +1492,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Row_Context_Menu,
 
-            Title = "Display Pin Options",
-            Description = "If enabled, display the pin options within the context menu.",
+            Title = "PREF_ParamEditor_Row_Context_Display_Pin_Options",
+            Description = "PREF_ParamEditor_Row_Context_Display_Pin_Options_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Row_Context_Display_Pin_Options);
@@ -1431,8 +1510,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Row_Context_Menu,
 
-            Title = "Display Comparison Options",
-            Description = "If enabled, display the comparison options within the context menu.",
+            Title = "PREF_ParamEditor_Row_Context_Display_Comparison_Options",
+            Description = "PREF_ParamEditor_Row_Context_Display_Comparison_Options_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Row_Context_Display_Comparison_Options);
@@ -1449,8 +1528,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Row_Context_Menu,
 
-            Title = "Display Reverse Lookup Tool",
-            Description = "If enabled, display the reverse lookup tool within the context menu.",
+            Title = "PREF_ParamEditor_Row_Context_Display_Reverse_Lookup",
+            Description = "PREF_ParamEditor_Row_Context_Display_Reverse_Lookup_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Row_Context_Display_Reverse_Lookup);
@@ -1467,8 +1546,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Row_Context_Menu,
 
-            Title = "Display Proliferate Name Tool",
-            Description = "If enabled, display the proliferate name tool within the context menu.",
+            Title = "PREF_ParamEditor_Row_Context_Display_Proliferate_Name",
+            Description = "PREF_ParamEditor_Row_Context_Display_Proliferate_Name_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Row_Context_Display_Proliferate_Name);
@@ -1485,8 +1564,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Row_Context_Menu,
 
-            Title = "Display Inherit Name Tool",
-            Description = "If enabled, display the inherit name tool within the context menu.",
+            Title = "PREF_ParamEditor_Row_Context_Display_Inherit_Name",
+            Description = "PREF_ParamEditor_Row_Context_Display_Inherit_Name_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Row_Context_Display_Inherit_Name);
@@ -1503,8 +1582,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Row_Context_Menu,
 
-            Title = "Display Row Name Tools",
-            Description = "If enabled, display the row name tools within the context menu.",
+            Title = "PREF_ParamEditor_Row_Context_Display_Row_Name_Tools",
+            Description = "PREF_ParamEditor_Row_Context_Display_Row_Name_Tools_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Row_Context_Display_Row_Name_Tools);
@@ -1515,24 +1594,6 @@ public class ParamEditorPrefs
     #endregion
 
     #region Field Context Menu
-    public static PreferenceItem ParamEditor_Field_Context_Split()
-    {
-        return new PreferenceItem
-        {
-            OrderID = 0,
-            Category = PreferenceCategory.ParamEditor,
-            Spacer = true,
-
-            Section = SectionCategory.ParamEditor_Field_Context_Menu,
-
-            Title = "Split Menu",
-            Description = "If enabled, the context menu is adjusted if the right-click is done on name text or a value input.",
-
-            Draw = () => {
-                ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Field_Context_Split);
-            }
-        };
-    }
     public static PreferenceItem ParamEditor_Field_Context_Display_Field_Name()
     {
         return new PreferenceItem
@@ -1543,8 +1604,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_Context_Menu,
 
-            Title = "Display Field Name",
-            Description = "If enabled, the field name is displayed in the context menu.",
+            Title = "PREF_ParamEditor_Field_Context_Display_Field_Name",
+            Description = "PREF_ParamEditor_Field_Context_Display_Field_Name_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Field_Context_Display_Field_Name);
@@ -1561,8 +1622,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_Context_Menu,
 
-            Title = "Display Field Description",
-            Description = "If enabled, the field description is displayed in the context menu.",
+            Title = "PREF_ParamEditor_Field_Context_Display_Field_Description",
+            Description = "PREF_ParamEditor_Field_Context_Display_Field_Description_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Field_Context_Display_Field_Description);
@@ -1579,8 +1640,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_Context_Menu,
 
-            Title = "Display Field Attributes",
-            Description = "If enabled, the field attributes are displayed in the context menu.",
+            Title = "PREF_ParamEditor_Field_Context_Display_Field_Attributes",
+            Description = "PREF_ParamEditor_Field_Context_Display_Field_Attributes_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Field_Context_Display_Field_Attributes);
@@ -1597,8 +1658,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_Context_Menu,
 
-            Title = "Display Field Pin Options",
-            Description = "If enabled, the field pin options are displayed in the context menu.",
+            Title = "PREF_ParamEditor_Field_Context_Display_Pin_Options",
+            Description = "PREF_ParamEditor_Field_Context_Display_Pin_Options_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Field_Context_Display_Pin_Options);
@@ -1615,8 +1676,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_Context_Menu,
 
-            Title = "Display Field Comparison Options",
-            Description = "If enabled, the field comparison options are displayed in the context menu.",
+            Title = "PREF_ParamEditor_Field_Context_Display_Comparison_Options",
+            Description = "PREF_ParamEditor_Field_Context_Display_Comparison_Options_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Field_Context_Display_Comparison_Options);
@@ -1633,8 +1694,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_Context_Menu,
 
-            Title = "Display Field Value Distribution",
-            Description = "If enabled, the field value distribution tool is displayed in the context menu.",
+            Title = "PREF_ParamEditor_Field_Context_Display_Field_Value_Distribution",
+            Description = "PREF_ParamEditor_Field_Context_Display_Field_Value_Distribution_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Field_Context_Display_Field_Value_Distribution);
@@ -1651,8 +1712,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_Context_Menu,
 
-            Title = "Display Field Searchbar Options",
-            Description = "If enabled, the field searchbar options are displayed in the context menu.",
+            Title = "PREF_ParamEditor_Field_Context_Display_Searchbar_Options",
+            Description = "PREF_ParamEditor_Field_Context_Display_Searchbar_Options_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Field_Context_Display_Searchbar_Options);
@@ -1669,8 +1730,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_Context_Menu,
 
-            Title = "Display Field References",
-            Description = "If enabled, the field references are displayed in the context menu.",
+            Title = "PREF_ParamEditor_Field_Context_Display_References",
+            Description = "PREF_ParamEditor_Field_Context_Display_References_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Field_Context_Display_References);
@@ -1687,43 +1748,11 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Field_Context_Menu,
 
-            Title = "Display Field Reference Search",
-            Description = "If enabled, the field reference search tool is displayed in the context menu.",
+            Title = "PREF_ParamEditor_Field_Context_Display_Reference_Search",
+            Description = "PREF_ParamEditor_Field_Context_Display_Reference_Search_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Field_Context_Display_Reference_Search);
-            }
-        };
-    }
-    public static PreferenceItem ParamEditor_Field_List_Context_Mass_Edit_Display_Mode()
-    {
-        return new PreferenceItem
-        {
-            OrderID = 10,
-            Category = PreferenceCategory.ParamEditor,
-            Spacer = true,
-            InlineName = false,
-
-            Section = SectionCategory.ParamEditor_Field_List,
-
-            Title = "Mass Edit Display Mode",
-            Description = "Determines how the mass edit input is displayed in the field context menu.",
-
-            Draw = () => {
-                DPI.ApplyInputWidth();
-                if (ImGui.BeginCombo("##inputValue", CFG.Current.ParamEditor_Field_List_Context_Mass_Edit_Display_Mode.GetDisplayName()))
-                {
-                    foreach (var entry in Enum.GetValues(typeof(ParamFieldMassEditMode)))
-                    {
-                        var type = (ParamFieldMassEditMode)entry;
-
-                        if (ImGui.Selectable(type.GetDisplayName()))
-                        {
-                            CFG.Current.ParamEditor_Field_List_Context_Mass_Edit_Display_Mode = (ParamFieldMassEditMode)entry;
-                        }
-                    }
-                    ImGui.EndCombo();
-                }
             }
         };
     }
@@ -1740,8 +1769,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Mass_Edit,
 
-            Title = "Display Advanced Commands in Auto-fill",
-            Description = "If enabled, more complex commands are visible in the auto-fill menu.",
+            Title = "PREF_ParamEditor_Show_Advanced_Mass_Edit_Commands",
+            Description = "PREF_ParamEditor_Show_Advanced_Mass_Edit_Commands_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.ParamEditor_Show_Advanced_Mass_Edit_Commands);
@@ -1762,11 +1791,17 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Metadata,
 
-            Title = "Enable Param Meta Override",
-            Description = "If enabled, the Param Editor will use the Param META local to your project's .smithbox folder, instead of the base version.",
+            Title = "PREF_Param_Editor_Enable_Param_Meta_Override",
+            Description = "PREF_Param_Editor_Enable_Param_Meta_Override_TT",
 
             Draw = () => {
                 var curProject = Smithbox.Orchestrator.SelectedProject;
+
+                if (curProject == null)
+                    return;
+
+                if (curProject.Handler == null)
+                    return;
 
                 if (ImGui.Checkbox("##inputValue", ref CFG.Current.Param_Editor_Enable_Param_Meta_Override))
                 {
@@ -1790,8 +1825,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Metadata,
 
-            Title = "Enable Param Enum Addition",
-            Description = "If enabled, the Param Editor will add param enums from your project's .smithbox folder alongside the base versions.",
+            Title = "PREF_Param_Editor_Enable_Param_Enum_Addition",
+            Description = "PREF_Param_Editor_Enable_Param_Enum_Addition_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.Param_Editor_Enable_Param_Enum_Addition);
@@ -1809,8 +1844,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Metadata,
 
-            Title = "Enable Param Enum Override",
-            Description = "If enabled, the Param Editor will use the Param Enums local to your project's .smithbox folder, instead of the base version.",
+            Title = "PREF_Param_Editor_Enable_Param_Enum_Override",
+            Description = "PREF_Param_Editor_Enable_Param_Enum_Override_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.Param_Editor_Enable_Param_Enum_Override);
@@ -1828,8 +1863,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Metadata,
 
-            Title = "Enable Param Category Addition",
-            Description = "If enabled, the Param Editor will add param categories from your project's .smithbox folder alongside the base versions.",
+            Title = "PREF_Param_Editor_Enable_Param_Category_Addition",
+            Description = "PREF_Param_Editor_Enable_Param_Category_Addition_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.Param_Editor_Enable_Param_Category_Addition);
@@ -1847,8 +1882,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Metadata,
 
-            Title = "Enable Param Category Override",
-            Description = "If enabled, the Param Editor will only use param categories from your project's .smithbox folder, and ignore the base versions.",
+            Title = "PREF_Param_Editor_Enable_Param_Category_Override",
+            Description = "PREF_Param_Editor_Enable_Param_Category_Override_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.Param_Editor_Enable_Param_Category_Override);
@@ -1866,8 +1901,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Metadata,
 
-            Title = "Enable Param Commutativity Group Addition",
-            Description = "If enabled, the Param Editor will add param commutativity groups from your project's .smithbox folder alongside the base versions.",
+            Title = "PREF_Param_Editor_Enable_Param_Commutativity_Group_Addition",
+            Description = "PREF_Param_Editor_Enable_Param_Commutativity_Group_Addition_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.Param_Editor_Enable_Param_Commutativity_Group_Addition);
@@ -1885,8 +1920,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Metadata,
 
-            Title = "Enable Param Commutativity Override",
-            Description = "If enabled, the Param Editor will only use param commutativity groups from your project's .smithbox folder, and ignore the base versions.",
+            Title = "PREF_Param_Editor_Enable_Param_Commutativity_Group_Override",
+            Description = "PREF_Param_Editor_Enable_Param_Commutativity_Group_Override_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.Param_Editor_Enable_Param_Commutativity_Group_Override);
@@ -1904,8 +1939,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Metadata,
 
-            Title = "Enable Param Field Reference Group Addition",
-            Description = "If enabled, the Param Editor will add param field reference groups from your project's .smithbox folder alongside the base versions.",
+            Title = "PREF_Param_Editor_Enable_Param_Field_Reference_Group_Addition",
+            Description = "PREF_Param_Editor_Enable_Param_Field_Reference_Group_Addition_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.Param_Editor_Enable_Param_Field_Reference_Group_Addition);
@@ -1923,8 +1958,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Metadata,
 
-            Title = "Enable Param Field Reference Group Override",
-            Description = "If enabled, the Param Editor will only use param field reference groups from your project's .smithbox folder, and ignore the base versions.",
+            Title = "PREF_Param_Editor_Enable_Param_Field_Reference_Group_Override",
+            Description = "PREF_Param_Editor_Enable_Param_Field_Reference_Group_Override_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.Param_Editor_Enable_Param_Field_Reference_Group_Override);
@@ -1942,8 +1977,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Metadata,
 
-            Title = "Enable Param Field Layout Addition",
-            Description = "If enabled, the Param Editor will add param field layouts from your project's .smithbox folder alongside the base versions.",
+            Title = "PREF_Param_Editor_Enable_Field_Layout_Addition",
+            Description = "PREF_Param_Editor_Enable_Field_Layout_Addition_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.Param_Editor_Enable_Field_Layout_Addition);
@@ -1961,8 +1996,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Metadata,
 
-            Title = "Enable Param Field Layout Override",
-            Description = "If enabled, the Param Editor will only use param field layouts from your project's .smithbox folder, and ignore the base versions.",
+            Title = "PREF_Param_Editor_Enable_Param_Field_Layout_Override",
+            Description = "PREF_Param_Editor_Enable_Param_Field_Layout_Override_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.Param_Editor_Enable_Param_Field_Layout_Override);
@@ -1980,8 +2015,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Metadata,
 
-            Title = "Enable Param Icon Configuration Addition",
-            Description = "If enabled, the Param Editor will add param icon configurations from your project's .smithbox folder alongside the base versions.",
+            Title = "PREF_Param_Editor_Enable_Icon_Configuration_Addition",
+            Description = "PREF_Param_Editor_Enable_Icon_Configuration_Addition_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.Param_Editor_Enable_Icon_Configuration_Addition);
@@ -1999,8 +2034,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Metadata,
 
-            Title = "Enable Param Icon Configuration Override",
-            Description = "If enabled, the Param Editor will only use param icon configurations from your project's .smithbox folder, and ignore the base versions.",
+            Title = "PREF_Param_Editor_Enable_Icon_Configuration_Override",
+            Description = "PREF_Param_Editor_Enable_Icon_Configuration_Override_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.Param_Editor_Enable_Icon_Configuration_Override);
@@ -2018,8 +2053,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Metadata,
 
-            Title = "Enable Param Graph Annotation Addition",
-            Description = "If enabled, the Param Editor will add param graph annotations from your project's .smithbox folder alongside the base versions.",
+            Title = "PREF_Param_Editor_Enable_Graph_Annotation_Addition",
+            Description = "PREF_Param_Editor_Enable_Graph_Annotation_Addition_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.Param_Editor_Enable_Graph_Annotation_Addition);
@@ -2037,8 +2072,8 @@ public class ParamEditorPrefs
 
             Section = SectionCategory.ParamEditor_Metadata,
 
-            Title = "Enable Param Graph Annotation Override",
-            Description = "If enabled, the Param Editor will only use param graph annotations from your project's .smithbox folder, and ignore the base versions.",
+            Title = "PREF_Param_Editor_Enable_Graph_Annotation_Override",
+            Description = "PREF_Param_Editor_Enable_Graph_Annotation_Override_TT",
 
             Draw = () => {
                 ImGui.Checkbox("##inputValue", ref CFG.Current.Param_Editor_Enable_Graph_Annotation_Override);

@@ -16,7 +16,7 @@ public class ParamPinGroups
     public string RowGroupPath = "";
     public string FieldGroupPath = "";
 
-    private ParamEditorScreen Editor;
+    private ParamEditorView View;
     private ProjectEntry Project;
 
     private ParamPinGroupDisplayState CurrentDisplayState = ParamPinGroupDisplayState.Param;
@@ -29,126 +29,133 @@ public class ParamPinGroups
     public List<string> RowGroupFiles = new List<string>();
     public List<string> FieldGroupFiles = new List<string>();
 
-    public ParamPinGroups(ParamEditorScreen editor, ProjectEntry project)
+    public ParamPinGroups(ParamEditorView view, ProjectEntry project)
     {
-        Editor = editor;
+        View = view;
+        Project = project;
 
-        ParamGroupPath = Path.Join(Editor.Project.Descriptor.ProjectPath, ".smithbox", "Workflow", "Pin Groups", "Params");
-        RowGroupPath = Path.Join(Editor.Project.Descriptor.ProjectPath, ".smithbox", "Workflow", "Pin Groups", "Rows");
-        FieldGroupPath = Path.Join(Editor.Project.Descriptor.ProjectPath, ".smithbox", "Workflow", "Pin Groups", "Fields");
+        ParamGroupPath = Path.Join(Project.Descriptor.ProjectPath, ".smithbox", "Workflow", "Pin Groups", "Params");
+        RowGroupPath = Path.Join(Project.Descriptor.ProjectPath, ".smithbox", "Workflow", "Pin Groups", "Rows");
+        FieldGroupPath = Path.Join(Project.Descriptor.ProjectPath, ".smithbox", "Workflow", "Pin Groups", "Fields");
     }
     
     public void Display()
     {
         var windowWidth = ImGui.GetWindowWidth();
 
-        if (ImGui.CollapsingHeader("Pin Groups"))
+        // Pin Groups
+        if (ImGui.CollapsingHeader($"{LOC.Get("PARAM_PinGroups_Header")}##pinGroupsHeader"))
         {
-            ImGui.BeginChild("PinGroupToolSection");
+            ImGui.BeginChild("PinGroupToolSection", ImGuiChildFlags.Borders);
 
             UpdateGroupList();
 
-            UIHelper.WrappedText("Create a pin group from your current pinned params, rows or fields, or select an existing pin group to replace your current pinned params, rows or fields.");
-            UIHelper.WrappedText("");
+            GUI.WrappedText(LOC.Get("PARAM_PinGroups_Hint"));
 
-            ImGui.Separator();
-            UIHelper.WrappedTextColored(UI.Current.ImGui_AliasName_Text, $"Configuration");
-            ImGui.Separator();
+            // Options
+            GUI.Spacer();
+            GUI.SimpleHeader(
+                LOC.Get("PARAM_PinGroups_Header_Options"),
+                LOC.Get("PARAM_PinGroups_Header_Options_TT"));
 
-            ImGui.Checkbox("Show only pinned params exclusively", ref CFG.Current.Param_PinGroups_ShowOnlyPinnedParams);
-            UIHelper.Tooltip($"When enabled, only pinned params will appear in the param list.");
+            ImGui.Checkbox($"{LOC.Get("PARAM_PinGroups_Checkbox_Pinned_Params_Only")}##togglePinnedParams", 
+                ref CFG.Current.Param_PinGroups_ShowOnlyPinnedParams);
+            GUI.Tooltip(LOC.Get("PARAM_PinGroups_Checkbox_Pinned_Params_Only_TT"));
 
-            ImGui.Checkbox("Show only pinned rows exclusively", ref CFG.Current.Param_PinGroups_ShowOnlyPinnedRows);
-            UIHelper.Tooltip($"When enabled, only pinned rows will appear in the rows list.");
+            ImGui.Checkbox($"{LOC.Get("PARAM_PinGroups_Checkbox_Pinned_Rows_Only")}##togglePinnedRows",
+                ref CFG.Current.Param_PinGroups_ShowOnlyPinnedRows);
+            GUI.Tooltip(LOC.Get("PARAM_PinGroups_Checkbox_Pinned_Rows_Only_TT"));
 
-            ImGui.Checkbox("Show only pinned fields exclusively", ref CFG.Current.Param_PinGroups_ShowOnlyPinnedFields);
-            UIHelper.Tooltip($"When enabled, only pinned fields will appear in the param list.");
+            ImGui.Checkbox($"{LOC.Get("PARAM_PinGroups_Checkbox_Pinned_Fields_Only")}##togglePinnedFields", 
+                ref CFG.Current.Param_PinGroups_ShowOnlyPinnedFields);
+            GUI.Tooltip(LOC.Get("PARAM_PinGroups_Checkbox_Pinned_Fields_Only_TT"));
 
-            if (ImGui.Button("Clear Param Pins", DPI.ThirdWidthButton(windowWidth, 24)))
-            {
-                Editor.Project.Descriptor.PinnedParams = new();
-            }
-            UIHelper.Tooltip($"Clear current pinned params.");
+            // Display
+            GUI.Spacer();
+            GUI.SimpleHeader(
+                LOC.Get("PARAM_PinGroups_Header_Display"),
+                LOC.Get("PARAM_PinGroups_Header_Display_TT"));
 
-            ImGui.SameLine();
-            if (ImGui.Button("Clear Row Pins", DPI.ThirdWidthButton(windowWidth, 24)))
-            {
-                Editor.Project.Descriptor.PinnedRows = new();
-            }
-            UIHelper.Tooltip($"Clear current pinned rows.");
+            GUI.MultiButtonInput("pinGroupActions",
+                "clearParamPins", 
+                LOC.Get("PARAM_PinGroups_Action_Clear_Param_Pins"),
+                LOC.Get("PARAM_PinGroups_Action_Clear_Param_Pins_TT"),
+                ClearParamPins,
 
-            ImGui.SameLine();
-            if (ImGui.Button("Clear Field Pins", DPI.ThirdWidthButton(windowWidth, 24)))
-            {
-                Editor.Project.Descriptor.PinnedFields = new();
-            }
-            UIHelper.Tooltip($"Clear current pinned fields.");
+                "clearRowPins",
+                LOC.Get("PARAM_PinGroups_Action_Clear_Row_Pins"),
+                LOC.Get("PARAM_PinGroups_Action_Clear_Row_Pins_TT"), 
+                ClearRowPins,
 
+                "clearFieldPins",
+                LOC.Get("PARAM_PinGroups_Action_Clear_Field_Pins"),
+                LOC.Get("PARAM_PinGroups_Action_Clear_Field_Pins_TT"), 
+                ClearFieldPins);
 
-            ImGui.Separator();
-            UIHelper.WrappedTextColored(UI.Current.ImGui_AliasName_Text, $"Group Creation");
-            ImGui.Separator();
+            // Creation
+            GUI.Spacer();
+            GUI.SimpleHeader(
+                LOC.Get("PARAM_PinGroups_Header_Creation"),
+                LOC.Get("PARAM_PinGroups_Header_Creation_TT"));
 
-            UIHelper.WrappedText("Name");
-            DPI.ApplyInputWidth(windowWidth);
-            ImGui.InputText("##newGroupName", ref _newGroupName, 255);
+            GUI.SinglelineTextInputWithHint($"newGroupName", ref _newGroupName, LOC.Get("PARAM_PinGroups_Input_Name_Hint"));
 
-            if (ImGui.Button("Create Param Group", DPI.ThirdWidthButton(windowWidth, 24)))
-            {
-                CreateParamGroup();
-            }
-            UIHelper.Tooltip($"Create a new pin group from the current pinned params.");
+            GUI.MultiButtonInput("pinGroupActions",
+                "createParamPinGroup",
+                LOC.Get("PARAM_PinGroups_Action_Create_Param_Pin_Group"),
+                LOC.Get("PARAM_PinGroups_Action_Create_Param_Pin_Group_TT"),
+                CreateParamGroup,
 
-            ImGui.SameLine();
-            if (ImGui.Button("Create Row Group", DPI.ThirdWidthButton(windowWidth, 24)))
-            {
-                CreateRowGroup();
-            }
-            UIHelper.Tooltip($"Create a new pin group from the current pinned rows.");
+                "createRowPinGroup",
+                LOC.Get("PARAM_PinGroups_Action_Create_Row_Pin_Group"),
+                LOC.Get("PARAM_PinGroups_Action_Create_Row_Pin_Group_TT"), 
+                CreateRowGroup,
 
-            ImGui.SameLine();
-            if (ImGui.Button("Create Field Group", DPI.ThirdWidthButton(windowWidth, 24)))
-            {
-                CreateFieldGroup();
-            }
-            UIHelper.Tooltip($"Create a new pin group from the current pinned fields.");
+                "createFieldPinGroup",
+                LOC.Get("PARAM_PinGroups_Action_Create_Field_Pin_Group"),
+                LOC.Get("PARAM_PinGroups_Action_Create_Field_Pin_Group_TT"), 
+                CreateFieldGroup);
 
-            ImGui.Separator();
-            UIHelper.WrappedTextColored(UI.Current.ImGui_AliasName_Text, $"Group Lists");
-            ImGui.Separator();
+            // Lists
+            GUI.Spacer();
+            GUI.SimpleHeader("Lists", "");
 
-            if (ImGui.Button("View Param Groups", DPI.ThirdWidthButton(windowWidth, 24)))
-            {
-                CurrentDisplayState = ParamPinGroupDisplayState.Param;
-            }
-            ImGui.SameLine();
-            if (ImGui.Button("View Row Groups", DPI.ThirdWidthButton(windowWidth, 24)))
-            {
-                CurrentDisplayState = ParamPinGroupDisplayState.Row;
-            }
-            ImGui.SameLine();
-            if (ImGui.Button("View Field Groups", DPI.ThirdWidthButton(windowWidth, 24)))
-            {
-                CurrentDisplayState = ParamPinGroupDisplayState.Field;
-            }
+            GUI.MultiButtonInput("pinGroupDisplayActions",
+                "displayParamPinGroups", 
+                LOC.Get("PARAM_PinGroups_Action_Display_Param_Pin_Group"),
+                LOC.Get("PARAM_PinGroups_Action_Display_Param_Pin_Group_TT"),
+                DisplayParamPinGroups,
 
+                "displayRowPinGroups",
+                LOC.Get("PARAM_PinGroups_Action_Display_Row_Pin_Group"),
+                LOC.Get("PARAM_PinGroups_Action_Display_Row_Pin_Group_TT"), 
+                DisplayRowPinGroups,
+
+                "displayFieldPinGroups",
+                LOC.Get("PARAM_PinGroups_Action_Display_Field_Pin_Group"),
+                LOC.Get("PARAM_PinGroups_Action_Display_Field_Pin_Group_TT"), 
+                DisplayFieldPinGroups);
+
+            GUI.Spacer();
+
+            // Table
             if (CurrentDisplayState == ParamPinGroupDisplayState.Param)
             {
-                ImGui.Separator();
-                UIHelper.WrappedTextColored(UI.Current.ImGui_AliasName_Text, $"Param Groups:");
-                ImGui.Separator();
+                GUI.SimpleHeader(
+                    LOC.Get("PARAM_PinGroups_Header_Param_Groups"),
+                    LOC.Get("PARAM_PinGroups_Header_Param_Groups_TT"));
             }
             if (CurrentDisplayState == ParamPinGroupDisplayState.Row)
             {
-                ImGui.Separator();
-                UIHelper.WrappedTextColored(UI.Current.ImGui_AliasName_Text, $"Row Groups:");
-                ImGui.Separator();
+                GUI.SimpleHeader(
+                    LOC.Get("PARAM_PinGroups_Header_Row_Groups"),
+                    LOC.Get("PARAM_PinGroups_Header_Row_Groups_TT"));
             }
             if (CurrentDisplayState == ParamPinGroupDisplayState.Field)
             {
-                ImGui.Separator();
-                UIHelper.WrappedTextColored(UI.Current.ImGui_AliasName_Text, $"Field Groups:");
-                ImGui.Separator();
+                GUI.SimpleHeader(
+                    LOC.Get("PARAM_PinGroups_Header_Field_Groups"),
+                    LOC.Get("PARAM_PinGroups_Header_Field_Groups_TT"));
             }
 
             ImGui.Columns(2);
@@ -190,7 +197,35 @@ public class ParamPinGroups
             ImGui.EndChild();
         }
     }
-    
+
+    public void ClearParamPins()
+    {
+        Project.Descriptor.PinnedParams = new();
+    }
+
+    public void ClearRowPins()
+    {
+        Project.Descriptor.PinnedRows = new();
+    }
+
+    public void ClearFieldPins()
+    {
+        Project.Descriptor.PinnedFields = new();
+    }
+
+    public void DisplayParamPinGroups()
+    {
+        CurrentDisplayState = ParamPinGroupDisplayState.Param;
+    }
+    public void DisplayRowPinGroups()
+    {
+        CurrentDisplayState = ParamPinGroupDisplayState.Row;
+    }
+    public void DisplayFieldPinGroups()
+    {
+        CurrentDisplayState = ParamPinGroupDisplayState.Field;
+    }
+
     public void UpdateGroupList()
     {
         if (RefreshGroupList)
@@ -243,13 +278,13 @@ public class ParamPinGroups
                 _selectedParamGroup = entry;
                 LoadParamPinGroup(entry);
             }
-            UIHelper.Tooltip("Double-click to set current param pins to this group.");
+            GUI.Tooltip(LOC.Get("PARAM_PinGroups_ParamGroup_Set_TT"));
 
             if (ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Left))
             {
                 if (_selectedParamPinGroup != null)
                 {
-                    Editor.Project.Descriptor.PinnedParams = _selectedParamPinGroup.Pins;
+                    Project.Descriptor.PinnedParams = _selectedParamPinGroup.Pins;
                 }
             }
 
@@ -257,11 +292,12 @@ public class ParamPinGroups
             {
                 if (ImGui.BeginPopupContextItem($"##paramPinGroupSelectionPopup{entry}"))
                 {
-                    if (ImGui.Selectable("Delete"))
+                    // Delete
+                    if (ImGui.Selectable($"{LOC.Get("PARAM_PinGroups_Action_Delete")}##paramGroupDeleteAction"))
                     {
                         DeletePinGroup(entry, ParamGroupPath);
                     }
-                    UIHelper.Tooltip("Delete this group.");
+                    GUI.Tooltip(LOC.Get("PARAM_PinGroups_Action_Delete_TT"));
 
                     ImGui.EndPopup();
                 }
@@ -277,13 +313,13 @@ public class ParamPinGroups
                 _selectedRowGroup = entry;
                 LoadRowPinGroup(entry);
             }
-            UIHelper.Tooltip("Double-click to set current row pins to this group.");
+            GUI.Tooltip(LOC.Get("PARAM_PinGroups_RowGroup_Set_TT"));
 
             if (ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Left))
             {
                 if (_selectedRowPinGroup != null)
                 {
-                    Editor.Project.Descriptor.PinnedRows = _selectedRowPinGroup.Pins;
+                    Project.Descriptor.PinnedRows = _selectedRowPinGroup.Pins;
                 }
             }
 
@@ -291,11 +327,12 @@ public class ParamPinGroups
             {
                 if (ImGui.BeginPopupContextItem($"##rowPinGroupSelectionPopup{entry}"))
                 {
-                    if (ImGui.Selectable("Delete"))
+                    // Delete
+                    if (ImGui.Selectable($"{LOC.Get("PARAM_PinGroups_Action_Delete")}##rowGroupDeleteAction"))
                     {
                         DeletePinGroup(entry, RowGroupPath);
                     }
-                    UIHelper.Tooltip("Delete this group.");
+                    GUI.Tooltip(LOC.Get("PARAM_PinGroups_Action_Delete_TT"));
 
                     ImGui.EndPopup();
                 }
@@ -312,13 +349,13 @@ public class ParamPinGroups
                 _selectedFieldGroup = entry;
                 LoadFieldPinGroup(entry);
             }
-            UIHelper.Tooltip("Double-click to set current field pins to this group.");
+            GUI.Tooltip(LOC.Get("PARAM_PinGroups_FieldGroup_Set_TT"));
 
             if (ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Left))
             {
                 if (_selectedFieldPinGroup != null)
                 {
-                    Editor.Project.Descriptor.PinnedFields = _selectedFieldPinGroup.Pins;
+                    Project.Descriptor.PinnedFields = _selectedFieldPinGroup.Pins;
                 }
             }
 
@@ -326,11 +363,12 @@ public class ParamPinGroups
             {
                 if (ImGui.BeginPopupContextItem($"##fieldPinGroupSelectionPopup{entry}"))
                 {
-                    if (ImGui.Selectable("Delete"))
+                    // Delete
+                    if (ImGui.Selectable($"{LOC.Get("PARAM_PinGroups_Action_Delete")}##fieldGroupDeleteAction"))
                     {
                         DeletePinGroup(entry, FieldGroupPath);
                     }
-                    UIHelper.Tooltip("Delete this group.");
+                    GUI.Tooltip(LOC.Get("PARAM_PinGroups_Action_Delete_TT"));
 
                     ImGui.EndPopup();
                 }
@@ -342,11 +380,11 @@ public class ParamPinGroups
     {
         if(_selectedParamPinGroup != null)
         {
-            UIHelper.WrappedTextColored(UI.Current.ImGui_AliasName_Text, $"Params:");
+            GUI.WrappedTextColored(UI.Current.ImGui_AliasName_Text, LOC.Get("PARAM_PinGroups_Alias_Params"));
 
             foreach (var entry in _selectedParamPinGroup.Pins)
             {
-                UIHelper.WrappedText($"{entry}");
+                GUI.WrappedText($"{entry}");
             }
         }
     }
@@ -355,14 +393,14 @@ public class ParamPinGroups
     {
         if (_selectedRowPinGroup != null)
         {
-            UIHelper.WrappedTextColored(UI.Current.ImGui_AliasName_Text, $"Rows:");
+            GUI.WrappedTextColored(UI.Current.ImGui_AliasName_Text, LOC.Get("PARAM_PinGroups_Alias_Rows"));
 
             foreach (var entry in _selectedRowPinGroup.Pins)
             {
-                UIHelper.WrappedText($"{entry.Key}:");
+                GUI.WrappedText($"{entry.Key}:");
                 foreach (var listEntry in entry.Value)
                 {
-                    UIHelper.WrappedText($" {listEntry}");
+                    GUI.WrappedText($" {listEntry}");
                 }
             }
         }
@@ -372,14 +410,14 @@ public class ParamPinGroups
     {
         if (_selectedFieldPinGroup != null)
         {
-            UIHelper.WrappedTextColored(UI.Current.ImGui_AliasName_Text, $"Fields:");
+            GUI.WrappedTextColored(UI.Current.ImGui_AliasName_Text, LOC.Get("PARAM_PinGroups_Alias_Fields"));
 
             foreach (var entry in _selectedFieldPinGroup.Pins)
             {
-                UIHelper.WrappedText($"{entry.Key}:");
+                GUI.WrappedText($"{entry.Key}:");
                 foreach (var listEntry in entry.Value)
                 {
-                    UIHelper.WrappedText($" {listEntry}");
+                    GUI.WrappedText($" {listEntry}");
                 }
             }
         }
@@ -397,43 +435,45 @@ public class ParamPinGroups
     {
         if(_newGroupName == "")
         {
-            PlatformUtils.Instance.MessageBox("Group name cannot be empty", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            Smithbox.LogError<ParamPinGroup>(LOC.Get("PARAM_PinGroups_Empty_Group_Name"));
             return;
         }
 
         ParamPinGroup newGroup = new();
         newGroup.Name = _newGroupName;
-        newGroup.Pins = Editor.Project.Descriptor.PinnedParams;
+        newGroup.Pins = Project.Descriptor.PinnedParams;
 
         var jsonString = JsonSerializer.Serialize(newGroup, ParamPinGroupSerializationContext.Default.ParamPinGroup);
         WritePinGroup($"{_newGroupName}.json", jsonString, ParamGroupPath, "Param Pin Group");
     }
+
     public void CreateRowGroup()
     {
         if (_newGroupName == "")
         {
-            PlatformUtils.Instance.MessageBox("Group name cannot be empty", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            Smithbox.LogError<ParamPinGroup>(LOC.Get("PARAM_PinGroups_Empty_Group_Name"));
             return;
         }
 
         RowPinGroup newGroup = new();
         newGroup.Name = _newGroupName;
-        newGroup.Pins = Editor.Project.Descriptor.PinnedRows;
+        newGroup.Pins = Project.Descriptor.PinnedRows;
 
         var jsonString = JsonSerializer.Serialize(newGroup, RowPinGroupSerializationContext.Default.RowPinGroup);
         WritePinGroup($"{_newGroupName}.json", jsonString, RowGroupPath, "Row Pin Group");
     }
+
     public void CreateFieldGroup()
     {
         if (_newGroupName == "")
         {
-            PlatformUtils.Instance.MessageBox("Group name cannot be empty", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            Smithbox.LogError<ParamPinGroup>(LOC.Get("PARAM_PinGroups_Empty_Group_Name"));
             return;
         }
 
         FieldPinGroup newGroup = new();
         newGroup.Name = _newGroupName;
-        newGroup.Pins = Editor.Project.Descriptor.PinnedFields;
+        newGroup.Pins = Project.Descriptor.PinnedFields;
 
         var jsonString = JsonSerializer.Serialize(newGroup, FieldPinGroupSerializationContext.Default.FieldPinGroup);
         WritePinGroup($"{_newGroupName}.json", jsonString, FieldGroupPath, "Field Pin Group");
@@ -457,7 +497,7 @@ public class ParamPinGroups
         catch (Exception ex)
         {
             var filename = Path.GetFileNameWithoutExtension(readPath);
-            Smithbox.Log(this, $"Failed to load param pin group: {filename} at {readPath}\n{ex}");
+            Smithbox.LogError<ParamPinGroup>(LOC.Get("PARAM_PinGroups_Load_Pin_Group_FAIL", filename, readPath));
         }
     }
     public void LoadRowPinGroup(string groupName)
@@ -474,7 +514,7 @@ public class ParamPinGroups
         catch (Exception ex)
         {
             var filename = Path.GetFileNameWithoutExtension(readPath);
-            Smithbox.Log(this, $"Failed to load row pin group: {filename} at {readPath}\n{ex}");
+            Smithbox.LogError<ParamPinGroup>(LOC.Get("PARAM_PinGroups_Load_Pin_Group_FAIL", filename, readPath));
         }
     }
     public void LoadFieldPinGroup(string groupName)
@@ -491,7 +531,7 @@ public class ParamPinGroups
         catch (Exception ex)
         {
             var filename = Path.GetFileNameWithoutExtension(readPath);
-            Smithbox.Log(this, $"Failed to load field pin group: {filename} at {readPath}\n{ex}");
+            Smithbox.LogError<ParamPinGroup>(LOC.Get("PARAM_PinGroups_Load_Pin_Group_FAIL", filename, readPath));
         }
     }
 
@@ -508,7 +548,10 @@ public class ParamPinGroups
 
         if (File.Exists(writePath))
         {
-            var result = PlatformUtils.Instance.MessageBox($"{filename} already exists as a {groupName}. Are you sure you want to overwrite it?", "Warning", MessageBoxButtons.OKCancel);
+            var result = PlatformUtils.Instance.MessageBox(
+                LOC.Get("PARAM_PinGroups_Dialog_Overwrite_Existing_Group", filename, groupName),
+                LOC.Get("SYS_Warning_Header"),
+                MessageBoxButtons.OKCancel);
 
             if (result is DialogResult.Cancel)
             {
@@ -526,11 +569,13 @@ public class ParamPinGroups
                 fs.Flush();
                 fs.Dispose();
 
-                Smithbox.Log(this, $"Pin Group: saved pin group: {filename} at {writePath}.");
+                Smithbox.Log<ParamPinGroup>(
+                    LOC.Get("PARAM_PinGroups_Save_Pin_Group_PASS", filename, writePath));
             }
             catch (Exception ex)
             {
-                Smithbox.Log(this, $"Pin Group: failed to save pin group: {filename} at {writePath}\n{ex}");
+                Smithbox.LogError<ParamPinGroup>(
+                    LOC.Get("PARAM_PinGroups_Save_Pin_Group_FAIL", filename, writePath), ex);
             }
 
             RefreshGroupList = true;

@@ -20,27 +20,32 @@ public class MapContentFilters
 
     public string SearchInput = "";
     public string StoredSearchInput = "";
+    public bool ExactMatch = false;
 
     /// <summary>
     /// Display the event filter UI
     /// </summary>
     public void DisplaySearch(MapContainer map)
     {
-        var windowWidth = ImGui.GetWindowWidth();
+        var mapId = "";
+        var mapName = "";
 
-        var mapId = map.Name;
-        var mapName = AliasHelper.GetMapNameAlias(View.Project, map.Name);
+        if (map != null)
+        {
+            mapId = map.Name;
+            mapName = AliasHelper.GetMapNameAlias(View.Project, map.Name);
+        }
 
-        DPI.ApplyInputWidth(windowWidth * 0.6f);
-        ImGui.InputText($"##contentFilterSearch_{map.Name}", ref SearchInput, 255);
-        UIHelper.Tooltip($"Filter the content tree for {mapId}: {mapName}");
+        EditorFilters.DisplayListFilter("MapContentSearch", ref SearchInput, ref ExactMatch);
+        GUI.Tooltip($"Filter the content tree for {mapId}: {mapName}");
 
         ImGui.SameLine();
+
         if (ImGui.Button($"{Icons.QuestionCircle}", DPI.IconButtonSize))
         {
             ImGui.OpenPopup("searchInputHint");
         }
-        UIHelper.Tooltip("View documentation on search commands.");
+        GUI.Tooltip("View documentation on search commands.");
 
         if (ImGui.BeginPopup("searchInputHint"))
         {
@@ -104,7 +109,7 @@ public class MapContentFilters
                 ImGui.TableSetColumnIndex(1);
 
                 ImGui.AlignTextToFramePadding();
-                ImGui.Text("prop: <property name> [<index>] <comparator> <value>");
+                ImGui.Text("prop:<property name> [<index>] <comparator> <value>");
 
                 // Description
                 ImGui.TableNextRow();
@@ -261,8 +266,16 @@ public class MapContentFilters
 
             if (entName != null)
             {
-                if (entName != "" && entName.Contains(input))
-                    isValid = true;
+                if(ExactMatch)
+                {
+                    if (entName != "" && entName == input)
+                        isValid = true;
+                }
+                else
+                {
+                    if (entName != "" && entName.Contains(input))
+                        isValid = true;
+                }
             }
         }
 
@@ -271,8 +284,16 @@ public class MapContentFilters
             var aliasName = curEnt.CachedAliasName.Trim().ToLower();
             if (aliasName != null)
             {
-                if (aliasName != "" && aliasName.Contains(input))
-                    isValid = true;
+                if (ExactMatch)
+                {
+                    if (aliasName != "" && aliasName == input)
+                        isValid = true;
+                }
+                else
+                {
+                    if (aliasName != "" && aliasName.Contains(input))
+                        isValid = true;
+                }
             }
         }
 

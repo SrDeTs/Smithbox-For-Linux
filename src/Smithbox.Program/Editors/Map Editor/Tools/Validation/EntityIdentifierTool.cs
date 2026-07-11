@@ -1,0 +1,350 @@
+﻿using Hexa.NET.ImGui;
+using StudioCore.Application;
+using StudioCore.Editors.Common;
+using StudioCore.Utilities;
+using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
+
+namespace StudioCore.Editors.MapEditor;
+
+public class EntityIdentifierTool
+{
+    private MapEditorView View;
+    private ProjectEntry Project;
+
+    private bool HideUnassigned = false;
+    private EntityIdBlockSeperatorType BlockSeperatorType = EntityIdBlockSeperatorType.None;
+
+    private string SelectedIdentifier = "";
+
+    public string EntityIdSearch = "";
+    public bool ExactEntityIdSearch = false;
+
+    public EntityIdentifierTool(MapEditorView view, ProjectEntry project)
+    {
+        View = view;
+        Project = project;
+    }
+
+    /// <summary>
+    /// Tool Window
+    /// </summary>
+    public void OnToolWindow()
+    {
+        GUI.WrappedText("Use this to determine the entity ids the map objects have for the current loaded map.");
+
+        GUI.Spacer();
+        GUI.SimpleHeader("Actions", "");
+
+        GUI.MultiButtonInput("entityIdActions",
+            "refreshList", "Refresh", "Refresh the data cache for the currently loaded map.", SetupEntityCache);
+
+
+        GUI.Spacer();
+        GUI.SimpleHeader("List", "");
+
+        var searchHeight = new Vector2(0, 36) * DPI.UIScale();
+        ImGui.BeginChild($"framedListFilter_EntityIdTool", searchHeight, ImGuiChildFlags.Borders);
+
+        EditorFilters.DisplayListFilter("EntityIdTool", ref EntityIdSearch, ref ExactEntityIdSearch);
+
+        ImGui.SameLine();
+
+        if (ImGui.Button($"{Icons.Eye}##hideUnassigned", DPI.IconButtonSize))
+        {
+            HideUnassigned = !HideUnassigned;
+        }
+        GUI.Tooltip("Toggle the display of unassigned identifiers.");
+
+        ImGui.SameLine();
+
+        if (ImGui.Button($"{Icons.Bars}##toggleBlockSeperators", DPI.IconButtonSize))
+        {
+            if (BlockSeperatorType is EntityIdBlockSeperatorType.None)
+            {
+                BlockSeperatorType = EntityIdBlockSeperatorType.Thousands;
+            }
+            else if (BlockSeperatorType is EntityIdBlockSeperatorType.Thousands)
+            {
+                BlockSeperatorType = EntityIdBlockSeperatorType.Hundreds;
+            }
+            else if (BlockSeperatorType is EntityIdBlockSeperatorType.Hundreds)
+            {
+                BlockSeperatorType = EntityIdBlockSeperatorType.None;
+            }
+        }
+        GUI.Tooltip("Toggle the block separator display within the list (none, every 1000, every 100).");
+
+        ImGui.EndChild();
+
+
+        ImGui.BeginChild($"EIO_Overview", ImGuiChildFlags.Borders);
+
+        if (View.Selection.SelectedMapID == "")
+            ImGui.Text("No map has been loaded and selected yet.");
+
+        DisplayEIOList();
+
+        ImGui.EndChild();
+    }
+
+    private Dictionary<string, Dictionary<string, Entity>> EntityCache = new();
+
+    // TODO: need to change the MapPropertyView part so it is within the Action, so undo is responded to.
+    // TODO: store previous state for one value 'roll' so we can restore the old ID <> Entity association if the user is changing the ID multiple times (e.g. 1 -> 2 -> 3 would wipe the original ID <> Entity association of 1 and 2, even though the curEntity is pointing to 3)
+    public void UpdateEntityCache(Entity curEntity, object oldValue, object newValue)
+    {
+        var oldKey = $"{oldValue}";
+        var newKey = $"{newValue}";
+
+        if (newKey == "")
+            return;
+
+        if (oldKey == newKey)
+            return;
+
+        var map = View.Selection.SelectedMapContainer;
+
+        if (EntityCache.ContainsKey(map.Name))
+        {
+            var targetCache = EntityCache[map.Name];
+
+            if (targetCache.ContainsKey(oldKey))
+            {
+                targetCache[oldKey] = null;
+            }
+
+            if (targetCache.ContainsKey(newKey))
+            {
+                targetCache[newKey] = curEntity;
+            }
+        }
+    }
+
+    public void SetupEntityCache()
+    {
+        var map = View.Selection.SelectedMapContainer;
+
+        if (map == null)
+            return;
+
+        Dictionary<string, Entity> cacheEntry = new Dictionary<string, Entity>();
+
+        if (EntityCache.ContainsKey(map.Name))
+        {
+            cacheEntry = EntityCache[map.Name];
+        }
+        else
+        {
+            EntityCache.Add(map.Name, new Dictionary<string, Entity>());
+            cacheEntry = EntityCache[map.Name];
+        }
+
+        AddCacheEntry(cacheEntry, map, map.Name);
+    }
+
+    public void DisplayEIOList()
+    {
+        var map = View.Selection.SelectedMapContainer;
+
+        if (map == null)
+            return;
+
+        if (EntityCache.ContainsKey(map.Name))
+        {
+            var targetCache = EntityCache[map.Name];
+
+            foreach (var cacheEntry in targetCache)
+            {
+                var id = cacheEntry.Key;
+                var entity = cacheEntry.Value;
+
+                if (BlockSeperatorType != EntityIdBlockSeperatorType.None)
+                {
+                    var curId = 0;
+                    int.TryParse(id, out curId);
+
+                    if (curId != 0 && curId % 1000 == 0)
+                    {
+                        ImGui.Separator();
+                    }
+
+                    if (BlockSeperatorType is EntityIdBlockSeperatorType.Hundreds)
+                    {
+                        if (curId != 0 && curId % 100 == 0)
+                        {
+                            ImGui.Separator();
+                        }
+                    }
+                }
+
+                if (!EditorFilters.IsMatch(EntityIdSearch, $"{id}", ExactEntityIdSearch))
+                    continue;
+
+                if (HideUnassigned)
+                {
+                    if (entity == null)
+                        continue;
+                }
+
+                if (ImGui.Selectable($"{id}", SelectedIdentifier == $"{id}"))
+                {
+                    SelectedIdentifier = $"{id}";
+
+                    if (entity != null)
+                    {
+                        View.ViewportSelection.ClearSelection();
+                        View.ViewportSelection.AddSelection(entity);
+                        View.FrameAction.ApplyViewportFrame();
+                    }
+                }
+
+                if (SelectedIdentifier == $"{id}")
+                {
+                    if (ImGui.BeginPopupContextWindow($"{id}_ContextMenu"))
+                    {
+                        if (ImGui.Selectable($"Copy ID##copyId_{id}"))
+                        {
+                            PlatformUtils.Instance.SetClipboardText($"{id}");
+                        }
+
+                        if (entity != null)
+                        {
+                            if (ImGui.Selectable($"Copy Name##copyName_{id}"))
+                            {
+                                PlatformUtils.Instance.SetClipboardText(entity.Name);
+                            }
+
+                            if (ImGui.Selectable($"Copy ID and Name##copyIdAndName_{id}"))
+                            {
+                                PlatformUtils.Instance.SetClipboardText($"{id};{entity.Name}");
+                            }
+                        }
+
+                        ImGui.EndPopup();
+                    }
+                }
+
+                var actualAlias = "";
+
+                if (entity == null)
+                {
+                    GUI.DisplayColoredAlias("Not assigned", UI.Current.ImGui_Invalid_Text_Color);
+                }
+                else
+                {
+                    var aliasStr = $"{entity.Name}";
+                    var inputName = entity.Name.Split("_").First();
+
+                    if (EntityHelper.IsPartEnemy(entity) || EntityHelper.IsPartDummyEnemy(entity))
+                    {
+                        actualAlias = AliasHelper.GetAlias(Project, inputName, ModelEditor.ModelListType.Character);
+                    }
+                    else if (EntityHelper.IsPartAsset(entity) || EntityHelper.IsPartDummyAsset(entity))
+                    {
+                        actualAlias = AliasHelper.GetAlias(Project, inputName, ModelEditor.ModelListType.Asset);
+                    }
+                    else if (EntityHelper.IsPartMapPiece(entity))
+                    {
+                        actualAlias = AliasHelper.GetAlias(Project, inputName, ModelEditor.ModelListType.MapPiece);
+                    }
+
+                    if (actualAlias != "")
+                    {
+                        aliasStr = $"{entity.Name} ({actualAlias})";
+                    }
+
+                    GUI.DisplayAlias(aliasStr);
+                }
+            }
+        }
+    }
+
+    public void AddCacheEntry(Dictionary<string, Entity> cacheEntry, MapContainer map, string mapID)
+    {
+        var baseID = GetBaseIdentifier(mapID);
+        var identifiers = Enumerable.Range(baseID, 9999).ToList();
+
+        cacheEntry.Clear();
+
+        foreach (var entry in identifiers)
+        {
+            cacheEntry.Add($"{entry}", null);
+        }
+
+        if (map != null)
+        {
+            for (int i = 0; i < map.Objects.Count; i++)
+            {
+                var obj = map.Objects[i];
+
+                var val = PropFinderUtil.FindPropertyValue("EntityID", obj.WrappedObject);
+
+                if (val == null)
+                    continue;
+
+                foreach (var entry in identifiers)
+                {
+                    if (cacheEntry.ContainsKey($"{val}"))
+                    {
+                        cacheEntry[$"{val}"] = obj;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    public int GetBaseIdentifier(string mapId)
+    {
+        var baseId = 0;
+        var baseIdStr = mapId.Replace("m", "").Replace("_", "");
+
+        switch(View.Project.Descriptor.ProjectType)
+        {
+            // 4 digit range with no prefix
+            case ProjectType.DES:
+                break;
+            // 7 digit range with map prefix
+            case ProjectType.DS1:
+            case ProjectType.DS1R:
+            case ProjectType.DS3:
+            case ProjectType.BB:
+            case ProjectType.SDT:
+                var topID = $"{baseIdStr.Substring(0, 2)}";
+                var midID = $"{baseIdStr.Substring(3, 1)}0"; // Grab the fourth digit, then swap to third digit position
+
+                baseIdStr = $"{topID}{midID}000";
+
+                int.TryParse(baseIdStr, out baseId);
+                break;
+
+            case ProjectType.ER:
+            case ProjectType.NR:
+                topID = $"{baseIdStr.Substring(0, 2)}";
+                midID = $"{baseIdStr.Substring(2, 2)}"; // Grab the fourth digit, then swap to third digit position
+
+                baseIdStr = $"{topID}{midID}0000";
+
+                // Different arrangement for open-world tiles
+                if(topID == "60" || topID == "61")
+                {
+                    var secondId = $"{baseIdStr.Substring(2, 2)}";
+                    var thirdId = $"{baseIdStr.Substring(4, 2)}";
+
+                    baseIdStr = $"10{midID}{secondId}{thirdId}0000";
+                }
+
+                int.TryParse(baseIdStr, out baseId);
+                break;
+            // 4 digit range with no prefix
+            case ProjectType.AC6:
+                break;
+            default: 
+                break;
+        }
+
+        return baseId;
+    }
+}

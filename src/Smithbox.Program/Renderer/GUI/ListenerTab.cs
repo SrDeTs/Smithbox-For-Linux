@@ -1,5 +1,6 @@
 ﻿using Hexa.NET.ImGui;
 using StudioCore.Application;
+using StudioCore.Editors.Common;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,9 +15,9 @@ public class ListenerTab
 
     public bool DisplayEmptyListeners = false;
 
-    private ResourceListWindow ListWindow;
+    private ResourceListTool ListWindow;
 
-    public ListenerTab(ResourceListWindow listWindow)
+    public ListenerTab(ResourceListTool listWindow)
     {
         ListWindow = listWindow;
     }
@@ -25,7 +26,7 @@ public class ListenerTab
     {
         var resDatabase = ResourceManager.GetResourceDatabase();
 
-        var tableFlags = ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.Borders;
+        var tableFlags = ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.Resizable | ImGuiTableFlags.Borders;
 
         var imguiId = 0;
 
@@ -46,25 +47,25 @@ public class ListenerTab
 
             ImGui.TableSetColumnIndex(1);
 
-            ImGui.Text("Name");
-            UIHelper.Tooltip("Name of this resource.");
+            ImGui.Text(LOC.Get("REND_Listener_Tab_Name_Column"));
+            GUI.Tooltip(LOC.Get("REND_Listener_Tab_Name_Column_TT"));
 
             ImGui.TableSetColumnIndex(2);
 
-            ImGui.Text("Load State");
-            UIHelper.Tooltip("The load state of this resource.");
+            ImGui.Text(LOC.Get("REND_Listener_Tab_Load_State_Column"));
+            GUI.Tooltip(LOC.Get("REND_Listener_Tab_Load_State_Column_TT"));
 
             ImGui.TableSetColumnIndex(3);
 
             // Access Level
-            ImGui.Text("Access Level");
-            UIHelper.Tooltip("The access level of this resource.");
+            ImGui.Text(LOC.Get("REND_Listener_Tab_Access_Level_Column"));
+            GUI.Tooltip(LOC.Get("REND_Listener_Tab_Access_Level_Column_TT"));
 
             ImGui.TableSetColumnIndex(4);
 
             // Reference Count
-            ImGui.Text("Reference Count");
-            UIHelper.Tooltip("The reference count for this resource.");
+            ImGui.Text(LOC.Get("REND_Listener_Tab_Reference_Count_Column"));
+            GUI.Tooltip(LOC.Get("REND_Listener_Tab_Reference_Count_Column_TT"));
 
             ImGui.TableSetColumnIndex(5);
 
@@ -76,10 +77,10 @@ public class ListenerTab
                 var resName = item.Key;
                 var resHandle = item.Value;
 
-                if (ListWindow.SearchFilter != "" && !resName.Contains(ListWindow.SearchFilter))
-                {
+                var isMatch = EditorFilters.IsMatch(ListWindow.ResourceListFilter, resName, ListWindow.ExactResourceListFilter);
+
+                if (!isMatch)
                     continue;
-                }
 
                 ImGui.TableNextRow();
                 ImGui.TableSetColumnIndex(0);
@@ -89,7 +90,7 @@ public class ListenerTab
                 {
                     SelectedListenerEntry = resName;
                 }
-                UIHelper.Tooltip("Select this resource.");
+                GUI.Tooltip(LOC.Get("REND_Listener_Tab_Action_Select_TT"));
 
                 ImGui.TableSetColumnIndex(1);
 
@@ -109,11 +110,11 @@ public class ListenerTab
                 // Load State
                 if (resHandle.IsLoaded())
                 {
-                    ImGui.Text("Loaded");
+                    ImGui.Text(LOC.Get("REND_Listener_Tab_Loaded_State"));
                 }
                 else
                 {
-                    ImGui.Text("Unloaded");
+                    ImGui.Text(LOC.Get("REND_Listener_Tab_Unloaded_State"));
                 }
 
                 ImGui.TableSetColumnIndex(3);
@@ -131,7 +132,7 @@ public class ListenerTab
                 {
                     resHandle.Release(true);
                 }
-                UIHelper.Tooltip("Unload this resource.");
+                GUI.Tooltip(LOC.Get("REND_Listener_Tab_Action_Unload_TT"));
 
                 imguiId++;
             }

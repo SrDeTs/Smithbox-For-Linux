@@ -1,5 +1,7 @@
 ﻿using Hexa.NET.ImGui;
+using HKLib.hk2018.hk;
 using StudioCore.Application;
+using StudioCore.Editors.Common;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,9 +14,9 @@ public class MeshProviderTab
 {
     public string SelectedProviderEntry = "";
 
-    private ResourceListWindow ListWindow;
+    private ResourceListTool ListWindow;
 
-    public MeshProviderTab(ResourceListWindow listWindow)
+    public MeshProviderTab(ResourceListTool listWindow)
     {
         ListWindow = listWindow;
     }
@@ -23,7 +25,7 @@ public class MeshProviderTab
     {
         var resDatabase = ResourceManager.GetResourceDatabase();
 
-        var tableFlags = ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.Borders;
+        var tableFlags = ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.Resizable | ImGuiTableFlags.Borders;
 
         var imguiId = 0;
 
@@ -40,8 +42,8 @@ public class MeshProviderTab
 
             ImGui.TableSetColumnIndex(1);
 
-            ImGui.Text("Name");
-            UIHelper.Tooltip("Name of this resource.");
+            ImGui.Text(LOC.Get("REND_Mesh_Provider_Tab_Name_Column"));
+            GUI.Tooltip(LOC.Get("REND_Mesh_Provider_Tab_Name_Column_TT"));
 
             // Contents
             foreach (var item in MeshProviderInspector.Providers.OrderBy(e => e.Value.VirtualPath))
@@ -49,10 +51,10 @@ public class MeshProviderTab
                 var hash = item.Key;
                 var context = item.Value;
 
-                if (ListWindow.SearchFilter != "" && !context.VirtualPath.Contains(ListWindow.SearchFilter))
-                {
+                var isMatch = EditorFilters.IsMatch(ListWindow.ResourceListFilter, context.VirtualPath, ListWindow.ExactResourceListFilter);
+
+                if (!isMatch)
                     continue;
-                }
 
                 ImGui.TableNextRow();
                 ImGui.TableSetColumnIndex(0);
@@ -62,7 +64,7 @@ public class MeshProviderTab
                 {
                     SelectedProviderEntry = context.VirtualPath;
                 }
-                UIHelper.Tooltip("Select this resource.");
+                GUI.Tooltip(LOC.Get("REND_Mesh_Provider_Action_Select_TT"));
 
                 ImGui.TableSetColumnIndex(1);
 

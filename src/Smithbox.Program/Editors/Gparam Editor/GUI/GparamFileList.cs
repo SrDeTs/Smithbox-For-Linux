@@ -1,4 +1,5 @@
 ﻿using Hexa.NET.ImGui;
+using SoulsFormats;
 using StudioCore.Application;
 using StudioCore.Editors.Common;
 using StudioCore.Keybinds;
@@ -10,12 +11,15 @@ namespace StudioCore.Editors.GparamEditor;
 
 public class GparamFileList
 {
-    private GparamEditorView Parent;
+    private GparamEditorView View;
     private ProjectEntry Project;
+
+    private string FileListFilter = "";
+    private bool ExactFileListFilter = false;
 
     public GparamFileList(GparamEditorView view, ProjectEntry project)
     {
-        Parent = view;
+        View = view;
         Project = project;
     }
 
@@ -29,61 +33,20 @@ public class GparamFileList
         // Files
         ImGui.BeginChild("GparamFileSection", ImGuiChildFlags.Borders);
 
-        for(int i = 0; i < Parent.Project.Handler.GparamData.PrimaryBank.Entries.Count; i++)
-        {
-            var entry = Parent.Project.Handler.GparamData.PrimaryBank.Entries.ElementAt(i);
-
-            var alias = AliasHelper.GetGparamAliasName(Parent.Project, entry.Key.Filename);
-
-            if (Parent.Filters.IsFileFilterMatch(entry.Key.Filename, alias))
-            {
-                ImGui.BeginGroup();
-
-                // File row
-                if (ImGui.Selectable($@" {entry.Key.Filename}", entry.Key.Filename == Parent.Selection._selectedGparamKey))
-                {
-                    Parent.Selection.SetFileSelection(entry.Key);
-                }
-
-                // Arrow Selection
-                if (ImGui.IsItemHovered() && Parent.Selection.SelectGparamFile)
-                {
-                    Parent.Selection.SelectGparamFile = false;
-
-                    Parent.Selection.SetFileSelection(entry.Key);
-                }
-
-                if (ImGui.IsItemFocused())
-                {
-                    if (InputManager.HasArrowSelection())
-                    {
-                        Parent.Selection.SelectGparamFile = true;
-                    }
-                }
-
-                if (CFG.Current.GparamEditor_File_List_Display_Aliases)
-                {
-                    UIHelper.DisplayAlias(alias);
-                }
-
-                ImGui.EndGroup();
-            }
-
-            ContextMenu(entry.Key);
-        }
+        DisplayFileList();
 
         ImGui.EndChild();
     }
-
     public void DisplayHeader()
     {
-        UIHelper.SimpleHeader("Files", "");
+        GUI.SimpleHeader("Files", "");
 
         // Search
         var searchHeight = new Vector2(0, 36) * DPI.UIScale();
         ImGui.BeginChild("GparamFileSearchSection", searchHeight, ImGuiChildFlags.Borders);
 
-        Parent.Filters.DisplayFileFilterSearch();
+        EditorFilters.DisplayListFilter("gparamEditor_FileList",
+            ref FileListFilter, ref ExactFileListFilter);
 
         ImGui.SameLine();
 
@@ -97,54 +60,213 @@ public class GparamFileList
         {
             aliasMode = "Hiding file aliases.";
         }
-        UIHelper.Tooltip($"Toggle the display of file aliases.\nCurrent Mode: {aliasMode}");
+        GUI.Tooltip($"Toggle the display of file aliases.\nCurrent Mode: {aliasMode}");
+
+        // BND File Toggle
+        if (Project.Descriptor.ProjectType is ProjectType.BB)
+        {
+            ImGui.SameLine();
+
+            if (ImGui.Button($"{Icons.Book}##bbFileContainerToggle"))
+            {
+                CFG.Current.GparamEditor_File_List_Display_BB_BND_Files = !CFG.Current.GparamEditor_File_List_Display_BB_BND_Files;
+            }
+
+            var bndMode = "Displaying GPARAMBND files.";
+            if (!CFG.Current.GparamEditor_File_List_Display_BB_BND_Files)
+            {
+                bndMode = "Displaying GPARAM files.";
+            }
+            GUI.Tooltip($"Toggle the display of GPARAMBND files.\nCurrent Mode: {bndMode}");
+        }
 
         ImGui.EndChild();
     }
 
-    public void ContextMenu(FileDictionaryEntry entry)
+    private void DisplayFileList()
     {
-        if (entry.Filename == Parent.Selection._selectedGparamKey)
+        for(int i = 0; i < View.Project.Handler.GparamData.PrimaryBank.Entries.Count; i++)
         {
-            if (ImGui.BeginPopupContextItem($"Options##Gparam_File_Context"))
+            var entry = View.Project.Handler.GparamData.PrimaryBank.Entries.ElementAt(i);
+
+            // For BB, toggle which gparam files are displayed
+            if (Project.Descriptor.ProjectType is ProjectType.BB)
             {
-                if(ImGui.BeginMenu("Copy As"))
+                if (CFG.Current.GparamEditor_File_List_Display_BB_BND_Files)
                 {
-                    CopyAsMenu();
-
-                    ImGui.EndMenu();
+                    if (entry.Key.Extension == "gparam")
+                        continue;
                 }
-
-                if (ImGui.Selectable("Target in Quick Edit"))
+                else
                 {
-                    Parent.QuickEditHandler.UpdateFileFilter(entry.Filename);
-
-                    ImGui.CloseCurrentPopup();
+                    if (entry.Key.Extension == "gparambnd")
+                        continue;
                 }
-                UIHelper.Tooltip("Add this file to the File Filter in the Quick Edit window.");
-
-                ImGui.EndPopup();
             }
+
+            DisplayFileSelectable(entry.Key, entry.Value, i);
         }
     }
 
-    private string copyAsFileName = "";
+    private void DisplayFileSelectable(FileDictionaryEntry fileEntry, GPARAM curGparam, int index)
+    {
+        var alias = AliasHelper.GetGparamAliasName(View.Project, fileEntry.Filename);
+
+        var isMatch = EditorFilters.IsMatch(
+            FileListFilter, fileEntry.Filename, ExactFileListFilter, alias, false, true);
+
+        if (!isMatch)
+            return;
+
+        ImGui.BeginGroup();
+
+        var filename = fileEntry.Filename;
+
+        if (Project.Descriptor.ProjectType is ProjectType.BB)
+        {
+            if (CFG.Current.GparamEditor_File_List_Display_BB_BND_Files)
+            {
+                filename = $"{filename} [BND]";
+            }
+        }
+
+        // File row
+        if (ImGui.Selectable($@" {filename}", fileEntry.Filename == View.Selection._selectedGparamKey))
+        {
+            View.Selection.SetFileSelection(fileEntry);
+        }
+
+        // Arrow Selection
+        if (ImGui.IsItemHovered() && View.Selection.SelectGparamFile)
+        {
+            View.Selection.SelectGparamFile = false;
+
+            View.Selection.SetFileSelection(fileEntry);
+        }
+
+        if (ImGui.IsItemFocused())
+        {
+            if (InputManager.HasArrowSelection())
+            {
+                View.Selection.SelectGparamFile = true;
+            }
+        }
+
+        if (CFG.Current.GparamEditor_File_List_Display_Aliases)
+        {
+            GUI.DisplayAlias(alias);
+        }
+
+        ImGui.EndGroup();
+
+        ContextMenu(fileEntry, curGparam);
+    }
+
+    private string OverrideFileName = "";
+
+    public void ContextMenu(FileDictionaryEntry fileEntry, GPARAM curGparam)
+    {
+        var fileKey = View.Selection._selectedGparamKey;
+
+        if (fileEntry.Filename != fileKey)
+            return;
+
+        if (ImGui.BeginPopupContextItem($"Options##Gparam_File_Context"))
+        {
+            // Copy as
+            if(ImGui.BeginMenu("Copy As"))
+            {
+                CopyAsMenu();
+
+                ImGui.EndMenu();
+            }
+            GUI.Tooltip("Copy this GPARAM and rename the copied file.");
+
+            // Delete
+            if (IsDeletableGparamFile(fileEntry))
+            {
+                if (ImGui.Selectable("Delete"))
+                {
+                    DeleteGparamFile(fileEntry);
+                }
+                GUI.Tooltip("Will delete this GPARAM from the project.");
+            }
+
+
+            ImGui.Separator();
+
+            if (ImGui.Selectable("Import"))
+            {
+                View.ToolView.DataTransferTool.ImportGPARAM(Project, View, fileEntry, curGparam);
+            }
+            GUI.Tooltip("Import a GPARAM json to overwrite this entry.");
+
+            if (ImGui.BeginMenu("Export"))
+            {
+                ImGui.InputText("##overrideFilename", ref OverrideFileName, 255);
+                GUI.Tooltip("Define the filename for the exported file.");
+
+                if (ImGui.Selectable("Export File"))
+                {
+                    View.ToolView.DataTransferTool.ExportGparamFile(fileEntry, curGparam, OverrideFileName);
+                }
+
+                ImGui.EndMenu();
+            }
+            GUI.Tooltip("Export this currently selected GPARAM to JSON.");
+
+            ImGui.Separator();
+
+            if (ImGui.MenuItem("Copy Name"))
+            {
+                ImGui.SetClipboardText(fileEntry.Filename);
+            }
+
+            if (ImGui.MenuItem("Copy Path"))
+            {
+                ImGui.SetClipboardText(fileEntry.Path);
+            }
+
+            ImGui.Separator();
+
+            if (ImGui.BeginMenu("Target"))
+            {
+                if (ImGui.Selectable("Quick Edit"))
+                {
+                    View.QuickEditHandler.UpdateFileFilter(fileEntry.Filename);
+                }
+                GUI.Tooltip("Add this file to the File Filter in the Quick Edit window.");
+
+                if (ImGui.Selectable("Data Finder"))
+                {
+                    View.ToolView.DataFinder.UpdateFileFilter(fileEntry.Filename);
+                }
+                GUI.Tooltip("Add this file to the File Filter in the Data Finder window.");
+
+                ImGui.EndMenu();
+            }
+
+            ImGui.EndPopup();
+        }
+    }
+
+    private string CopyAsFileName = "";
 
     public void CopyAsMenu()
     {
-        ImGui.InputText("##copyAsFileNameInput", ref copyAsFileName, 255);
-        UIHelper.Tooltip("Enter the filename this file will be renamed to when copied.");
+        ImGui.InputText("##copyAsFileNameInput", ref CopyAsFileName, 255);
+        GUI.Tooltip("Enter the filename this file will be renamed to when copied.");
 
         if(ImGui.Selectable("Submit"))
         {
-            if(copyAsFileName == "")
+            if(CopyAsFileName == "")
             {
                 Smithbox.LogError<GparamFileList>("Copy As filename cannot be empty.");
             }
             else
             {
                 // Then actually copy the file
-                var oldPath = Parent.Selection.SelectedFileEntry.Path;
+                var oldPath = View.Selection.SelectedFileEntry.Path;
                 var srcPath = Path.Join(ProjectFileLocator.NormalizePath(Project.Descriptor.ProjectPath), oldPath);
 
                 // Fallback to the vanilla version if there isn't an existing project-edited version
@@ -160,10 +282,10 @@ public class GparamFileList
                 else
                 {
                     // Add the new file to the internal structures so it is immediately editable
-                    var oldName = Parent.Selection.SelectedFileEntry.Filename;
-                    var newFileEntry = Parent.Selection.SelectedFileEntry.Clone();
-                    newFileEntry.Path = newFileEntry.Path.Replace(oldName, copyAsFileName);
-                    newFileEntry.Filename = newFileEntry.Filename.Replace(oldName, copyAsFileName);
+                    var oldName = View.Selection.SelectedFileEntry.Filename;
+                    var newFileEntry = View.Selection.SelectedFileEntry.Clone();
+                    newFileEntry.Path = newFileEntry.Path.Replace(oldName, CopyAsFileName);
+                    newFileEntry.Filename = newFileEntry.Filename.Replace(oldName, CopyAsFileName);
 
                     Project.Locator.GparamFiles.Entries.Add(newFileEntry);
                     Project.Handler.GparamData.PrimaryBank.Entries.Add(newFileEntry, null);
@@ -174,5 +296,31 @@ public class GparamFileList
                 }
             }
         }
+    }
+
+    // Only allow files in the project directory to be deleted.
+    private bool IsDeletableGparamFile(FileDictionaryEntry entry)
+    {
+        var srcPath = Path.Join(ProjectFileLocator.NormalizePath(Project.Descriptor.ProjectPath), entry.Path);
+
+        if(File.Exists(srcPath))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private void DeleteGparamFile(FileDictionaryEntry entry)
+    {
+        var srcPath = Path.Join(ProjectFileLocator.NormalizePath(Project.Descriptor.ProjectPath), entry.Path);
+
+        if (File.Exists(srcPath))
+        {
+            File.Delete(srcPath);
+        }
+
+        Project.Locator.GparamFiles.Entries.Remove(entry);
+        Project.Handler.GparamData.PrimaryBank.Entries.Remove(entry);
     }
 }

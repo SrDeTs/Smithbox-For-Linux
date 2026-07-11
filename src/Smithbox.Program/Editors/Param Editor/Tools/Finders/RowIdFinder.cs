@@ -1,18 +1,12 @@
 ﻿using Hexa.NET.ImGui;
-using StudioCore.Application;
 using StudioCore.Editors.Common;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace StudioCore.Editors.ParamEditor;
 
 public class RowIdFinder
 {
-    public ParamEditorScreen Editor;
+    public ParamEditorView View;
     public ProjectEntry Project;
 
     public string imguiID = "RowIDFinder";
@@ -27,37 +21,35 @@ public class RowIdFinder
 
     public List<DataSearchResult> Results = new();
 
-    public RowIdFinder(ParamEditorScreen editor, ProjectEntry project)
+    public RowIdFinder(ParamEditorView view, ProjectEntry project)
     {
-        Editor = editor;
+        View = view;
         Project = project;
     }
 
     public void Display()
     {
-        if (Editor.Project.Handler.ParamData.PrimaryBank.Params == null)
+        if (View.Editor.Project.Handler.ParamData.PrimaryBank.Params == null)
         {
             return;
         }
 
         var windowWidth = ImGui.GetWindowWidth();
 
-        var Size = ImGui.GetWindowSize();
-        float EditX = (Size.X / 100) * 95;
-        float EditY = (Size.Y / 100) * 25;
+        GUI.WrappedText(LOC.Get("PARAM_RowIdFinder_Hint"));
 
-        UIHelper.WrappedText("Display all instances of a specificed row ID.");
-        UIHelper.WrappedText("");
-
-        /// Targeted Param
-        UIHelper.SimpleHeader("Targeted Params", "Leave blank to target all params.");
+        // Targeted Param
+        GUI.Spacer();
+        GUI.SimpleHeader(
+            LOC.Get("PARAM_DataFinder_Header_Target_Params"),
+            LOC.Get("PARAM_DataFinder_Header_Target_Params_TT"));
 
         // Add
-        if (ImGui.Button($"{Icons.Plus}##paramTargetAdd_rowIdFinder"))
+        if (ImGui.Button($"{Icons.Plus}##paramTargetAdd_{imguiID}"))
         {
             TargetedParams.Add("");
         }
-        UIHelper.Tooltip("Add new param target input row.");
+        GUI.Tooltip(LOC.Get("PARAM_DataFinder_Action_Add_Param_Target_TT"));
 
         ImGui.SameLine();
 
@@ -66,88 +58,93 @@ public class RowIdFinder
         {
             ImGui.BeginDisabled();
 
-            if (ImGui.Button($"{Icons.Minus}##paramTargetRemove_rowIdFinder"))
+            if (ImGui.Button($"{Icons.Minus}##paramTargetRemove_{imguiID}"))
             {
                 TargetedParams.RemoveAt(TargetedParams.Count - 1);
             }
-            UIHelper.Tooltip("Remove last added param target input row.");
+            GUI.Tooltip(LOC.Get("PARAM_DataFinder_Action_Remove_Param_Target_TT"));
 
             ImGui.EndDisabled();
         }
         else
         {
-            if (ImGui.Button($"{Icons.Minus}##paramTargetRemove_rowIdFinder"))
+            if (ImGui.Button($"{Icons.Minus}##paramTargetRemove_{imguiID}"))
             {
                 TargetedParams.RemoveAt(TargetedParams.Count - 1);
-                UIHelper.Tooltip("Remove last added param target input row.");
             }
+            GUI.Tooltip(LOC.Get("PARAM_DataFinder_Action_Remove_Param_Target_TT"));
         }
 
         ImGui.SameLine();
 
         // Reset
-        if (ImGui.Button("Reset##paramTargetReset_rowIdFinder"))
+        if (ImGui.Button($"{LOC.Get("PARAM_DataFinder_Action_Reset_Param_Target")}##paramTargetReset_{imguiID}"))
         {
             TargetedParams = new List<string>();
         }
-        UIHelper.Tooltip("Reset param target input rows.");
+        GUI.Tooltip(LOC.Get("PARAM_DataFinder_Action_Reset_Param_Target_TT"));
 
         for (int i = 0; i < TargetedParams.Count; i++)
         {
             var curCommand = TargetedParams[i];
             var curText = curCommand;
 
+            ImGui.PushItemWidth(ImGui.GetWindowWidth() * 0.5f);
             if (ImGui.InputText($"##paramTargetInput{i}_rowIdFinder", ref curText, 255))
             {
                 TargetedParams[i] = curText;
             }
-            UIHelper.Tooltip("The param target to include.");
+            GUI.Tooltip(LOC.Get("PARAM_DataFinder_Param_Target_Include_TT"));
         }
 
-        UIHelper.WrappedText("");
+        GUI.Spacer();
 
-        /// Search Configuration
-        UIHelper.SimpleHeader("Search Configuration", "The configuration parameters for the search.");
+        // Search Text
+        GUI.SimpleHeader(
+            LOC.Get("PARAM_DataFinder_Header_Search"),
+            LOC.Get("PARAM_DataFinder_Header_Search_TT"));
 
         // Row Index
-        UIHelper.WrappedText("Row Index:");
-        ImGui.InputInt($"##searchIndex_{imguiID}", ref SearchIndex);
+        GUI.SetInputWidth();
+        GUI.IntInput($"rowIndex_{imguiID}", ref SearchIndex, LOC.Get("PARAM_RowIdFinder_Input_Row_Index"));
+        GUI.Tooltip(LOC.Get("PARAM_RowIdFinder_Input_Row_Index_TT"));
 
-        UIHelper.Tooltip("The row index to search for. -1 for any");
+        // Search Text
+        GUI.SetInputWidth();
+        GUI.IntInput($"searchId_{imguiID}", ref SearchID, LOC.Get("PARAM_RowIdFinder_Input_Row_ID"));
+        GUI.Tooltip(LOC.Get("PARAM_RowIdFinder_Input_Row_ID_TT"));
 
-        // Row ID
-        UIHelper.WrappedText("Row ID:");
+        GUI.MultiButtonInput("searchActions",
+            "search",
+            LOC.Get("PARAM_DataFinder_Action_Search"),
+            LOC.Get("PARAM_DataFinder_Action_Search_TT"),
+            ConductSearch,
 
-        ImGui.InputInt($"##searchId_{imguiID}", ref SearchID);
-        UIHelper.Tooltip("The row ID to search for.");
+            "clearSearch",
+            LOC.Get("PARAM_DataFinder_Action_Clear"),
+            LOC.Get("PARAM_DataFinder_Action_Clear_TT"),
+            ClearSearch);
 
-        // Search Button
-        if (ImGui.Button($"Search##searchButton_{imguiID}"))
-        {
-            CachedSearchID = SearchID;
-
-            Results = ConstructResults();
-            Results.Sort();
-        }
-
-        UIHelper.WrappedText("");
+        GUI.Spacer();
 
         // Result List
         if (Results.Count > 0)
         {
-            UIHelper.SimpleHeader("Search Results", "The results of the last search performed.");
+            GUI.SimpleHeader(
+                LOC.Get("PARAM_DataFinder_Header_Search_Results"),
+                LOC.Get("PARAM_DataFinder_Header_Search_Results_TT"));
 
-            UIHelper.WrappedText($"Search Term:");
-            UIHelper.DisplayAlias($"{CachedSearchID}");
+            GUI.WrappedText(LOC.Get("PARAM_DataFinder_Search_Term"));
+            GUI.DisplayAlias($"{CachedSearchID}");
 
-            UIHelper.WrappedText($"Result Count:");
-            UIHelper.DisplayAlias($"{Results.Count}");
+            GUI.WrappedText(LOC.Get("PARAM_DataFinder_Result_Count"));
+            GUI.DisplayAlias($"{Results.Count}");
 
-            UIHelper.WrappedText($"");
-            UIHelper.WrappedText($"Param:");
+            GUI.Spacer();
+            GUI.WrappedText(LOC.Get("PARAM_RowIdFinder_Results_Column_Header"));
 
             ImGui.BeginChild($"##resultSection_{imguiID}",
-                new Vector2(EditX, EditY));
+                new Vector2(0, ImGui.GetContentRegionAvail().Y * 0.9f), ImGuiChildFlags.Borders);
 
             foreach (var result in Results)
             {
@@ -161,10 +158,25 @@ public class RowIdFinder
         }
         else
         {
-            ImGui.Text("No results to display.");
+            ImGui.Text(LOC.Get("PARAM_DataFinder_No_Results"));
         }
 
-        UIHelper.WrappedText("");
+        GUI.WrappedText("");
+    }
+
+    public void ConductSearch()
+    {
+        CachedSearchID = SearchID;
+
+        Results = ConstructResults();
+        Results.Sort();
+    }
+
+    public void ClearSearch()
+    {
+        SearchID = -1;
+        CachedSearchID = -1;
+        Results = new();
     }
 
     /// <summary>
@@ -174,7 +186,7 @@ public class RowIdFinder
     {
         List<DataSearchResult> output = new();
 
-        foreach (var p in Editor.Project.Handler.ParamData.PrimaryBank.Params)
+        foreach (var p in View.Editor.Project.Handler.ParamData.PrimaryBank.Params)
         {
             if (TargetedParams.Count > 0)
             {

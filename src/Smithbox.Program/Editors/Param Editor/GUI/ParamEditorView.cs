@@ -2,11 +2,6 @@
 using Hexa.NET.ImGui;
 using StudioCore.Application;
 using StudioCore.Editors.Common;
-using StudioCore.Keybinds;
-using StudioCore.Utilities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace StudioCore.Editors.ParamEditor;
 
@@ -22,6 +17,7 @@ public class ParamEditorView
     public ParamTableWindow ParamTableWindow;
     public ParamRowWindow ParamRowWindow;
     public ParamFieldWindow ParamFieldWindow;
+    public ParamToolMenu ToolMenu;
 
     public ParamRowDecorators RowDecorators;
     public ParamFieldDecorators FieldDecorators;
@@ -55,64 +51,119 @@ public class ParamEditorView
         ParamTableWindow = new ParamTableWindow(editor, project, this);
         ParamRowWindow = new ParamRowWindow(editor, project, this);
         ParamFieldWindow = new ParamFieldWindow(editor, project, this);
+        ToolMenu = new ParamToolMenu(this, project);
     }
 
-    public void Display(bool doFocus, bool isActiveView)
+    public void Display(uint dockspaceId, int viewIndex, bool doFocus, bool isActiveView)
     {
-        var activeParam = Selection.GetActiveParam();
+        var scrollTo = 0f;
 
-        var columnCount = 3;
+        var activeParam = Selection.GetActiveParam();
+        Param.Row activeRow = Selection.GetActiveRow();
 
         if (ParamTableWindow.IsInTableGroupMode(activeParam))
         {
-            columnCount = 4;
+
         }
 
-        if (EditorTableUtils.ImGuiTableStdColumns("paramsT", columnCount, true))
+        // Params
+        ImGui.SetNextWindowDockID(dockspaceId, ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowClass(ref GUI.DockGroup_ParamEditorView);
+        if (ImGui.Begin($@"{LOC.Get("PARAM_Window_Params")}###paramEditor_ParamList_{viewIndex}", GUI.GetInnerWindowFlags()))
         {
-            ImGui.TableSetupColumn("paramsCol", ImGuiTableColumnFlags.None, 0.5f);
-            ImGui.TableSetupColumn("paramsCol2", ImGuiTableColumnFlags.None, 0.5f);
+            var width = ImGui.GetContentRegionAvail().X;
+            var height = ImGui.GetContentRegionAvail().Y;
 
-            if (ParamTableWindow.IsInTableGroupMode(activeParam))
-            {
-                ImGui.TableSetupColumn("rowGroupCol", ImGuiTableColumnFlags.None, 0.5f);
-            }
-
-            var scrollTo = 0f;
-            if (ImGui.TableNextColumn())
+            if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
             {
                 FocusManager.SetFocus(EditorFocusContext.ParamEditor_ParamList);
-
-                ParamListWindow.Display(doFocus, isActiveView, scrollTo);
+                Editor.ViewHandler.ActiveView = this;
             }
 
-            if (ParamTableWindow.IsInTableGroupMode(activeParam))
+            ParamListWindow.Display(doFocus, isActiveView, scrollTo);
+        }
+
+        ImGui.End();
+
+        // Tables
+        if (ParamTableWindow.IsInTableGroupMode(activeParam))
+        {
+            ImGui.SetNextWindowDockID(dockspaceId, ImGuiCond.FirstUseEver);
+            ImGui.SetNextWindowClass(ref GUI.DockGroup_ParamEditorView);
+            if (ImGui.Begin($@"{LOC.Get("PARAM_Window_Tables")}###paramEditor_TableList_{viewIndex}", GUI.GetInnerWindowFlags()))
             {
-                if (ImGui.TableNextColumn())
+                var width = ImGui.GetContentRegionAvail().X;
+                var height = ImGui.GetContentRegionAvail().Y;
+
+                if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
                 {
                     FocusManager.SetFocus(EditorFocusContext.ParamEditor_TableList);
-
-                    ParamTableWindow.Display(doFocus, isActiveView, scrollTo, activeParam);
+                    Editor.ViewHandler.ActiveView = this;
                 }
+
+                ParamTableWindow.Display(doFocus, isActiveView, scrollTo, activeParam);
             }
 
-            if (ImGui.TableNextColumn())
+            ImGui.End();
+        }
+
+        // Rows
+        ImGui.SetNextWindowDockID(dockspaceId, ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowClass(ref GUI.DockGroup_ParamEditorView);
+        if (ImGui.Begin($@"{LOC.Get("PARAM_Window_Rows")}###paramEditor_RowList_{viewIndex}", GUI.GetInnerWindowFlags()))
+        {
+            var width = ImGui.GetContentRegionAvail().X;
+            var height = ImGui.GetContentRegionAvail().Y;
+
+            if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
             {
                 FocusManager.SetFocus(EditorFocusContext.ParamEditor_RowList);
-
-                ParamRowWindow.Display(doFocus, isActiveView, scrollTo, activeParam);
+                Editor.ViewHandler.ActiveView = this;
             }
 
-            Param.Row activeRow = Selection.GetActiveRow();
-            if (ImGui.TableNextColumn())
+            ParamRowWindow.Display(doFocus, isActiveView, scrollTo, activeParam);
+        }
+
+        ImGui.End();
+
+        // Fields
+        ImGui.SetNextWindowDockID(dockspaceId, ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowClass(ref GUI.DockGroup_ParamEditorView);
+        if (ImGui.Begin($@"{LOC.Get("PARAM_Window_Fields")}###paramEditor_FieldList_{viewIndex}", GUI.GetInnerWindowFlags()))
+        {
+            var width = ImGui.GetContentRegionAvail().X;
+            var height = ImGui.GetContentRegionAvail().Y;
+
+            if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
             {
                 FocusManager.SetFocus(EditorFocusContext.ParamEditor_FieldList);
-
-                ParamFieldWindow.Display(isActiveView, activeParam, activeRow);
+                Editor.ViewHandler.ActiveView = this;
             }
 
-            ImGui.EndTable();
+            ParamFieldWindow.Display(isActiveView, activeParam, activeRow);
         }
+
+        ImGui.End();
+
+        // Tools
+        ImGui.SetNextWindowDockID(dockspaceId, ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowClass(ref GUI.DockGroup_ParamEditorView);
+        if (ImGui.Begin($@"{LOC.Get("PARAM_Window_Tool_Window")}###paramEditor_ToolWindow_{viewIndex}", GUI.GetMainWindowFlags()))
+        {
+            var width = ImGui.GetContentRegionAvail().X;
+            var height = ImGui.GetContentRegionAvail().Y;
+
+            if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
+            {
+                FocusManager.SetFocus(EditorFocusContext.ParamEditor_Tools);
+                Editor.ViewHandler.ActiveView = this;
+            }
+
+            ToolMenu.Draw();
+        }
+
+        ImGui.End();
+
     }
 
     public ParamData GetParamData()

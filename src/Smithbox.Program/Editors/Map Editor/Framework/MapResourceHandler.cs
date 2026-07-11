@@ -152,7 +152,7 @@ public class MapResourceHandler
         }
     }
 
-    public void SetupTexturelLoadLists()
+    public void SetupTextureLoadLists()
     {
         // MAP
         foreach (ResourceDescriptor asset in TextureLocator.GetMapTextureVirtualPaths(View.Project, AdjustedMapID))
@@ -215,26 +215,6 @@ public class MapResourceHandler
 
             if (textureAsset.IsValid())
                 LoadList_Asset_Texture.Add(textureAsset);
-        }
-    }
-
-    public void SetupModelMasks(MapContainer map)
-    {
-        foreach (Entity obj in map.Objects)
-        {
-            if (obj.WrappedObject is IMsbPart mp && mp.ModelName != null && mp.ModelName != string.Empty &&
-                obj.RenderSceneMesh == null)
-            {
-                int[] masks = null;
-                if (obj is MsbEntity msbEnt)
-                {
-                    masks = msbEnt.GetModelMasks();
-                }
-
-                var renderScene = View.Universe.GetCurrentScene();
-
-                DrawableHelper.GetModelDrawable(View.Universe, renderScene, map, obj, mp.ModelName, false, masks);
-            }
         }
     }
 

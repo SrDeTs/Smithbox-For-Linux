@@ -1,6 +1,4 @@
 ﻿#nullable enable
-using CsvHelper;
-using HKX2;
 using StudioCore.Application;
 using StudioCore.Editors.Common;
 using System;
@@ -9,7 +7,6 @@ using System.Numerics;
 using Veldrid;
 using Veldrid.Utilities;
 using Vortice.Vulkan;
-using static SoapstoneLib.SoapstoneClient;
 
 namespace StudioCore.Renderer;
 
@@ -276,9 +273,6 @@ public class MeshRenderableProxy : RenderableProxy, IMeshProviderEventListener
 
             if (needsPlaceholder)
             {
-                _placeholderProxy =
-                    RenderableHelper.GetModelMarkerProxy(_renderablesSet, _placeholderType);
-
                 if(useTreePlaceholder)
                 {
                     _placeholderProxy =
@@ -291,26 +285,37 @@ public class MeshRenderableProxy : RenderableProxy, IMeshProviderEventListener
                         RenderableHelper.GetBushProxy(_renderablesSet);
                     _placeholderProxy.DrawFilter = RenderFilter.SpeedTree;
                 }
-                else
+                else if(_placeholderType is ModelMarkerType.Enemy)
                 {
-                    _placeholderProxy.DrawFilter = _drawfilter;
+                    _placeholderProxy = RenderableHelper.GetPartProxy(_renderablesSet);
+                }
+                else if (_placeholderType is ModelMarkerType.Object)
+                {
+                    _placeholderProxy = RenderableHelper.GetPartProxy(_renderablesSet);
+                }
+                else if (_placeholderType is ModelMarkerType.Player)
+                {
+                    //_placeholderProxy = RenderableHelper.GetPartProxy(_renderablesSet);
                 }
 
-                _placeholderProxy.World = World;
-                _placeholderProxy.Visible = Visible;
-                _placeholderProxy.DrawGroups = _drawgroups;
-                if (_selectable != null)
+                if (_placeholderProxy != null)
                 {
-                    _selectable.TryGetTarget(out ISelectable? sel);
-                    if (sel != null)
+                    _placeholderProxy.World = World;
+                    _placeholderProxy.Visible = Visible;
+                    _placeholderProxy.DrawGroups = _drawgroups;
+                    if (_selectable != null)
                     {
-                        _placeholderProxy.SetSelectable(sel);
+                        _selectable.TryGetTarget(out ISelectable? sel);
+                        if (sel != null)
+                        {
+                            _placeholderProxy.SetSelectable(sel);
+                        }
                     }
-                }
 
-                if (_registered)
-                {
-                    _placeholderProxy.Register();
+                    if (!_registered)
+                    {
+                        _placeholderProxy.Register();
+                    }
                 }
             }
         }
@@ -320,9 +325,11 @@ public class MeshRenderableProxy : RenderableProxy, IMeshProviderEventListener
     {
         if (_meshProvider.IsAtomic())
         {
-            foreach (MeshRenderableProxy c in _submeshes)
+            for(int i = 0; i < _submeshes.Count; i++)
             {
-                c.UnregisterAndRelease();
+                var curSubmesh = _submeshes[i];
+
+                curSubmesh.UnregisterAndRelease();
             }
 
             _submeshes.Clear();
@@ -747,9 +754,9 @@ public class MeshRenderableProxy : RenderableProxy, IMeshProviderEventListener
                               cameraDistanceInt);
     }
 
-    public static MeshRenderableProxy MeshRenderableFromFlverResource(RenderScene scene, string virtualPath, ModelMarkerType modelType, IEnumerable<int>? masks)
+    public static MeshRenderableProxy MeshRenderableFromFlverResource(RenderScene scene, string virtualPath, ModelMarkerType modelType, string uid, IEnumerable<int>? masks)
     {
-        var meshProvider = MeshProviderCache.GetFlverMeshProvider(virtualPath, masks);
+        var meshProvider = MeshProviderCache.GetFlverMeshProvider(virtualPath, masks, uid);
 
         MeshRenderableProxy renderable = new(scene.OpaqueRenderables, meshProvider, modelType);
 
@@ -818,22 +825,16 @@ public class MeshRenderableProxy : RenderableProxy, IMeshProviderEventListener
 
             var sub = _submeshes[i];
 
-            sub.Unregister();
-
             sub.Dispose();
 
             _submeshes.RemoveAt(i);
-        }
-
-        _submeshes.Clear();
-        _submeshes.Add(selected);
+        };
     }
 
-    public void Unregister()
+    public override void Dispose()
     {
-        foreach (var sub in _submeshes)
-        {
-            sub.Unregister();
-        }
+        UnregisterAndRelease();
+        _meshProvider.Release();
+        base.Dispose();
     }
 }

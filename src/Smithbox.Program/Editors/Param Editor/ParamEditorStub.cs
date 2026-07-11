@@ -43,7 +43,8 @@ public class ParamEditorStub : IEditorStub
 
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0.0f, 0.0f));
 
-        if (ImGui.Begin(EditorName, ImGuiWindowFlags.MenuBar))
+        ImGui.SetNextWindowClass(ref GUI.DockGroup_EditorView);
+        if (ImGui.Begin($"{LOC.Get("PARAM_Window_Param_Editor")}###paramEditor", ImGuiWindowFlags.MenuBar))
         {
             ImGui.PopStyleColor(1);
             ImGui.PopStyleVar(1);
@@ -54,8 +55,8 @@ public class ParamEditorStub : IEditorStub
             }
             else
             {
-                ImGui.Text("");
-                ImGui.Text("   Editor is loading...");
+                GUI.Spacer();
+                ImGui.Text(LOC.Get("EDITOR_Editor_Is_Loading"));
             }
 
             ImGui.End();

@@ -1,26 +1,43 @@
 ﻿using Hexa.NET.ImGui;
 using StudioCore.Utilities;
 using System.Linq;
+using System.Numerics;
 
 namespace StudioCore.Application;
 
-public static class DokuWikiGenerator
+public class DokuWikiGenerator
 {
-    public static void Display(ProjectEntry project)
+    public DokuWikiGenerator() { }
+
+    public void Display()
     {
+        var project = Smithbox.Orchestrator.SelectedProject;
+
         if (project == null)
+            return;
+
+        if (project.Handler == null)
             return;
 
         if (project.Handler.ParamEditor == null)
             return;
 
-        if (ImGui.Button("Output Param Table Information", DPI.StandardButtonSize))
-        {
-            OutputParamTableInformation(project);
-        }
+        GUI.SimpleHeader(
+            LOC.Get("DEV_Tool_Header_Actions"),
+            LOC.Get("DEV_Tool_Header_Actions_TT"));
 
-        UIHelper.SimpleHeader("paramList", "Specific Param Information", "", UI.Current.ImGui_AliasName_Text);
+        GUI.MultiButtonInput("dokuActions",
+            "exportInfo", 
+            LOC.Get("DEV_Tool_Action_Export_Table_Information"),
+            LOC.Get("DEV_Tool_Action_Export_Table_Information_TT"),
+            OutputParamTableInformation);
 
+        GUI.Spacer();
+        GUI.SimpleHeader(
+            LOC.Get("DEV_Tool_Header_Specific_Param_Info"),
+            LOC.Get("DEV_Tool_Header_Specific_Param_Info_TT"));
+
+        ImGui.BeginChild("specificParamSection", new Vector2(0, 200), ImGuiChildFlags.Borders);
         foreach (var param in project.Handler.ParamData.PrimaryBank.Params)
         {
             var paramKey = param.Key;
@@ -30,11 +47,22 @@ public static class DokuWikiGenerator
                 OutputParamInformation(project, paramKey);
             }
         }
+        ImGui.EndChild();
     }
 
-    public static void OutputParamTableInformation(ProjectEntry curProject)
+    public void OutputParamTableInformation()
     {
-        var editor = Smithbox.Orchestrator.SelectedProject.Handler.ParamEditor;
+        var curProject = Smithbox.Orchestrator.SelectedProject;
+
+        if (curProject == null)
+            return;
+
+        var handler = curProject.Handler;
+
+        if (handler == null)
+            return;
+
+        var editor = handler.ParamEditor;
 
         var output = "^ Param ^ Description ^\n";
 
@@ -50,9 +78,17 @@ public static class DokuWikiGenerator
         PlatformUtils.Instance.SetClipboardText(output);
     }
 
-    public static void OutputParamInformation(ProjectEntry project, string paramKey)
+    public void OutputParamInformation(ProjectEntry project, string paramKey)
     {
-        var editor = Smithbox.Orchestrator.SelectedProject.Handler.ParamEditor;
+        if (project == null)
+            return;
+
+        var handler = project.Handler;
+
+        if (handler == null)
+            return;
+
+        var editor = handler.ParamEditor;
 
         var namespacePrefix = "XXX";
 

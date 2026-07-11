@@ -21,10 +21,7 @@ public class ModelEditorScreen : EditorScreen
     public ModelCommandQueue CommandQueue;
     public ModelShortcuts Shortcuts;
 
-    public ModelToolWindow ToolMenu;
-
     public ResourceLoadWindow LoadingModal;
-    public ResourceListWindow ResourceList;
 
     public ModelEditorScreen(ProjectEntry project)
     {
@@ -36,9 +33,6 @@ public class ModelEditorScreen : EditorScreen
         Shortcuts = new ModelShortcuts(this, project);
 
         LoadingModal = new();
-        ResourceList = new();
-
-        ToolMenu = new ModelToolWindow(this, project);
     }
 
     public string EditorName => "Model Editor";
@@ -51,6 +45,8 @@ public class ModelEditorScreen : EditorScreen
     {
         var scale = DPI.UIScale();
 
+        var activeView = ViewHandler.ActiveView;
+
         Shortcuts.Monitor();
 
         CommandQueue.Parse(commands);
@@ -60,28 +56,25 @@ public class ModelEditorScreen : EditorScreen
             FileMenu();
             EditMenu();
             ViewMenu();
-            ToolMenu.OnMenubar();
+
+            if(activeView != null)
+            {
+                activeView.ToolView.DisplayDropdown();
+            }
+
+            OptionsMenu();
 
             ImGui.EndMenuBar();
         }
 
         var dsid = ImGui.GetID("DockSpace_ModelEdit");
-        ImGui.DockSpace(dsid, new Vector2(0, 0));
+        ImGui.DockSpace(dsid, new Vector2(0, 0), ref GUI.DockGroup_ModelEditor);
 
-        ViewHandler.HandleViews();
-
-        var activeView = ViewHandler.ActiveView;
+        ViewHandler.HandleViews(dsid);
 
         if (activeView != null)
         {
-            ToolMenu.Display();
-
             LoadingModal.DisplayWindow(activeView.ViewportWindow.Viewport.Width, activeView.ViewportWindow.Viewport.Height);
-
-            if (CFG.Current.Interface_ModelEditor_ResourceList)
-            {
-                ResourceList.DisplayWindow("modelResourceList", activeView.Universe, CFG.Current.Interface_ModelEditor_ScreenshotMode);
-            }
         }
     }
 
@@ -102,13 +95,13 @@ public class ModelEditorScreen : EditorScreen
                 {
                     CFG.Current.ModelEditor_ManualSave_IncludeFLVER = !CFG.Current.ModelEditor_ManualSave_IncludeFLVER;
                 }
-                UIHelper.Tooltip("If enabled, the model container files are outputted on save.");
-                UIHelper.ShowActiveStatus(CFG.Current.ModelEditor_ManualSave_IncludeFLVER);
+                GUI.Tooltip("If enabled, the model container files are outputted on save.");
+                GUI.ShowActiveStatus(CFG.Current.ModelEditor_ManualSave_IncludeFLVER);
 
 
                 ImGui.EndMenu();
             }
-            UIHelper.Tooltip("Determines which files are outputted during the manual saving process.");
+            GUI.Tooltip("Determines which files are outputted during the manual saving process.");
 
             if (ImGui.BeginMenu("Output on Automatic Save"))
             {
@@ -116,12 +109,12 @@ public class ModelEditorScreen : EditorScreen
                 {
                     CFG.Current.ModelEditor_AutomaticSave_IncludeFLVER = !CFG.Current.ModelEditor_AutomaticSave_IncludeFLVER;
                 }
-                UIHelper.Tooltip("If enabled, the model container files are outputted on save.");
-                UIHelper.ShowActiveStatus(CFG.Current.ModelEditor_AutomaticSave_IncludeFLVER);
+                GUI.Tooltip("If enabled, the model container files are outputted on save.");
+                GUI.ShowActiveStatus(CFG.Current.ModelEditor_AutomaticSave_IncludeFLVER);
 
                 ImGui.EndMenu();
             }
-            UIHelper.Tooltip("Determines which files are outputted during the automatic saving process.");
+            GUI.Tooltip("Determines which files are outputted during the automatic saving process.");
 
 
             ImGui.EndMenu();
@@ -193,25 +186,63 @@ public class ModelEditorScreen : EditorScreen
             {
                 CFG.Current.Interface_ModelEditor_ToolWindow = !CFG.Current.Interface_ModelEditor_ToolWindow;
             }
-            UIHelper.ShowActiveStatus(CFG.Current.Interface_ModelEditor_ToolWindow);
-
-            if (ImGui.MenuItem("Resource List"))
-            {
-                CFG.Current.Interface_ModelEditor_ResourceList = !CFG.Current.Interface_ModelEditor_ResourceList;
-            }
-            UIHelper.ShowActiveStatus(CFG.Current.Interface_ModelEditor_ResourceList);
+            GUI.ShowActiveStatus(CFG.Current.Interface_ModelEditor_ToolWindow);
 
             // Hides the non-Viewport windows
             if (ImGui.MenuItem("Screenshot Mode"))
             {
                 CFG.Current.Interface_ModelEditor_ScreenshotMode = !CFG.Current.Interface_ModelEditor_ScreenshotMode;
             }
-            UIHelper.ShowActiveStatus(CFG.Current.Interface_ModelEditor_ScreenshotMode);
+            GUI.ShowActiveStatus(CFG.Current.Interface_ModelEditor_ScreenshotMode);
 
 
             ImGui.Separator();
 
             ViewHandler.DisplayMenu();
+
+            ImGui.EndMenu();
+        }
+    }
+
+    public void OptionsMenu()
+    {
+        if (ImGui.BeginMenu("Options"))
+        {
+            if (ImGui.BeginMenu("Containers"))
+            {
+                if (ImGui.MenuItem("Include Alias in Search"))
+                {
+                    CFG.Current.ModelEditor_Containers_IncludeAliasInSearch = !CFG.Current.ModelEditor_Containers_IncludeAliasInSearch;
+                }
+                GUI.Tooltip($"If enabled, when filtering the source list, alias will be included. Can be slower than normal.");
+                GUI.ShowActiveStatus(CFG.Current.ModelEditor_Containers_IncludeAliasInSearch);
+
+                ImGui.EndMenu();
+            }
+
+            if (ImGui.BeginMenu("Files"))
+            {
+                if (ImGui.MenuItem("Auto-Select First Entries"))
+                {
+                    CFG.Current.ModelEditor_Files_AutoLoadFirstEntry = !CFG.Current.ModelEditor_Files_AutoLoadFirstEntry;
+                }
+                GUI.Tooltip($"If enabled, the first entry in the list will be loaded automatically.");
+                GUI.ShowActiveStatus(CFG.Current.ModelEditor_Files_AutoLoadFirstEntry);
+
+                ImGui.EndMenu();
+            }
+
+            if (ImGui.BeginMenu("Contents"))
+            {
+                if (ImGui.MenuItem("Display Node Name in Mesh Entry"))
+                {
+                    CFG.Current.ModelEditor_Contents_NodeNameInMeshEntry = !CFG.Current.ModelEditor_Contents_NodeNameInMeshEntry;
+                }
+                GUI.Tooltip($"If enabled, the linked node name is displayed in the mesh entry name.");
+                GUI.ShowActiveStatus(CFG.Current.ModelEditor_Contents_NodeNameInMeshEntry);
+
+                ImGui.EndMenu();
+            }
 
             ImGui.EndMenu();
         }

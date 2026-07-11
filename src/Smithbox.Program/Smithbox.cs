@@ -4,16 +4,15 @@ using Octokit;
 using SoapstoneLib;
 using SoulsFormats;
 using StudioCore.Application;
+using StudioCore.Developer;
 using StudioCore.Keybinds;
 using StudioCore.Logger;
 using StudioCore.Logger.GUI;
 using StudioCore.Preferences;
 using StudioCore.Renderer;
 using StudioCore.Utilities;
-using System;
 using System.Diagnostics;
 using System.Globalization;
-using System.IO;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Tracy;
@@ -46,7 +45,7 @@ public class Smithbox
 
     public SoapstoneService _soapstoneService;
 
-    public DeveloperTools DebugTools;
+    public DeveloperPanel DeveloperPanel;
 
     public PreferencesMenu PreferencesMenu = new();
     public KeybindsMenu KeybindsMenu = new();
@@ -65,11 +64,27 @@ public class Smithbox
         Instance = this;
 
         _version = version;
-        _programTitle = $"Smithbox - {_version}";
+        _programTitle = $"{LOC.Get("PROGRAM_TITLE")} - {_version}";
 
-        UIHelper.RestoreImguiIfMissing();
+        GUI.RestoreImguiIfMissing();
         // Hack to make sure dialogs work before the main window is created
         PlatformUtils.InitializeWindows(null);
+
+        // Initialize logging early so Setup() (which may call LogError) can use it
+        if (LogsProvider is null)
+        {
+            LogsProvider = new TaskLogsProvider();
+            SbLoggerFactory = LoggerFactory.Create(builder =>
+            {
+                builder.AddProvider(LogsProvider);
+#if DEBUG
+                builder.AddConsole();
+#endif
+            });
+            SbLogger = SbLoggerFactory.CreateLogger<Smithbox>();
+            SoulsFormats.Util.Logging.LoggerFactory = SbLoggerFactory;
+            Andre.Core.AndreLogging.LoggerFactory = SbLoggerFactory;
+        }
 
         Setup();
 
@@ -86,38 +101,25 @@ public class Smithbox
             }
             catch (Exception ex)
             {
-                Smithbox.LogWarning(this, "Failed to create Vulkan context, falling back to OpenGL", ex);
+                Smithbox.LogWarning(this, 
+                    LOC.Get("SYS_VULKAN_CONTEXT_FAILED"), ex);
 
                 _context = new OpenGLCompatGraphicsContext();
-                CFG.Current.System_RenderingBackend = RenderingBackend.OpenGL;
+                Startup.Current.System_RenderingBackend = RenderingBackend.OpenGL;
             }
         }
 
         // Set this so even if the user changes the CFG, the program won't suddenly switch its usage until a restart.
-        CurrentBackend = CFG.Current.System_RenderingBackend;
-
-        //set up logging
-        if (LogsProvider is null)
-        {
-            LogsProvider = new TaskLogsProvider();
-            SbLoggerFactory = LoggerFactory.Create(builder =>
-            {
-                builder.AddProvider(LogsProvider);
-                builder.AddConsole();
-            });
-            SbLogger = SbLoggerFactory.CreateLogger<Smithbox>();
-            SoulsFormats.Util.Logging.LoggerFactory = SbLoggerFactory;
-            Andre.Core.AndreLogging.LoggerFactory = SbLoggerFactory;
-        }
+        CurrentBackend = Startup.Current.System_RenderingBackend;
 
         ActionLogger = new(
-            "Action",
+            "LOG_Action_Log",
             evt => evt.Level is not (LogLevel.Warning or LogLevel.Error),
             //fade time is calculated to be the configured fade time in frames, but we need ms.
             () => (enabled: CFG.Current.Logger_Enable_Action_Log, fadeTime: (int)(CFG.Current.Logger_Action_Fade_Time * 1000 / 60f), fadeColor: CFG.Current.Logger_Enable_Color_Fade)
         );
         WarningLogger = new(
-            "Warning",
+            "LOG_Error_Log",
             evt => evt.Level is LogLevel.Warning or LogLevel.Error,
             () => (enabled: CFG.Current.Logger_Enable_Warning_Log, fadeTime: (int)(CFG.Current.Logger_Warning_Fade_Time * 1000 / 60f), fadeColor: CFG.Current.Logger_Enable_Color_Fade)
         );
@@ -145,7 +147,7 @@ public class Smithbox
 
         KeybindsMenu = new();
         PreferencesMenu = new();
-        DebugTools = new();
+        DeveloperPanel = new();
 
         _soapstoneService = new(version);
 
@@ -186,6 +188,7 @@ public class Smithbox
     public void SaveConfiguration()
     {
         using var __tracy = Profiler.TracyZoneAuto();
+        Startup.Save();
         CFG.Save();
         UI.Save();
         InputManager.SaveKeybinds();
@@ -221,107 +224,112 @@ public class Smithbox
 
     private unsafe void SetupFonts()
     {
-        string EnglishFontRelPath = Path.Join("Assets", "Fonts", "RobotoMono-Light.ttf");
-        string NonEnglishFontRelPath = Path.Join("Assets", "Fonts", "NotoSansCJKtc-Light.otf");
-        string IconFontRelPath = Path.Join("Assets", "Fonts", "forkawesome-webfont.ttf");
-
-        if (!string.IsNullOrWhiteSpace(CFG.Current.Interface_English_Font_Path) &&
-            File.Exists(CFG.Current.Interface_English_Font_Path))
-        {
-            EnglishFontRelPath = CFG.Current.Interface_English_Font_Path;
-        }
-
-        if (!string.IsNullOrWhiteSpace(CFG.Current.Interface_Non_English_Font_Path) &&
-            File.Exists(CFG.Current.Interface_Non_English_Font_Path))
-        {
-            NonEnglishFontRelPath = CFG.Current.Interface_Non_English_Font_Path;
-        }
-
-        var englishFontPath = Path.Combine(AppContext.BaseDirectory, EnglishFontRelPath);
-        var englishFontData = File.ReadAllBytes(englishFontPath);
-        var englishFontPtr = ImGui.MemAlloc((uint)englishFontData.Length);
-        Marshal.Copy(englishFontData, 0, (nint)englishFontPtr, englishFontData.Length);
-
-        var nonEnglishFontPath = Path.Combine(AppContext.BaseDirectory, NonEnglishFontRelPath);
-        var nonEnglishFontData = File.ReadAllBytes(nonEnglishFontPath);
-        var nonEnglishFontPtr = ImGui.MemAlloc((uint)nonEnglishFontData.Length);
-        Marshal.Copy(nonEnglishFontData, 0, (nint)nonEnglishFontPtr, nonEnglishFontData.Length);
-
-        var iconFontPath = Path.Combine(AppContext.BaseDirectory, IconFontRelPath);
-        var iconFontData = File.ReadAllBytes(iconFontPath);
-        var iconFontPtr = ImGui.MemAlloc((uint)iconFontData.Length);
-        Marshal.Copy(iconFontData, 0, (nint)iconFontPtr, iconFontData.Length);
-
         ImFontAtlasPtr fonts = ImGui.GetIO().Fonts;
         fonts.Clear();
 
         var scaleFine = (float)Math.Round(CFG.Current.Interface_Font_Size * DPI.UIScale());
-        var scaleLarge = (float)Math.Round((CFG.Current.Interface_Font_Size + 2) * DPI.UIScale());
 
         ImFontConfigPtr cfg = ImGui.ImFontConfig();
 
-        // Base English Font
-        cfg.MergeMode = false;
-        cfg.GlyphMinAdvanceX = 5.0f;
-        cfg.OversampleH = 3;
-        cfg.OversampleV = 2;
-
-        fonts.AddFontFromMemoryTTF(englishFontPtr, englishFontData.Length, scaleFine, cfg,
-            fonts.GetGlyphRangesDefault());
-
-        // Non-English Font
-        cfg.MergeMode = true;
-        cfg.GlyphMinAdvanceX = 7.0f;
-        cfg.OversampleH = 2;
-        cfg.OversampleV = 2;
-
-        ImFontGlyphRangesBuilderPtr glyphRanges = ImGui.ImFontGlyphRangesBuilder();
-        glyphRanges.AddRanges(fonts.GetGlyphRangesJapanese());
-
-        glyphRanges.AddRanges(fonts.GetGlyphRangesChineseFull());
-
-        Array.ForEach(InterfaceUtils.SpecialCharsJP, c => glyphRanges.AddChar(c));
-
-        if (CFG.Current.Interface_Include_Chinese_Symbols)
-            glyphRanges.AddRanges(fonts.GetGlyphRangesChineseFull());
-        if (CFG.Current.Interface_Include_Korean_Symbols)
-            glyphRanges.AddRanges(fonts.GetGlyphRangesKorean());
-        if (CFG.Current.Interface_Include_Thai_Symbols)
-            glyphRanges.AddRanges(fonts.GetGlyphRangesThai());
-        if (CFG.Current.Interface_Include_Vietnamese_Symbols)
-            glyphRanges.AddRanges(fonts.GetGlyphRangesVietnamese());
-        if (CFG.Current.Interface_Include_Cyrillic_Symbols)
-            glyphRanges.AddRanges(fonts.GetGlyphRangesCyrillic());
-
-        ImVector<uint> outGlyphRanges;
-        glyphRanges.BuildRanges(&outGlyphRanges);
-        fonts.AddFontFromMemoryTTF(nonEnglishFontPtr, nonEnglishFontData.Length, scaleFine, cfg, outGlyphRanges.Data);
-        glyphRanges.Destroy();
-
-        // TODO: fix this so it works
-        // Icon Font
-        cfg.MergeMode = true;
-        cfg.GlyphMinAdvanceX = 7.0f;
-        cfg.OversampleH = 3;
-        cfg.OversampleV = 3;
-
-        ImFontGlyphRangesBuilderPtr iconGlyphBuilder = ImGui.ImFontGlyphRangesBuilder();
-
-        const int IconMin = 0xf000;
-        const int IconMax = 0xf339;
-
-        for (int i = IconMin; i <= IconMax; i++)
-        {
-            iconGlyphBuilder.AddChar((char)i);
-        }
-
-        ImVector<uint> iconGlyphRanges;
-        iconGlyphBuilder.BuildRanges(&iconGlyphRanges);
-
-        fonts.AddFontFromMemoryTTF(iconFontPtr, iconFontData.Length, scaleFine, cfg, iconGlyphRanges.Data);
-        iconGlyphBuilder.Destroy();
+        AddEnglishFont(fonts, cfg, CFG.Current.English_Font, scaleFine);
+        AddAdditionaFont(fonts, cfg, CFG.Current.Additional_Font_1, scaleFine);
+        AddAdditionaFont(fonts, cfg, CFG.Current.Additional_Font_2, scaleFine);
+        AddAdditionaFont(fonts, cfg, CFG.Current.Additional_Font_3, scaleFine);
+        AddAdditionaFont(fonts, cfg, CFG.Current.Additional_Font_4, scaleFine);
+        AddAdditionaFont(fonts, cfg, CFG.Current.Additional_Font_5, scaleFine);
+        AddIconFont(fonts, cfg, scaleFine);
 
         _context.ImguiRenderer.RecreateFontDeviceTexture();
+    }
+
+    private unsafe void AddEnglishFont(ImFontAtlasPtr fonts, ImFontConfigPtr cfg, string fontPath, float scale)
+    {
+        var englishFontPath = Path.Combine(AppContext.BaseDirectory, fontPath);
+
+        if (File.Exists(englishFontPath))
+        {
+            var englishFontData = File.ReadAllBytes(englishFontPath);
+            var englishFontPtr = ImGui.MemAlloc((uint)englishFontData.Length);
+            Marshal.Copy(englishFontData, 0, (nint)englishFontPtr, englishFontData.Length);
+
+            cfg.MergeMode = false;
+            cfg.GlyphMinAdvanceX = 5.0f;
+            cfg.OversampleH = 3;
+            cfg.OversampleV = 2;
+
+            fonts.AddFontFromMemoryTTF(englishFontPtr, englishFontData.Length, scale, cfg,
+                fonts.GetGlyphRangesDefault());
+        }
+    }
+
+    private unsafe void AddAdditionaFont(ImFontAtlasPtr fonts, ImFontConfigPtr cfg, string fontPath, float scale)
+    {
+        var additionalFontPath = Path.Combine(AppContext.BaseDirectory, fontPath);
+
+        if (File.Exists(additionalFontPath))
+        {
+            var additionalFontData = File.ReadAllBytes(additionalFontPath);
+            var additionalFontPtr = ImGui.MemAlloc((uint)additionalFontData.Length);
+            Marshal.Copy(additionalFontData, 0, (nint)additionalFontPtr, additionalFontData.Length);
+
+            cfg.MergeMode = true;
+            cfg.GlyphMinAdvanceX = 7.0f;
+            cfg.OversampleH = 2;
+            cfg.OversampleV = 2;
+
+            ImFontGlyphRangesBuilderPtr glyphRanges = ImGui.ImFontGlyphRangesBuilder();
+            glyphRanges.AddRanges(fonts.GetGlyphRangesJapanese());
+            glyphRanges.AddRanges(fonts.GetGlyphRangesChineseFull());
+
+            Array.ForEach(InterfaceUtils.SpecialCharsJP, c => glyphRanges.AddChar(c));
+
+            glyphRanges.AddRanges(fonts.GetGlyphRangesChineseFull());
+            glyphRanges.AddRanges(fonts.GetGlyphRangesKorean());
+            glyphRanges.AddRanges(fonts.GetGlyphRangesThai());
+            glyphRanges.AddRanges(fonts.GetGlyphRangesVietnamese());
+            glyphRanges.AddRanges(fonts.GetGlyphRangesCyrillic());
+
+            ImVector<uint> outGlyphRanges;
+            glyphRanges.BuildRanges(&outGlyphRanges);
+            fonts.AddFontFromMemoryTTF(additionalFontPtr, additionalFontData.Length, scale, cfg, outGlyphRanges.Data);
+            glyphRanges.Destroy();
+        }
+    }
+
+    private unsafe void AddIconFont(ImFontAtlasPtr fonts, ImFontConfigPtr cfg, float scale)
+    {
+        string IconFontRelPath = Path.Join("Assets", "Fonts", "forkawesome-webfont.ttf");
+
+        var iconFontPath = Path.Combine(AppContext.BaseDirectory, IconFontRelPath);
+
+        if (File.Exists(iconFontPath))
+        {
+            var iconFontData = File.ReadAllBytes(iconFontPath);
+            var iconFontPtr = ImGui.MemAlloc((uint)iconFontData.Length);
+            Marshal.Copy(iconFontData, 0, (nint)iconFontPtr, iconFontData.Length);
+
+            // Icon Font
+            cfg.MergeMode = true;
+            cfg.GlyphMinAdvanceX = 7.0f;
+            cfg.OversampleH = 3;
+            cfg.OversampleV = 3;
+
+            ImFontGlyphRangesBuilderPtr iconGlyphBuilder = ImGui.ImFontGlyphRangesBuilder();
+
+            const int IconMin = 0xf000;
+            const int IconMax = 0xf339;
+
+            for (int i = IconMin; i <= IconMax; i++)
+            {
+                iconGlyphBuilder.AddChar((char)i);
+            }
+
+            ImVector<uint> iconGlyphRanges;
+            iconGlyphBuilder.BuildRanges(&iconGlyphRanges);
+
+            fonts.AddFontFromMemoryTTF(iconFontPtr, iconFontData.Length, scale, cfg, iconGlyphRanges.Data);
+            iconGlyphBuilder.Destroy();
+        }
     }
 
     public void Run()
@@ -333,9 +341,9 @@ public class Smithbox
         {
             TaskManager.LiveTask task = new(
                 "system_setupSoapstoneServer",
-                "[System]",
-                "Soapstone server is running.",
-                "Soapstone server is not running.",
+                LOC.Get("SYS_Header"),
+                LOC.Get("SYS_SOAPSTONE_SERVER_RUNNING"),
+                LOC.Get("SYS_SOAPSTONE_SERVER_STOPPED"),
                 TaskManager.RequeueType.None,
                 true,
                 () =>
@@ -430,15 +438,17 @@ public class Smithbox
             // Program crashed on initial load, clear recent project to let the user launch the program next time without issue.
             try
             {
+                Startup.Save();
                 CFG.Save();
                 UI.Save();
             }
             catch (Exception e)
             {
-                PlatformUtils.Instance.MessageBox($"Unable to save config during crash recovery.\n" +
-                                                  $"If you continue to crash on startup, delete config in {Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Smithbox")}\n\n" +
-                                                  $"{e.Message} {e.StackTrace}",
-                    "Error",
+                var path = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData));
+
+                PlatformUtils.Instance.MessageBox(
+                    LOC.Get("SYS_FAILED_TO_SAVE_CONFIG", path, e.Message, e.StackTrace),
+                    LOC.Get("SYS_Error_Header"),
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
             }
@@ -471,7 +481,7 @@ public class Smithbox
         //    _user32_ShowWindow(_context.Window.Handle, 9);
         //}
 
-        UIHelper.ApplyBaseStyle();
+        GUI.ApplyBaseStyle();
 
         ImGuiViewportPtr viewport = ImGui.GetMainViewport();
 
@@ -508,7 +518,7 @@ public class Smithbox
 
         uint dockspaceID = ImGui.GetID("MainDockspace");
 
-        ImGui.DockSpace(dockspaceID, Vector2.Zero, dockFlags);
+        ImGui.DockSpace(dockspaceID, Vector2.Zero, dockFlags, ref GUI.DockGroup_EditorView);
 
         ImGui.PopStyleVar(1);
         ImGui.End();
@@ -528,62 +538,61 @@ public class Smithbox
             if (evt.Priority == LogPriority.High && CFG.Current.Logger_Enable_Log_Popups)
             {
                 var popupMessage = evt.Message;
+
                 if (evt.Exception != null)
-                    popupMessage += $"\n\nException Details:\n{evt.Exception}";
+                {
+                    popupMessage += $"\n\n{LOC.Get("SYS_EXCEPTION_DETAILS")}\n{evt.Exception}";
+                }
+
                 PlatformUtils.Instance.MessageBox(popupMessage, evt.Level.ToString(), MessageBoxButtons.OK);
             }
         }
 
         if (ImGui.BeginMainMenuBar())
         {
-            if (ImGui.BeginMenu("Projects"))
-            {
-                Orchestrator.DisplayMenuOptions();
-
-                ImGui.EndMenu();
-            }
-
             // Preferences
-            if (ImGui.MenuItem("Preferences"))
+            if (ImGui.MenuItem($"{LOC.Get("PROGRAM_Menu_Header_Preferences")}##prefMenuHeader"))
             {
                 PreferencesMenu.IsDisplayed = !PreferencesMenu.IsDisplayed;
             }
 
             // Keybinds
-            if (ImGui.MenuItem("Shortcuts"))
+            if (ImGui.MenuItem($"{LOC.Get("PROGRAM_Menu_Header_Shortcuts")}##shortcutMenuHeader"))
             {
                 KeybindsMenu.IsDisplayed = !KeybindsMenu.IsDisplayed;
             }
 
             // Help
-            if (ImGui.BeginMenu("Help"))
+            if (ImGui.BeginMenu($"{LOC.Get("PROGRAM_Menu_Header_Help")}##helpMenuHeader"))
             {
-                ImGui.Text("Developed by Vawser.");
-                ImGui.Text($"Smithbox Version: {_version}");
+                ImGui.Text(LOC.Get("HELP_Developed_By"));
+                ImGui.Text(LOC.Get("HELP_Current_Version", _version));
 
                 ImGui.Separator();
 
-                if (ImGui.MenuItem("Go to Wiki"))
+                // Go to Wiki
+                if (ImGui.MenuItem($"{LOC.Get("HELP_Action_Go_To_Wiki")}##wikiAction"))
                 {
                     Process myProcess = new();
                     myProcess.StartInfo.UseShellExecute = true;
-                    myProcess.StartInfo.FileName = "https://soulsmodding.com/doku.php?id=smithbox";
+                    myProcess.StartInfo.FileName = LOC.Get("HELP_Wiki_Link");
                     myProcess.Start();
                 }
-                UIHelper.Tooltip("Go to the Github repository page.");
+                GUI.Tooltip(LOC.Get("HELP_Action_Go_To_Wiki_TT"));
 
-                if (ImGui.MenuItem("Go to Github Repository"))
+                // Go to Github Repository
+                if (ImGui.MenuItem($"{LOC.Get("HELP_Action_Go_To_Github")}##githubAction"))
                 {
                     Process myProcess = new();
                     myProcess.StartInfo.UseShellExecute = true;
-                    myProcess.StartInfo.FileName = "https://github.com/vawser/Smithbox";
+                    myProcess.StartInfo.FileName = LOC.Get("HELP_Github_Link");
                     myProcess.Start();
                 }
-                UIHelper.Tooltip("Go to the Github repository page.");
+                GUI.Tooltip(LOC.Get("HELP_Action_Go_To_Github_TT"));
 
                 if (CFG.Current.Developer_Enable_Tools)
                 {
-                    DebugTools.DisplayMenu();
+                    DeveloperPanel.DisplayDropdown();
                 }
 
                 ImGui.EndMenu();
@@ -603,23 +612,26 @@ public class Smithbox
             ImGui.SetNextWindowFocus();
         }
 
-        Orchestrator.Update(deltaseconds);
+        Orchestrator.Update(deltaseconds, dockspaceID);
 
-        DebugTools.Display();
+        DeveloperPanel.Display(dockspaceID);
+
+        if (DeveloperPanel.ShowDemoWindow)
+        {
+            ImGui.ShowDemoWindow();
+        }
+
 
         KeybindsMenu.Draw();
         PreferencesMenu.Draw();
-
-        // Tool windows
-        ColorPicker.DisplayColorPicker();
 
         if (_programUpdateAvailable)
         {
             ImGui.Separator();
 
-            if (ImGui.BeginMenu("Update"))
+            if (ImGui.BeginMenu($"{LOC.Get("SYS_Menu_Header_Update")}##updateMenuHeader"))
             {
-                if (ImGui.MenuItem("Go to Release"))
+                if (ImGui.MenuItem($"{LOC.Get("SYS_Menu_Go_To_Release")}##releaseAction"))
                 {
                     Process myProcess = new();
                     myProcess.StartInfo.UseShellExecute = true;
@@ -635,7 +647,7 @@ public class Smithbox
 
         ImGui.PopStyleVar(2);
 
-        UIHelper.UnapplyBaseStyle();
+        GUI.UnapplyBaseStyle();
 
         ResourceManager.UpdateTasks();
 
@@ -660,35 +672,55 @@ public class Smithbox
 
     private void CheckProgramUpdate()
     {
-        if (!CFG.Current.System_Check_Program_Update)
+        if (!Startup.Current.System_Check_Program_Update)
             return;
 
-        try
+        var gitHubClient = new GitHubClient(new ProductHeaderValue(LOC.Get("GIT_REPO_NAME")));
+
+        if (gitHubClient != null)
         {
-            GitHubClient gitHubClient = new(new ProductHeaderValue("Smithbox"));
-            Release release = gitHubClient.Repository.Release.GetLatest("vawser", "Smithbox").Result;
-            var isVer = false;
-            var verstring = "";
-            foreach (var c in release.TagName)
+            try
             {
-                if (char.IsDigit(c) || (isVer && c == '.'))
+                var release = gitHubClient.Repository.Release.GetLatest(
+                    LOC.Get("GIT_REPO_OWNER"), 
+                    LOC.Get("GIT_REPO_NAME")).Result;
+
+                if (release != null)
                 {
-                    verstring += c;
-                    isVer = true;
+                    var isVer = false;
+                    var verstring = "";
+                    foreach (var c in release.TagName)
+                    {
+                        if (char.IsDigit(c) || (isVer && c == '.'))
+                        {
+                            verstring += c;
+                            isVer = true;
+                        }
+                        else
+                        {
+                            isVer = false;
+                        }
+                    }
+
+                    if (Version.Parse(verstring) > Version.Parse(_version.ToString()))
+                    {
+                        _programUpdateAvailable = true;
+                        _releaseUrl = release.HtmlUrl;
+                    }
                 }
                 else
                 {
-                    isVer = false;
+                    Smithbox.LogError<Smithbox>(LOC.Get("SYS_Failed_Smithbox_Release"));
                 }
             }
-
-            if (Version.Parse(verstring) > Version.Parse(_version.ToString()))
+            catch(Exception)
             {
-                _programUpdateAvailable = true;
-                _releaseUrl = release.HtmlUrl;
             }
         }
-        catch (Exception) { }
+        else
+        {
+            Smithbox.LogError<Smithbox>(LOC.Get("SYS_Failed_Smithbox_Release"));
+        }
     }
 
 #nullable enable

@@ -19,13 +19,13 @@ public static class ParamRowTools
     {
         if (ImGui.MenuItem("Search for references in tool"))
         {
-            curView.Editor.ToolMenu.FieldValueFinder.SearchText = $"{currentID}";
-            curView.Editor.ToolMenu.FieldValueFinder.CachedSearchText = curView.Editor.ToolMenu.FieldValueFinder.SearchText;
+            curView.ToolMenu.FieldValueFinder.SearchText = $"{currentID}";
+            curView.ToolMenu.FieldValueFinder.CachedSearchText = curView.ToolMenu.FieldValueFinder.SearchText;
 
-            curView.Editor.ToolMenu.FieldValueFinder.Results = curView.Editor.ToolMenu.FieldValueFinder.ConstructResults();
-            curView.Editor.ToolMenu.FieldValueFinder.Results.Sort();
+            curView.ToolMenu.FieldValueFinder.Results = curView.ToolMenu.FieldValueFinder.ConstructResults();
+            curView.ToolMenu.FieldValueFinder.Results.Sort();
         }
-        UIHelper.Tooltip("Quick use action for searching in 'Find Field Value Instances' tool with this row ID.");
+        GUI.Tooltip("Quick use action for searching in 'Find Field Value Instances' tool with this row ID.");
     }
     #endregion
 
@@ -132,23 +132,5 @@ public static class ParamRowTools
         return curView.MassEdit.RSE.Search((curView.GetPrimaryBank(), curView.GetPrimaryBank().Params[paramName]), searchTerm, false, false);
     }
 
-    #endregion
-
-    #region Sort Rows
-    public static void SortRows(ParamEditorView activeView)
-    {
-        if (activeView.Selection.ActiveParamExists())
-        {
-            var action = MassParamEditOther.SortRows(
-                activeView,
-                activeView.GetPrimaryBank(),
-                activeView.Selection.GetActiveParam());
-
-            activeView.Editor.ActionManager.ExecuteAction(action);
-
-            Smithbox.Log(typeof(ParamRowTools), $"Param rows sorted for " +
-                $"{activeView.Selection.GetActiveParam()}");
-        }
-    }
     #endregion
 }

@@ -2,12 +2,12 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Authors>Vawser</Authors>
-    <Version>2.2.2</Version>
+    <Version>2.2.4</Version>
     <ApplicationIcon>icon.ico</ApplicationIcon>
-    <PackageVersion>2.2.2</PackageVersion>
-    <AssemblyVersion>2.2.2</AssemblyVersion>
+    <PackageVersion>2.2.4</PackageVersion>
+    <AssemblyVersion>2.2.4</AssemblyVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <LangVersion>12</LangVersion>
     <IsPackable>false</IsPackable>

@@ -3,7 +3,9 @@ using StudioCore.Application;
 using StudioCore.Editors.Common;
 using StudioCore.Keybinds;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Numerics;
 
 namespace StudioCore.Editors.MaterialEditor;
 
@@ -15,18 +17,56 @@ public class MaterialFileList
     public MaterialEditorView Parent;
     public ProjectEntry Project;
 
+    private string FileListFilter = "";
+    private bool ExactFileListFilter = false;
+
     public MaterialFileList(MaterialEditorView view, ProjectEntry project)
     {
         Parent = view;
         Project = project;
     }
+
     public void Draw(float width, float height)
     {
-        UIHelper.SimpleHeader("Files", "");
+        DisplayTitle();
+        DisplayHeader();
+        DisplayFileList(width, height);
 
-        Parent.Filters.DisplayFileFilterSearch();
+    }
 
-        ImGui.BeginChild("FileList", new System.Numerics.Vector2(width, height), ImGuiChildFlags.Borders);
+    public void DisplayTitle()
+    {
+        GUI.SimpleHeader($"File List", "");
+    }
+
+    public void DisplayHeader()
+    {
+        var searchHeight = new Vector2(0, 36) * DPI.UIScale();
+        ImGui.BeginChild("MaterialFileListHeaderSection", searchHeight, ImGuiChildFlags.Borders);
+
+        EditorFilters.DisplayListFilter("materialEditor_FileList",
+            ref FileListFilter, ref ExactFileListFilter);
+
+        // Display Path
+        ImGui.SameLine();
+
+        if (ImGui.Button($"{Icons.Bars}"))
+        {
+            CFG.Current.MaterialEditor_FileList_DisplayFullPath = !CFG.Current.MaterialEditor_FileList_DisplayFullPath;
+        }
+
+        var displayPathMode = "Hide Full Path";
+        if (CFG.Current.MaterialEditor_FileList_DisplayFullPath)
+            displayPathMode = "Display Full Path";
+
+        GUI.Tooltip($"Toggle the display of the full path.\nCurrent Mode: {displayPathMode}");
+
+        ImGui.EndChild();
+    }
+
+    public void DisplayFileList(float width, float height)
+    {
+        ImGui.BeginChild("FileList", new Vector2(width, height), ImGuiChildFlags.Borders);
 
         // MTD
         if (Parent.Selection.SourceType is MaterialSourceType.MTD && Parent.Selection.MTDWrapper != null)
@@ -36,7 +76,9 @@ public class MaterialFileList
             var filteredEntries = new List<string>();
             foreach (var entry in files)
             {
-                if (Parent.Filters.IsFileFilterMatch(entry.Key))
+                var isMatch = EditorFilters.IsMatch(FileListFilter, entry.Key, ExactFileListFilter);
+
+                if (isMatch)
                 {
                     filteredEntries.Add(entry.Key);
                 }
@@ -92,7 +134,9 @@ public class MaterialFileList
                 var filteredEntries = new List<string>();
                 foreach (var entry in files)
                 {
-                    if (Parent.Filters.IsFileFilterMatch(entry.Key))
+                    var isMatch = EditorFilters.IsMatch(FileListFilter, entry.Key, ExactFileListFilter);
+
+                    if (isMatch)
                     {
                         filteredEntries.Add(entry.Key);
                     }
@@ -157,6 +201,11 @@ public class MaterialFileList
             {
                 newName = path.Replace(curConfig.CommonPath, "");
             }
+        }
+
+        if(!CFG.Current.MaterialEditor_FileList_DisplayFullPath)
+        {
+            newName = Path.GetFileNameWithoutExtension(newName);
         }
 
         return newName;

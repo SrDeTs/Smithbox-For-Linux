@@ -1,8 +1,6 @@
 ﻿using Hexa.NET.ImGui;
 using SoulsFormats;
-using StudioCore.Application;
 using StudioCore.Editors.Common;
-using System.Collections.Generic;
 using System.Numerics;
 
 namespace StudioCore.Editors.TextEditor;
@@ -26,7 +24,9 @@ public class TextContents
     /// </summary>
     public void Display()
     {
-        UIHelper.SimpleHeader("Contents", "");
+        GUI.SimpleHeader(
+            LOC.Get("TEXT_Contents_Header_Contents"),
+            LOC.Get("TEXT_Contents_Header_Contents_TT"));
 
         ImGui.BeginChild("FmgEntryContents", ImGuiChildFlags.Borders);
 
@@ -45,14 +45,17 @@ public class TextContents
     {
         var fmgEntryGroup = Parent.EntryGroupManager.GetEntryGroup(Parent.Selection._selectedFmgEntry);
 
-        // Display normally if entry has no groups, or it has been disabled
-        if(!fmgEntryGroup.SupportsGrouping || !CFG.Current.TextEditor_Text_Entry_Enable_Grouped_Entries)
+        if (fmgEntryGroup != null)
         {
-            DisplayBasicTextInput(Parent.Selection._selectedFmgEntry);
-        }
-        else
-        {
-            DisplayGroupedTextInput(Parent.Selection._selectedFmgEntry, fmgEntryGroup);
+            // Display normally if entry has no groups, or it has been disabled
+            if (!fmgEntryGroup.SupportsGrouping || !CFG.Current.TextEditor_Text_Entry_Enable_Grouped_Entries)
+            {
+                DisplayBasicTextInput(Parent.Selection._selectedFmgEntry);
+            }
+            else
+            {
+                DisplayGroupedTextInput(Parent.Selection._selectedFmgEntry, fmgEntryGroup);
+            }
         }
     }
 
@@ -90,7 +93,7 @@ public class TextContents
                 ImGui.TableNextRow();
                 ImGui.TableSetColumnIndex(0);
 
-                ImGui.Text("ID");
+                ImGui.Text(LOC.Get("TEXT_Contents_Column_Header_ID"));
 
                 ImGui.TableSetColumnIndex(1);
 
@@ -161,7 +164,7 @@ public class TextContents
 
                 ImGui.TableSetColumnIndex(0);
 
-                ImGui.Text("Title");
+                ImGui.Text(LOC.Get("TEXT_Contents_Column_Header_Title"));
 
                 ImGui.TableSetColumnIndex(1);
 
@@ -184,11 +187,11 @@ public class TextContents
                 ImGui.TableNextRow();
                 ImGui.TableSetColumnIndex(0);
 
-                ImGui.Text("Title");
+                ImGui.Text(LOC.Get("TEXT_Contents_Column_Header_Title"));
 
                 ImGui.TableSetColumnIndex(1);
 
-                if (ImGui.Button("Add Title Entry", DPI.HalfWidthButton(windowWidth, 24)))
+                if (ImGui.Button($"{LOC.Get("TEXT_Contents_Add_Title_Entry")}##addTitleEntry", DPI.HalfWidthButton(windowWidth, 24)))
                 {
                     Parent.ActionHandler.AddTitleEntry(selectedFmgWrapper, selectedEntry);
                 }
@@ -208,7 +211,7 @@ public class TextContents
 
                 ImGui.TableSetColumnIndex(0);
 
-                ImGui.Text("Summary");
+                ImGui.Text(LOC.Get("TEXT_Contents_Column_Header_Summary"));
 
                 ImGui.TableSetColumnIndex(1);
 
@@ -230,11 +233,11 @@ public class TextContents
                 ImGui.TableNextRow();
                 ImGui.TableSetColumnIndex(0);
 
-                ImGui.Text("Summary");
+                ImGui.Text(LOC.Get("TEXT_Contents_Column_Header_Summary"));
 
                 ImGui.TableSetColumnIndex(1);
 
-                if (ImGui.Button("Add Summary Entry", DPI.HalfWidthButton(windowWidth, 24)))
+                if (ImGui.Button($"{LOC.Get("TEXT_Contents_Add_Summary_Entry")}##addSummaryEntry", DPI.HalfWidthButton(windowWidth, 24)))
                 {
                     Parent.ActionHandler.AddSummaryEntry(selectedFmgWrapper, selectedEntry);
                 }
@@ -254,7 +257,7 @@ public class TextContents
 
                 ImGui.TableSetColumnIndex(0);
 
-                ImGui.Text("Description");
+                ImGui.Text(LOC.Get("TEXT_Contents_Column_Header_Description"));
 
                 ImGui.TableSetColumnIndex(1);
 
@@ -276,11 +279,11 @@ public class TextContents
                 ImGui.TableNextRow();
                 ImGui.TableSetColumnIndex(0);
 
-                ImGui.Text("Description");
+                ImGui.Text(LOC.Get("TEXT_Contents_Column_Header_Description"));
 
                 ImGui.TableSetColumnIndex(1);
 
-                if (ImGui.Button("Add Description Entry", DPI.HalfWidthButton(windowWidth, 24)))
+                if (ImGui.Button($"{LOC.Get("TEXT_Contents_Add_Description_Entry")}##addDescriptionEntry", DPI.HalfWidthButton(windowWidth, 24)))
                 {
                     Parent.ActionHandler.AddDescriptionEntry(selectedFmgWrapper, selectedEntry);
                 }
@@ -300,7 +303,7 @@ public class TextContents
 
                 ImGui.TableSetColumnIndex(0);
 
-                ImGui.Text("Effect");
+                ImGui.Text(LOC.Get("TEXT_Contents_Column_Header_Effect"));
 
                 ImGui.TableSetColumnIndex(1);
 
@@ -322,11 +325,11 @@ public class TextContents
                 ImGui.TableNextRow();
                 ImGui.TableSetColumnIndex(0);
 
-                ImGui.Text("Effect");
+                ImGui.Text(LOC.Get("TEXT_Contents_Column_Header_Effect"));
 
                 ImGui.TableSetColumnIndex(1);
 
-                if (ImGui.Button("Add Effect Entry", DPI.HalfWidthButton(windowWidth, 24)))
+                if (ImGui.Button($"{LOC.Get("TEXT_Contents_Add_Effect_Entry")}##addEffectEntry", DPI.HalfWidthButton(windowWidth, 24)))
                 {
                     Parent.ActionHandler.AddEffectEntry(selectedFmgWrapper, selectedEntry);
                 }
@@ -356,7 +359,7 @@ public class TextContents
             ImGui.TableNextRow();
             ImGui.TableSetColumnIndex(0);
 
-            ImGui.Text("ID");
+            ImGui.Text(LOC.Get("TEXT_Contents_Column_Header_ID"));
 
             ImGui.TableSetColumnIndex(1);
 
@@ -387,7 +390,7 @@ public class TextContents
 
             ImGui.TableSetColumnIndex(0);
 
-            ImGui.Text("Text");
+            ImGui.Text(LOC.Get("TEXT_Contents_Column_Header_Text"));
 
             ImGui.TableSetColumnIndex(1);
 

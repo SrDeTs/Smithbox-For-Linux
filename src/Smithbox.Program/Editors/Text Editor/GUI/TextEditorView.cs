@@ -21,27 +21,24 @@ public class TextEditorView
 
     public int ViewIndex;
 
-    public TextFilters Filters;
     public TextActionHandler ActionHandler;
-    public TextContextMenu ContextMenu;
 
     public TextViewSelection Selection;
     public TextEntryGroupManager EntryGroupManager;
     public TextDifferenceManager DifferenceManager;
-    public TextNamingTemplateManager NamingTemplateManager;
 
     public TextContainerList ContainerList;
     public TextFileList FileList;
     public TextEntryList TextEntryList;
     public TextContents TextContents;
+    public TextToolView ToolView;
 
-    public TextNewEntryModal NewEntryModal;
+    public TextEntryCreatorTool TextEntryCreator;
     public TextExporterModal TextExportModal;
     public TextDuplicatePopup TextDuplicatePopup;
 
     public FmgExporter FmgExporter;
     public FmgImporter FmgImporter;
-    public LanguageSync LanguageSync;
     public FmgDumper FmgDumper;
 
     public TextEditorView(TextEditorScreen editor, ProjectEntry project, int imguiId)
@@ -52,52 +49,35 @@ public class TextEditorView
         ViewIndex = imguiId;
 
         Selection = new TextViewSelection(this, Project);
-        ContextMenu = new TextContextMenu(this, Project);
         ActionHandler = new TextActionHandler(this, Project);
-        Filters = new TextFilters(this, Project);
         EntryGroupManager = new TextEntryGroupManager(this, Project);
         DifferenceManager = new TextDifferenceManager(this, Project);
-        NamingTemplateManager = new TextNamingTemplateManager(this, Project);
 
         ContainerList = new TextContainerList(this, Project);
         FileList = new TextFileList(this, Project);
         TextEntryList = new TextEntryList(this, Project);
         TextContents = new TextContents(this, Project);
+        ToolView = new TextToolView(this, Project);
 
-        NewEntryModal = new TextNewEntryModal(this, Project);
+        TextEntryCreator = new TextEntryCreatorTool(this, Project);
         TextExportModal = new TextExporterModal(this, Project);
         TextDuplicatePopup = new TextDuplicatePopup(this, Project);
 
         FmgExporter = new FmgExporter(this, Project);
         FmgImporter = new FmgImporter(this, Project);
-        LanguageSync = new LanguageSync(this, Project);
 
         FmgDumper = new FmgDumper(this, Project);
     }
 
-    public void Display(bool doFocus, bool isActiveView)
+    public void Display(uint dockspaceId, int viewIndex, bool doFocus, bool isActiveView)
     {
-        DisplayMenubar();
-
-        var columnCount = 3;
-        var windowFlags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
-
-        if (ImGui.BeginTable("textTable", columnCount,
-            ImGuiTableFlags.Resizable |
-            ImGuiTableFlags.SizingStretchProp |
-            ImGuiTableFlags.BordersInnerV))
+        // Container List
+        ImGui.SetNextWindowDockID(dockspaceId, ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowClass(ref GUI.DockGroup_TextEditorView);
+        if (ImGui.Begin($@"{LOC.Get("TEXT_Window_Container_List")}###textEditor_ContainerList_{viewIndex}", GUI.GetInnerWindowFlags()))
         {
-            ImGui.TableSetupColumn("##FileList", ImGuiTableColumnFlags.WidthStretch, 0.25f);
-            ImGui.TableSetupColumn("##EntryList", ImGuiTableColumnFlags.WidthStretch, 0.25f);
-            ImGui.TableSetupColumn("##EntryContents", ImGuiTableColumnFlags.WidthStretch, 0.5f);
-
-            // --- Column 1 ---
-            ImGui.TableNextColumn();
-
-            float width = ImGui.GetContentRegionAvail().X;
-            float height = ImGui.GetContentRegionAvail().Y * CFG.Current.Interace_Editor_Display_Inner_Height_Percent;
-
-            ImGui.BeginChild("##FileListArea", new Vector2(0, 0), windowFlags);
+            var width = ImGui.GetContentRegionAvail().X;
+            var height = ImGui.GetContentRegionAvail().Y;
 
             if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
             {
@@ -105,15 +85,37 @@ public class TextEditorView
                 Editor.ViewHandler.ActiveView = this;
             }
 
-            ContainerList.Display(width, height * CFG.Current.TextEditor_Display_ContainerList_Percentage);
-            FileList.Display(width, height * CFG.Current.TextEditor_Display_FileList_Percentage);
+            ContainerList.Display(width, height);
+        }
 
-            ImGui.EndChild();
+        ImGui.End();
 
-            // --- Column 2 ---
-            ImGui.TableNextColumn();
+        // File List
+        ImGui.SetNextWindowDockID(dockspaceId, ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowClass(ref GUI.DockGroup_TextEditorView);
+        if (ImGui.Begin($@"{LOC.Get("TEXT_Window_File_List")}###textEditor_FileList_{viewIndex}", GUI.GetInnerWindowFlags()))
+        {
+            var width = ImGui.GetContentRegionAvail().X;
+            var height = ImGui.GetContentRegionAvail().Y;
 
-            ImGui.BeginChild("##EntryListArea", new Vector2(0, 0), windowFlags);
+            if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
+            {
+                FocusManager.SetFocus(EditorFocusContext.TextEditor_FileList);
+                Editor.ViewHandler.ActiveView = this;
+            }
+
+            FileList.Display(width, height);
+        }
+
+        ImGui.End();
+
+        // Text Entry List
+        ImGui.SetNextWindowDockID(dockspaceId, ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowClass(ref GUI.DockGroup_TextEditorView);
+        if (ImGui.Begin($@"{LOC.Get("TEXT_Window_Text_Entries")}###textEditor_TextEntryList_{viewIndex}", GUI.GetInnerWindowFlags()))
+        {
+            var width = ImGui.GetContentRegionAvail().X;
+            var height = ImGui.GetContentRegionAvail().Y;
 
             if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
             {
@@ -122,13 +124,17 @@ public class TextEditorView
             }
 
             TextEntryList.Display();
+        }
 
-            ImGui.EndChild();
+        ImGui.End();
 
-            // --- Column 3 ---
-            ImGui.TableNextColumn();
-
-            ImGui.BeginChild("##EntryContentsArea", new Vector2(0, 0), windowFlags);
+        // Text Contents
+        ImGui.SetNextWindowDockID(dockspaceId, ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowClass(ref GUI.DockGroup_TextEditorView);
+        if (ImGui.Begin($@"{LOC.Get("TEXT_Window_Text_Content")}###textEditor_TextContents_{viewIndex}", GUI.GetInnerWindowFlags()))
+        {
+            var width = ImGui.GetContentRegionAvail().X;
+            var height = ImGui.GetContentRegionAvail().Y;
 
             if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
             {
@@ -137,48 +143,32 @@ public class TextEditorView
             }
 
             TextContents.Display();
-
-            ImGui.EndChild();
-
-            ImGui.EndTable();
         }
 
-        NewEntryModal.Display();
-        TextDuplicatePopup.Display();
-        FmgExporter.OnGui();
-    }
+        ImGui.End();
 
-    public void DisplayMenubar()
-    {
-        if (ImGui.BeginMenuBar())
+        // Tools
+        ImGui.SetNextWindowDockID(dockspaceId, ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowClass(ref GUI.DockGroup_TextEditorView);
+        if (ImGui.Begin($@"{LOC.Get("TEXT_Window_Tools")}###textEditor_ToolWindow_{viewIndex}", GUI.GetMainWindowFlags()))
         {
-            if (ImGui.BeginMenu("Options"))
+            var width = ImGui.GetContentRegionAvail().X;
+            var height = ImGui.GetContentRegionAvail().Y;
+
+            if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
             {
-                if (ImGui.BeginMenu("Display"))
-                {
-                    ImGui.SliderFloat("Containers##containerListDisplayPercentage", ref CFG.Current.TextEditor_Display_ContainerList_Percentage, 0.01f, 0.99f);
-                    if (ImGui.IsItemDeactivatedAfterEdit())
-                    {
-                        // Auto-adjust the other var so the ratio remains 100%
-                        CFG.Current.TextEditor_Display_FileList_Percentage = 1 - CFG.Current.TextEditor_Display_ContainerList_Percentage;
-                    }
-                    UIHelper.Tooltip("The percentage of the window the Containers section occupies.");
-
-                    ImGui.SliderFloat("Files##fileListDisplayPercentage", ref CFG.Current.TextEditor_Display_FileList_Percentage, 0.01f, 0.99f);
-                    if (ImGui.IsItemDeactivatedAfterEdit())
-                    {
-                        // Auto-adjust the other var so the ratio remains 100%
-                        CFG.Current.TextEditor_Display_ContainerList_Percentage = 1 - CFG.Current.TextEditor_Display_FileList_Percentage;
-                    }
-                    UIHelper.Tooltip("The percentage of the window the Files section occupies.");
-
-                    ImGui.EndMenu();
-                }
-
-                ImGui.EndMenu();
+                FocusManager.SetFocus(EditorFocusContext.TextEditor_Tools);
+                Editor.ViewHandler.ActiveView = this;
             }
 
-            ImGui.EndMenuBar();
+            ToolView.Display();
         }
+
+        ImGui.End();
+
+        TextEntryCreator.Display();
+        TextDuplicatePopup.Display();
+        FmgImporter.OnGui();
+        FmgExporter.OnGui();
     }
 }

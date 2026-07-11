@@ -6,53 +6,53 @@ using System.Text.Json;
 
 namespace StudioCore.Application;
 
-public static class FileDictionaryGenerator
+public class FileDictionaryGenerator
 {
-    public static string _filePath = "";
+    public string _filePath = "";
 
-    public static void Display(ProjectEntry project)
+    public FileDictionaryGenerator() { }
+
+    public void Display()
     {
-        if (ImGui.BeginTable($"generatorTable", 3, ImGuiTableFlags.SizingFixedFit))
+        GUI.SimpleHeader(
+            LOC.Get("DEV_Tool_Header_File_Path"),
+            LOC.Get("DEV_Tool_Header_File_Path_TT"));
+
+        GUI.SinglelineTextInput("FilePath", ref _filePath);
+
+        GUI.MultiButtonInput("selectActions",
+            "selectDir", 
+            LOC.Get("DEV_Tool_Action_Select_Directory"),
+            LOC.Get("DEV_Tool_Action_Select_Directory_TT"),
+            SelectDirectory,
+
+            "generateDict", 
+            LOC.Get("DEV_Tool_Action_Generate_File_Dictionary"),
+            LOC.Get("DEV_Tool_Action_Generate_File_Dictionary_TT"),
+            GenerateFileDictionary);
+    }
+
+    public void SelectDirectory()
+    {
+        var newFilePath = "";
+        var result = PlatformUtils.Instance.OpenFileDialog(LOC.Get("DEV_Tool_Dialog_Select_File"), [""], out newFilePath);
+
+        if (result)
         {
-            ImGui.TableSetupColumn("Title", ImGuiTableColumnFlags.WidthFixed);
-            ImGui.TableSetupColumn("Input", ImGuiTableColumnFlags.WidthFixed);
-            ImGui.TableSetupColumn("Action", ImGuiTableColumnFlags.WidthStretch);
-
-            // File Path
-            ImGui.TableNextRow();
-            ImGui.TableSetColumnIndex(0);
-
-            ImGui.AlignTextToFramePadding();
-            ImGui.Text("File Path");
-            UIHelper.Tooltip("The file path of the file.");
-
-            ImGui.TableSetColumnIndex(1);
-
-            DPI.ApplyInputWidth();
-            ImGui.InputText("##generatorPath", ref _filePath, 255);
-
-            ImGui.TableSetColumnIndex(2);
-
-            if (ImGui.Button("Select##generatorPathSelect", DPI.StandardButtonSize))
-            {
-                var newFilePath = "";
-                var result = PlatformUtils.Instance.OpenFileDialog("Select File", [""], out newFilePath);
-
-                if (result)
-                {
-                    _filePath = newFilePath;
-                }
-            }
-
-            ImGui.EndTable();
+            _filePath = newFilePath;
         }
+    }
 
+    public void GenerateFileDictionary()
+    {
         if (File.Exists(_filePath))
         {
-            if (ImGui.Button("Generate File Dictionary JSON", DPI.StandardButtonSize))
-            {
-                GenerateFileDictionaryFromUXM(_filePath);
-            }
+            GenerateFileDictionaryFromUXM(_filePath);
+        }
+        else
+        {
+            Smithbox.LogError<FileDictionaryGenerator>(
+                LOC.Get("DEV_Tool_File_Path_No_Exist", _filePath));
         }
     }
 
@@ -60,7 +60,7 @@ public static class FileDictionaryGenerator
     /// Used to a FileDictionary JSON object from a standard UXM file dictionary text file.
     /// </summary>
     /// <param name="filepath"></param>
-    public static void GenerateFileDictionaryFromUXM(string filepath)
+    public void GenerateFileDictionaryFromUXM(string filepath)
     {
         var writePath = $"{AppContext.BaseDirectory}/{Path.GetFileName(filepath)}.json";
 

@@ -47,7 +47,7 @@ public class DuplicateAction
         {
             ApplyDuplicate();
         }
-        UIHelper.Tooltip($"Duplicate the currently selected map objects.\n\nShortcut: {InputManager.GetHint(KeybindID.Duplicate)}");
+        GUI.Tooltip($"Duplicate the currently selected map objects.\n\nShortcut: {InputManager.GetHint(KeybindID.Duplicate)}");
 
     }
 
@@ -60,7 +60,7 @@ public class DuplicateAction
         {
             ApplyDuplicate();
         }
-        UIHelper.Tooltip($"Duplicate the currently selected map objects.");
+        GUI.Tooltip($"Duplicate the currently selected map objects.");
     }
 
     /// <summary>
@@ -110,7 +110,7 @@ public class DuplicateAction
         }
         else
         {
-            PlatformUtils.Instance.MessageBox("No object selected.", "Smithbox", MessageBoxButtons.OK);
+            Smithbox.LogError<DuplicateAction>("No object selected.");
         }
     }
 }

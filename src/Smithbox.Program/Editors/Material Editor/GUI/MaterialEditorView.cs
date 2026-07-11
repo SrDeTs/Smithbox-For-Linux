@@ -24,12 +24,12 @@ public class MaterialEditorView
     public MaterialPropertyCache MaterialPropertyCache = new();
 
     public MaterialSelection Selection;
-    public MaterialFilters Filters;
     public MaterialPropertyInput PropertyInput;
 
     public MaterialContainerList ContainerList;
     public MaterialFileList FileList;
     public MaterialProperties Properties;
+    public MaterialToolWindow ToolView;
 
     public int ViewIndex;
 
@@ -41,39 +41,27 @@ public class MaterialEditorView
         ViewIndex = imguiId;
 
         Selection = new(this, project);
-        Filters = new(this, project);
         PropertyInput = new(this, project);
 
         ContainerList = new(this, project);
         FileList = new(this, project);
         Properties = new(this, project);
+
+        ToolView = new(this, project);
     }
 
-    public void Display(bool doFocus, bool isActiveView)
+    public void Display(uint dockspaceId, int viewIndex, bool doFocus, bool isActiveView)
     {
         if (Project.Handler.MaterialData.PrimaryBank == null)
             return;
 
-        DisplayMenubar();
-
-        var columnCount = 2;
-        var windowFlags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
-
-        if (ImGui.BeginTable("materialTable", columnCount,
-            ImGuiTableFlags.Resizable |
-            ImGuiTableFlags.SizingStretchProp |
-            ImGuiTableFlags.BordersInnerV))
+        // Container List
+        ImGui.SetNextWindowDockID(dockspaceId, ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowClass(ref GUI.DockGroup_MaterialEditorView);
+        if (ImGui.Begin($@"Container List##materialEditor_ContainerList_{viewIndex}", GUI.GetInnerWindowFlags()))
         {
-            ImGui.TableSetupColumn("##FileList", ImGuiTableColumnFlags.WidthStretch, 0.25f);
-            ImGui.TableSetupColumn("##Properties", ImGuiTableColumnFlags.WidthStretch, 0.5f);
-
-            // --- Column 1 ---
-            ImGui.TableNextColumn();
-
-            float width = ImGui.GetContentRegionAvail().X;
-            float height = ImGui.GetContentRegionAvail().Y * CFG.Current.Interace_Editor_Display_Inner_Height_Percent;
-
-            ImGui.BeginChild("##FileListArea", new Vector2(0, 0), windowFlags);
+            var width = ImGui.GetContentRegionAvail().X;
+            var height = ImGui.GetContentRegionAvail().Y;
 
             if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
             {
@@ -81,15 +69,37 @@ public class MaterialEditorView
                 Editor.ViewHandler.ActiveView = this;
             }
 
-            ContainerList.Draw(width, height * CFG.Current.MaterialEditor_Display_ContainerList_Percentage);
-            FileList.Draw(width, height * CFG.Current.MaterialEditor_Display_FileList_Percentage);
+            ContainerList.Draw(width, height);
+        }
 
-            ImGui.EndChild();
+        ImGui.End();
 
-            // --- Column 2 ---
-            ImGui.TableNextColumn();
+        // File List
+        ImGui.SetNextWindowDockID(dockspaceId, ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowClass(ref GUI.DockGroup_MaterialEditorView);
+        if (ImGui.Begin($@"File List##materialEditor_FileList_{viewIndex}", GUI.GetInnerWindowFlags()))
+        {
+            var width = ImGui.GetContentRegionAvail().X;
+            var height = ImGui.GetContentRegionAvail().Y;
 
-            ImGui.BeginChild("##PropertiesArea", new Vector2(0, 0), windowFlags);
+            if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
+            {
+                FocusManager.SetFocus(EditorFocusContext.MaterialEditor_FileList);
+                Editor.ViewHandler.ActiveView = this;
+            }
+
+            FileList.Draw(width, height);
+        }
+
+        ImGui.End();
+
+        // Properties
+        ImGui.SetNextWindowDockID(dockspaceId, ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowClass(ref GUI.DockGroup_MaterialEditorView);
+        if (ImGui.Begin($@"Properties##materialEditor_Properties_{viewIndex}", GUI.GetInnerWindowFlags()))
+        {
+            var width = ImGui.GetContentRegionAvail().X;
+            var height = ImGui.GetContentRegionAvail().Y;
 
             if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
             {
@@ -98,44 +108,27 @@ public class MaterialEditorView
             }
 
             Properties.Draw();
-
-            ImGui.EndChild();
-
-            ImGui.EndTable();
         }
-    }
 
-    public void DisplayMenubar()
-    {
-        if (ImGui.BeginMenuBar())
+        ImGui.End();
+
+        // Tools
+        ImGui.SetNextWindowDockID(dockspaceId, ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowClass(ref GUI.DockGroup_MaterialEditorView);
+        if (ImGui.Begin($@"Tools##materialEditor_ToolWindow_{viewIndex}", GUI.GetInnerWindowFlags()))
         {
-            if (ImGui.BeginMenu("Options"))
+            var width = ImGui.GetContentRegionAvail().X;
+            var height = ImGui.GetContentRegionAvail().Y;
+
+            if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows))
             {
-                if (ImGui.BeginMenu("Display"))
-                {
-                    ImGui.SliderFloat("Containers##containerListDisplayPercentage", ref CFG.Current.MaterialEditor_Display_ContainerList_Percentage, 0.01f, 0.99f);
-                    if (ImGui.IsItemDeactivatedAfterEdit())
-                    {
-                        // Auto-adjust the other var so the ratio remains 100%
-                        CFG.Current.MaterialEditor_Display_FileList_Percentage = 1 - CFG.Current.MaterialEditor_Display_ContainerList_Percentage;
-                    }
-                    UIHelper.Tooltip("The percentage of the window the Containers section occupies.");
-
-                    ImGui.SliderFloat("Files##fileListDisplayPercentage", ref CFG.Current.MaterialEditor_Display_FileList_Percentage, 0.01f, 0.99f);
-                    if (ImGui.IsItemDeactivatedAfterEdit())
-                    {
-                        // Auto-adjust the other var so the ratio remains 100%
-                        CFG.Current.MaterialEditor_Display_ContainerList_Percentage = 1 - CFG.Current.MaterialEditor_Display_FileList_Percentage;
-                    }
-                    UIHelper.Tooltip("The percentage of the window the Files section occupies.");
-
-                    ImGui.EndMenu();
-                }
-
-                ImGui.EndMenu();
+                FocusManager.SetFocus(EditorFocusContext.MaterialEditor_Tools);
+                Editor.ViewHandler.ActiveView = this;
             }
 
-            ImGui.EndMenuBar();
+            ToolView.Draw();
         }
+
+        ImGui.End();
     }
 }

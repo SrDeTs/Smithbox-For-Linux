@@ -14,7 +14,7 @@ public class TextureViewerStub : IEditorStub
         Project = project;
     }
 
-    public string EditorName = "Texture Viewer##TextureViewerEditor";
+    public string EditorName = "";
 
     public string CommandEndpoint = "texture";
 
@@ -43,7 +43,8 @@ public class TextureViewerStub : IEditorStub
 
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0.0f, 0.0f));
 
-        if (ImGui.Begin(EditorName, ImGuiWindowFlags.MenuBar))
+        ImGui.SetNextWindowClass(ref GUI.DockGroup_EditorView);
+        if (ImGui.Begin($"{LOC.Get("TEXVIEW_Texture_Viewer_Stub")}###textureViewerStub", ImGuiWindowFlags.MenuBar))
         {
             ImGui.PopStyleColor(1);
             ImGui.PopStyleVar(1);
@@ -55,7 +56,7 @@ public class TextureViewerStub : IEditorStub
             else
             {
                 ImGui.Text("");
-                ImGui.Text("   Editor is loading...");
+                ImGui.Text(LOC.Get("SYS_Editor_Loading"));
             }
 
             ImGui.End();

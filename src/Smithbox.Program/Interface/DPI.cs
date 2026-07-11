@@ -30,12 +30,6 @@ public static class DPI
     {
         ImGui.SetNextItemWidth((width * 0.93f) * UIScale());
     }
-
-    public static Vector2 ListSize(float width, float height)
-    {
-        return new Vector2(width * UIScale(), height * UIScale());
-    }
-
     /// <summary>
     /// The button size for auto-adjust buttons 
     /// that take 97.5% of the width of their owner window.

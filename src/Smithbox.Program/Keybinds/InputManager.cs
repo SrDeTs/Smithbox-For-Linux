@@ -1,10 +1,4 @@
-﻿using SoulsFormats.Util;
-using StudioCore.Application;
-using StudioCore.Utilities;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
+﻿using StudioCore.Application;
 using System.Numerics;
 using System.Text.Json;
 using Veldrid;
@@ -98,7 +92,10 @@ public static class InputManager
             {
                 LoadKeybinds(KeybindPath);
             }
-            catch (Exception) { }
+            catch (Exception ex) 
+            {
+                Smithbox.LogError<Smithbox>(LOC.Get("INPUT_Keybinds_Failed_Load"), ex);
+            }
         }
 
         MousebindPath = Path.Combine(folder, "Mousebinds.json");
@@ -111,7 +108,10 @@ public static class InputManager
             {
                 LoadMousebinds(MousebindPath);
             }
-            catch (Exception) { }
+            catch (Exception ex)
+            {
+                Smithbox.LogError<Smithbox>(LOC.Get("INPUT_Mousebinds_Failed_Load"), ex);
+            }
         }
 
         SaveKeybinds();
@@ -508,9 +508,9 @@ public static class InputManager
         var curBind = _bindings.Entries[action].FirstOrDefault();
 
         string s = "";
-        if (curBind.Ctrl) s += "Ctrl+";
-        if (curBind.Shift) s += "Shift+";
-        if (curBind.Alt) s += "Alt+";
+        if (curBind.Ctrl) s += LOC.Get("KEY_Modifier_Ctrl_Plus");
+        if (curBind.Shift) s += LOC.Get("KEY_Modifier_Shift_Plus");
+        if (curBind.Alt) s += LOC.Get("KEY_Modifier_Alt_Plus");
         s += curBind.Key.ToString();
         return s;
     }
@@ -519,9 +519,9 @@ public static class InputManager
         var curBind = _mouseBindings.Entries[action].FirstOrDefault();
 
         string s = "";
-        if (curBind.Ctrl) s += "Ctrl+";
-        if (curBind.Shift) s += "Shift+";
-        if (curBind.Alt) s += "Alt+";
+        if (curBind.Ctrl) s += LOC.Get("KEY_Modifier_Ctrl_Plus");
+        if (curBind.Shift) s += LOC.Get("KEY_Modifier_Shift_Plus");
+        if (curBind.Alt) s += LOC.Get("KEY_Modifier_Alt_Plus");
         s += curBind.Key.ToString();
         return s;
     }

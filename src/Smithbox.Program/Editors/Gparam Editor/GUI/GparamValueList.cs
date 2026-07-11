@@ -1,8 +1,7 @@
 ﻿using Hexa.NET.ImGui;
 using SoulsFormats;
-using StudioCore.Application;
 using StudioCore.Editors.Common;
-using System.Linq;
+using StudioCore.Keybinds;
 using System.Numerics;
 using static SoulsFormats.GPARAM;
 
@@ -10,14 +9,15 @@ namespace StudioCore.Editors.GparamEditor;
 
 public class GparamValueList
 {
-    private GparamEditorView Parent;
+    private GparamEditorView View;
     private ProjectEntry Project;
 
-    private bool[] displayTruth;
+    public string ValueListFilter = "";
+    public bool ExactValueListFilter = false;
 
     public GparamValueList(GparamEditorView view, ProjectEntry project)
     {
-        Parent = view;
+        View = view;
         Project = project;
     }
 
@@ -31,108 +31,20 @@ public class GparamValueList
         // Values
         ImGui.BeginChild("valueListTable", ImGuiChildFlags.Borders);
 
-        if (Parent.Selection.IsGparamFieldSelected())
-        {
-            GPARAM.IField field = Parent.Selection.GetSelectedGparamField();
-
-            ResetDisplayTruth(field);
-
-            var columnCount = 2;
-
-            if (CFG.Current.GparamEditor_Value_List_Display_Time_Of_Day_Column)
-                columnCount++;
-
-            if (CFG.Current.GparamEditor_Value_List_Display_Information_Column)
-                columnCount++;
-
-            ImGui.Columns(columnCount);
-
-            // ID
-            ImGui.BeginChild("IdList##GparamPropertyIds");
-            UIHelper.SimpleHeader("ID", "");
-
-            for (int i = 0; i < field.Values.Count; i++)
-            {
-                GPARAM.IFieldValue entry = field.Values[i];
-
-                displayTruth[i] = Parent.Filters.IsFieldValueFilterMatch(entry.Id.ToString(), "");
-
-                if (displayTruth[i])
-                {
-                    GparamProperty_ID(i, field, entry);
-                }
-            }
-
-            ImGui.EndChild();
-
-            if (CFG.Current.GparamEditor_Value_List_Display_Time_Of_Day_Column)
-            {
-                ImGui.NextColumn();
-
-                // Time of Day
-                ImGui.BeginChild("IdList##GparamTimeOfDay");
-                Parent.Selection.SwitchWindowContext(GparamEditorContext.FieldValue);
-                UIHelper.SimpleHeader("Time of Day", "");
-
-                for (int i = 0; i < field.Values.Count; i++)
-                {
-                    if (displayTruth[i])
-                    {
-                        GPARAM.IFieldValue entry = field.Values[i];
-                        GparamProperty_TimeOfDay(i, field, entry);
-                    }
-                }
-
-                ImGui.EndChild();
-            }
-
-            ImGui.NextColumn();
-
-            // Value
-            ImGui.BeginChild("ValueList##GparamPropertyValues");
-            Parent.Selection.SwitchWindowContext(GparamEditorContext.FieldValue);
-            UIHelper.SimpleHeader("Value", "");
-
-            for (int i = 0; i < field.Values.Count; i++)
-            {
-                if (displayTruth[i])
-                {
-                    GPARAM.IFieldValue entry = field.Values[i];
-                    GparamProperty_Value(i, field, entry);
-                }
-            }
-
-            ImGui.EndChild();
-
-            // Information
-            if (CFG.Current.GparamEditor_Value_List_Display_Information_Column)
-            {
-                ImGui.NextColumn();
-
-                // Value
-                ImGui.BeginChild("InfoList##GparamPropertyInfo");
-                Parent.Selection.SwitchWindowContext(GparamEditorContext.FieldValue);
-                UIHelper.SimpleHeader("Information", "");
-
-                // Only show once
-                GparamProperty_Info(field);
-
-                ImGui.EndChild();
-            }
-        }
+        DisplayValueTable();
 
         ImGui.EndChild();
     }
-
     public void DisplayHeader()
     {
-        UIHelper.SimpleHeader("Values", "");
+        GUI.SimpleHeader("Values", "");
 
         // Search
         var searchHeight = new Vector2(0, 36) * DPI.UIScale();
         ImGui.BeginChild("GparamFieldSearchSection", searchHeight, ImGuiChildFlags.Borders);
 
-        Parent.Filters.DisplayFieldValueFilterSearch();
+        EditorFilters.DisplayListFilter("gparamEditor_ValueList",
+            ref ValueListFilter, ref ExactValueListFilter);
 
         // Time of Day Toggle
         ImGui.SameLine();
@@ -147,7 +59,7 @@ public class GparamValueList
         {
             todColumnMode = "Hiding Time of Day column.";
         }
-        UIHelper.Tooltip($"Toggle the display of the Time of Day column.\nCurrent Mode: {todColumnMode}");
+        GUI.Tooltip($"Toggle the display of the Time of Day column.\nCurrent Mode: {todColumnMode}");
 
         // Information Toggle
         ImGui.SameLine();
@@ -162,116 +74,219 @@ public class GparamValueList
         {
             infoColumnMode = "Hiding Information column.";
         }
-        UIHelper.Tooltip($"Toggle the display of the Information column.\nCurrent Mode: {infoColumnMode}");
+        GUI.Tooltip($"Toggle the display of the Information column.\nCurrent Mode: {infoColumnMode}");
 
         ImGui.EndChild();
 
     }
-
-    /// <summary>
-    /// Reset the Values display truth list
-    /// </summary>
-    /// <param name="field"></param>
-    public void ResetDisplayTruth(IField field)
+    private void DisplayValueTable()
     {
-        displayTruth = new bool[field.Values.Count];
+        if (!View.Selection.IsGparamFieldSelected())
+            return;
+
+        var fileEntry = View.Selection.SelectedFileEntry;
+        var data = View.Selection.GetSelectedGparam();
+        var group = View.Selection.GetSelectedGroup();
+        var field = View.Selection.GetSelectedField();
+
+        if (data == null)
+            return;
+
+        if (group == null)
+            return;
+
+        if (field == null)
+            return;
+
+        var columnCount = 3;
+
+        if (CFG.Current.GparamEditor_Value_List_Display_Time_Of_Day_Column)
+            columnCount++;
+
+        if (CFG.Current.GparamEditor_Value_List_Display_Information_Column)
+            columnCount++;
+
+        ImGui.Columns(columnCount);
+
+        DisplayColumn_Row(fileEntry, data, group, field);
+        DisplayColumn_ID(data, group, field);
+        DisplayColumn_TimeOfDay(data, group, field);
+        DisplayColumn_Value(data, group, field);
+        DisplayColumn_Info(data, group, field);
+
+        ImGui.Columns(1);
+
+        Shortcuts(data, group, field);
+    }
+
+    // Row
+    private void DisplayColumn_Row(FileDictionaryEntry fileEntry, GPARAM data, GPARAM.Param group, IField field)
+    {
+        ImGui.BeginChild("GparamPropList_Row");
+        GUI.SimpleHeader("Row", "");
 
         for (int i = 0; i < field.Values.Count; i++)
         {
-            displayTruth[i] = true;
+            var value = field.Values[i];
+            if (value == null)
+                continue;
+
+            var isMatch = EditorFilters.IsMatch(ValueListFilter, value.ID.ToString(), ExactValueListFilter);
+
+            if (!isMatch)
+                continue;
+
+            GparamProperty_Row(fileEntry, data, group, field, value, i);
         }
-    }
 
-    /// <summary>
-    /// Extend the Values display truth list in preparation for value row addition.
-    /// </summary>
-    /// <param name="field"></param>
-    public void ExtendDisplayTruth(IField field)
-    {
-        displayTruth = new bool[field.Values.Count + 1];
 
-        for (int i = 0; i < field.Values.Count + 1; i++)
+        if (field.Values.Count == 0)
         {
-            displayTruth[i] = true;
+            DisplayDummySelectable(fileEntry, data, group, field);
         }
+
+        ImGui.EndChild();
     }
-    /// <summary>
-    /// REduce the Values display truth list in preparation for value row removal.
-    /// </summary>
-    /// <param name="field"></param>
-    public void ReduceDisplayTruth(IField field)
+    public void GparamProperty_Row(FileDictionaryEntry fileEntry, GPARAM data, GPARAM.Param group,
+        IField field, IFieldValue value, int index)
     {
-        displayTruth = new bool[field.Values.Count + -1];
+        var isSelected = View.Selection.IsValueSelected(index);
 
-        for (int i = 0; i < field.Values.Count + -1; i++)
+        ImGui.AlignTextToFramePadding();
+        if (ImGui.Selectable($"Row {index}##{index}", isSelected))
         {
-            displayTruth[i] = true;
+            View.Selection.SetGparamFieldValue(index, value);
         }
+
+        ContextMenu(fileEntry, data, group, field, value, index);
     }
 
-    /// <summary>
-    /// Values table: ID column
-    /// </summary>
-    /// <param name="index"></param>
-    /// <param name="field"></param>
-    /// <param name="value"></param>
-    public void GparamProperty_ID(int index, IField field, IFieldValue value)
+    // ID
+    private void DisplayColumn_ID(GPARAM data, GPARAM.Param group, IField field)
+    {
+        ImGui.NextColumn();
+
+        ImGui.BeginChild("GparamPropList_ID");
+        GUI.SimpleHeader("ID", "");
+
+        for (int i = 0; i < field.Values.Count; i++)
+        {
+            var value = field.Values[i];
+            if (value == null)
+                continue;
+
+            var isMatch = EditorFilters.IsMatch(ValueListFilter, value.ID.ToString(), ExactValueListFilter);
+
+            if (!isMatch)
+                continue;
+
+            GparamProperty_ID(data, group, field, value, i);
+        }
+
+        ImGui.EndChild();
+    }
+
+    public void GparamProperty_ID(GPARAM data, GPARAM.Param group, 
+        IField field, IFieldValue value, int index)
     {
         ImGui.AlignTextToFramePadding();
+        View.PropertyEditor.IdField(data, group, field, value, index);
+    }
 
-        string name = value.Id.ToString();
+    // Time of Day
+    private void DisplayColumn_TimeOfDay(GPARAM data, GPARAM.Param group, IField field)
+    {
+        if (!CFG.Current.GparamEditor_Value_List_Display_Time_Of_Day_Column)
+            return;
 
-        if (ImGui.Selectable($"{name}##{index}", index == Parent.Selection._selectedFieldValueKey))
+        ImGui.NextColumn();
+
+        ImGui.BeginChild("GparamPropList_TimeOfDay");
+        GUI.SimpleHeader("Time of Day", "");
+
+        for (int i = 0; i < field.Values.Count; i++)
         {
-            Parent.Selection.SetGparamFieldValue(index, value);
+            var value = field.Values[i];
+            if (value == null)
+                continue;
+
+            var isMatch = EditorFilters.IsMatch(ValueListFilter, value.ID.ToString(), ExactValueListFilter);
+
+            if (!isMatch)
+                continue;
+
+            GparamProperty_TimeOfDay(data, group, field, value, i);
         }
 
-        Parent.ContextMenu.FieldValueContextMenu(index);
+        ImGui.EndChild();
     }
-
-    /// <summary>
-    /// Values table: Time of Day column
-    /// </summary>
-    /// <param name="index"></param>
-    /// <param name="field"></param>
-    /// <param name="value"></param>
-    public void GparamProperty_TimeOfDay(int index, IField field, IFieldValue value)
+    public void GparamProperty_TimeOfDay(GPARAM data, Param group, IField field, IFieldValue value, int index)
     {
         ImGui.AlignTextToFramePadding();
-        Parent.PropertyEditor.TimeOfDayField(index, field, value);
+        View.PropertyEditor.TimeOfDayField(data, group, field, value, index);
     }
 
-    /// <summary>
-    /// Values table: Value column
-    /// </summary>
-    /// <param name="index"></param>
-    /// <param name="field"></param>
-    /// <param name="value"></param>
-    public void GparamProperty_Value(int index, IField field, IFieldValue value)
+    // Value
+    private void DisplayColumn_Value(GPARAM data, GPARAM.Param group, IField field)
+    {
+        ImGui.NextColumn();
+
+        ImGui.BeginChild("GparamPropList_Value");
+        GUI.SimpleHeader("Value", "");
+
+        for (int i = 0; i < field.Values.Count; i++)
+        {
+            var value = field.Values[i];
+            if (value == null)
+                continue;
+
+            var isMatch = EditorFilters.IsMatch(ValueListFilter, value.ID.ToString(), ExactValueListFilter);
+
+            if (!isMatch)
+                continue;
+
+            GparamProperty_Value(data, group, field, value, i);
+        }
+
+        ImGui.EndChild();
+    }
+    public void GparamProperty_Value(GPARAM data, Param group, IField field, IFieldValue value, int index)
     {
         ImGui.AlignTextToFramePadding();
-        Parent.PropertyEditor.ValueField(index, field, value);
+        View.PropertyEditor.ValueField(data, group, field, value, index);
     }
 
-    /// <summary>
-    /// Values table: Information column
-    /// </summary>
-    /// <param name="field"></param>
+    // Information
+    private void DisplayColumn_Info(GPARAM data, GPARAM.Param group, IField field)
+    {
+        if (!CFG.Current.GparamEditor_Value_List_Display_Information_Column)
+            return;
+
+        ImGui.NextColumn();
+
+        ImGui.BeginChild("GparamPropList_Info");
+        GUI.SimpleHeader("Information", "");
+
+        GparamProperty_Info(field);
+
+        ImGui.EndChild();
+    }
+
     public void GparamProperty_Info(IField field)
     {
         ImGui.AlignTextToFramePadding();
 
-        var groupId = Parent.Selection.GetSelectedGparamGroup().Key;
+        var groupId = View.Selection.GetSelectedGroup().Key;
         var fieldId = field.Key;
         var fieldDescription = GparamMetaUtils.GetFieldDescription(Project, groupId, fieldId);
 
-        UIHelper.WrappedText($"Type: {GparamUtils.GetReadableObjectTypeName(field)}");
-        UIHelper.WrappedText($"");
+        GUI.WrappedText($"Type: {GparamUtils.GetReadableObjectTypeName(field)}");
+        GUI.WrappedText($"");
 
         // Skip if empty
         if (fieldDescription != "")
         {
-            UIHelper.WrappedText($"{fieldDescription}");
+            GUI.WrappedText($"{fieldDescription}");
         }
 
         var fieldEnum = GparamMetaUtils.GetFieldEnum(Project, groupId, fieldId);
@@ -284,21 +299,250 @@ public class GparamValueList
             {
                 var targetEnum = enums.FirstOrDefault(e => e.Key == fieldEnum);
 
-                foreach(var entry in targetEnum.Options)
+                foreach (var entry in targetEnum.Options)
                 {
                     var name = entry.Names.FirstOrDefault(e => e.Language == CFG.Current.GparamEditor_Annotation_Language);
 
                     if (name != null)
                     {
-                        UIHelper.WrappedText($"{entry.Key} - {name}");
+                        GUI.WrappedText($"{entry.Key} - {name.Text}");
                     }
                     else
                     {
-                        UIHelper.WrappedText($"{entry.Key}");
+                        GUI.WrappedText($"{entry.Key}");
                     }
                 }
             }
         }
+    }
+
+    private void DisplayDummySelectable(FileDictionaryEntry fileEntry, GPARAM data, Param group, IField field)
+    {
+        ImGui.BeginGroup();
+
+        if (ImGui.Selectable($@" Empty##addValueDummy"))
+        {
+            AddNewValue(fileEntry, data, group, field);
+        }
+        GUI.Tooltip("Click to add new value.");
+
+        ImGui.EndGroup();
+    }
+
+    private void AddNewValue(FileDictionaryEntry fileEntry, GPARAM data, Param group, IField field)
+    {
+        // Get the annotation for this field so we can seed to new value properly
+        var potentialGroups = Project.Handler.GparamData.Annotations.Entries.FirstOrDefault(
+            e => e.Key.Name == CFG.Current.GparamEditor_Annotation_Language);
+
+        if (potentialGroups.Value == null)
+            return;
+
+        GparamAnnotationFieldEntry addValueAnnotation = null;
+
+        var groups = potentialGroups.Value.Params.ToList();
+        foreach (var curGroup in groups)
+        {
+            if (curGroup.ID == group.Key)
+            {
+                foreach (var curField in curGroup.Fields)
+                {
+                    if (curField.ID == field.Key)
+                    {
+                        addValueAnnotation = curField;
+                    }
+                }
+            }
+        }
+
+        if (addValueAnnotation != null)
+        {
+            var action = new ReplaceFieldAction(Project, data, group, new List<GparamAnnotationFieldEntry>() { addValueAnnotation } );
+            View.ActionManager.ExecuteAction(action);
+        }
+    }
+
+    private string OverrideFileName = "";
+
+    public void ContextMenu(FileDictionaryEntry fileEntry, GPARAM data, GPARAM.Param group, IField field, IFieldValue value, int index)
+    {
+        bool overwrite = CFG.Current.GparamEditor_Data_Import_Overwrite;
+
+        if (index == View.Selection._selectedFieldValueIndex)
+        {
+            if (ImGui.BeginPopupContextItem($"Options##Gparam_PropId_Context"))
+            {
+                // Duplicate
+                if (ImGui.BeginMenu("Duplicate"))
+                {
+                    // Input
+                    ImGui.InputInt("ID##duplicateInput_ID", ref View.Selection.DuplicateValueID);
+
+                    if (View.Selection.DuplicateValueID < 0)
+                    {
+                        View.Selection.DuplicateValueID = 0;
+                    }
+
+                    ImGui.InputInt("ID##duplicateInput_Offset", ref View.Selection.DuplicateValueOffset);
+
+                    // Submit
+                    if (ImGui.Selectable("Submit"))
+                    {
+                        AddValues(data, group, field, new List<GPARAM.IFieldValue>() { value }, false);
+                    }
+                    GUI.Tooltip("Duplicate the selected value row, assigning the specified ID below as the new id.");
+
+                    ImGui.EndMenu();
+                }
+
+                // Delete
+                if (ImGui.Selectable("Delete"))
+                {
+                    DeleteValues(data, group, field, new List<GPARAM.IFieldValue>() { value });
+
+                    ImGui.CloseCurrentPopup();
+                }
+                GUI.Tooltip("Delete the value row.");
+
+                ImGui.Separator();
+
+                // Import
+                if (ImGui.Selectable("Import"))
+                {
+                    View.ToolView.DataTransferTool.ImportValue(Project, View, fileEntry, data, group, field, value, overwrite);
+                }
+                GUI.Tooltip("Import a GPARAM Value json to overwrite this entry.");
+
+                // Export
+                if (ImGui.BeginMenu("Export"))
+                {
+                    ImGui.InputText("##overrideFilename", ref OverrideFileName, 255);
+                    GUI.Tooltip("Define the filename for the exported GPARAM Value file.");
+
+                    if (ImGui.Selectable("Export File"))
+                    {
+                        View.ToolView.DataTransferTool.ExportValueFile(fileEntry, data, group, field, value, OverrideFileName);
+                    }
+
+                    ImGui.EndMenu();
+                }
+                GUI.Tooltip("Export this currently selected GPARAM Value to JSON.");
+
+                ImGui.Separator();
+
+                if (ImGui.MenuItem("Copy ID"))
+                {
+                    ImGui.SetClipboardText($"{value.ID}");
+                }
+
+                if (ImGui.MenuItem("Copy Value"))
+                {
+                    ImGui.SetClipboardText($"{value.Value.ToString()}");
+                }
+
+                ImGui.Separator();
+
+                if (ImGui.BeginMenu("Target"))
+                {
+                    if (ImGui.Selectable("Quick Edit"))
+                    {
+                        var fieldIndex = -1;
+                        for (int i = 0; i < field.Values.Count; i++)
+                        {
+                            if (field.Values[i] == value)
+                            {
+                                fieldIndex = i;
+                                break;
+                            }
+                        }
+
+                        if (fieldIndex != -1)
+                        {
+                            View.QuickEditHandler.UpdateValueRowFilter(fieldIndex);
+                        }
+                    }
+                    GUI.Tooltip("Add this value to the Value Filter in the Quick Edit window.");
+
+                    if (ImGui.Selectable("Data Finder"))
+                    {
+                        var fieldIndex = -1;
+                        for (int i = 0; i < field.Values.Count; i++)
+                        {
+                            if (field.Values[i] == value)
+                            {
+                                fieldIndex = i;
+                                break;
+                            }
+                        }
+
+                        if (fieldIndex != -1)
+                        {
+                            View.ToolView.DataFinder.UpdateValueRowFilter(fieldIndex);
+                        }
+                    }
+                    GUI.Tooltip("Add this value to the Value Filter in the Data Finder window.");
+
+                    ImGui.EndMenu();
+                }
+
+                ImGui.EndPopup();
+            }
+        }
+    }
+
+    private void Shortcuts(GPARAM data, GPARAM.Param group, IField field)
+    {
+        var values = View.Selection.GetSelectedValues();
+
+        if (FocusManager.IsFocus(EditorFocusContext.GparamEditor_Properties))
+        {
+            // Duplicate
+            if (InputManager.IsPressed(KeybindID.Duplicate))
+            {
+                AddValues(data, group, field, values, true);
+            }
+
+            // Delete
+            if (InputManager.IsPressed(KeybindID.Delete))
+            {
+                DeleteValues(data, group, field, values);
+            }
+        }
+    }
+
+    public void AddValues(GPARAM data, Param group, IField field, List<IFieldValue> entries, bool useDuplicateOffset)
+    {
+        var duplicateID = View.Selection.DuplicateValueID;
+        var duplicateOffset = View.Selection.DuplicateValueOffset;
+
+        var action = new AddValueAction(Project, data, group, field, entries, duplicateID, duplicateOffset, useDuplicateOffset);
+        View.ActionManager.ExecuteAction(action);
+    }
+
+    public void DeleteValues(GPARAM data, Param group, IField field, List<IFieldValue> entries)
+    {
+        var action = new DeleteValueAction(Project, data, group, field, entries);
+        View.ActionManager.ExecuteAction(action);
+    }
+
+    public void AddValuesShortcut()
+    {
+        var data = View.Selection.GetSelectedGparam();
+        var group = View.Selection.GetSelectedGroup();
+        var field = View.Selection.GetSelectedField();
+        var values = View.Selection.GetSelectedValues();
+
+        AddValues(data, group, field, values, true);
+    }
+
+    public void DeleteValuesShortcut()
+    {
+        var data = View.Selection.GetSelectedGparam();
+        var group = View.Selection.GetSelectedGroup();
+        var field = View.Selection.GetSelectedField();
+        var values = View.Selection.GetSelectedValues();
+
+        DeleteValues(data, group, field, values);
     }
 }
 

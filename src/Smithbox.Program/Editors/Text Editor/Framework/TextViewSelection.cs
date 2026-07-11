@@ -115,7 +115,11 @@ public class TextViewSelection
             var fmgName = fmgInfo.Name;
             var displayName = TextUtils.GetFmgDisplayName(Project, SelectedContainerWrapper, id, fmgName);
 
-            if (Parent.Filters.IsFmgFilterMatch(fmgName, displayName, id))
+            var isMatch = EditorFilters.IsMatch(
+                Parent.FileList.FmgListFilter, fmgName, Parent.FileList.ExactFmgListFilter, 
+                displayName, false, false, id.ToString());
+
+            if (isMatch)
             {
                 SelectFmg(fmgInfo);
                 break;
@@ -131,6 +135,7 @@ public class TextViewSelection
         if (FocusManager.IsFocus(EditorFocusContext.TextEditor_EntryList))
         {
             FmgEntryMultiselect.HandleMultiselect(_selectedFmgEntryIndex, index);
+            Parent.TextEntryCreator.UpdateParameters(entry);
         }
 
         _selectedFmgEntryIndex = index;
@@ -148,13 +153,31 @@ public class TextViewSelection
             {
                 var entry = SelectedFmgWrapper.File.Entries[i];
 
-                if (Parent.Filters.IsFmgEntryFilterMatch(entry))
+                var input = Parent.TextEntryList.EntryListFilter;
+                var exactMatch = Parent.TextEntryList.ExactEntryListFilter;
+
+                var isMatch = EditorFilters.IsMatch(
+                    input, entry.ID.ToString(), exactMatch, entry.Text);
+
+                // Ignore normal match if a special conditional commands has been used
+                if (Parent.TextEntryList.UsedMatchCommands(input))
+                {
+                    isMatch = Parent.TextEntryList.HandleMatchCommands(input, entry);
+                }
+
+                if (isMatch)
                 {
                     SelectFmgEntry(i, entry);
+                    Parent.TextEntryCreator.UpdateParameters(entry);
                     break;
                 }
             }
         }
+    }
+
+    public bool IsFmgSelected()
+    {
+        return SelectedFmgWrapper != null;
     }
 
     /// <summary>

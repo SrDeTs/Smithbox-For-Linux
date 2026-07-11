@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Linq;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Text.Json.Serialization;
 
 // TKGP's latest version of GPARAM
 #nullable disable
@@ -66,7 +67,38 @@ namespace SoulsFormats
 
         public GPARAM Clone()
         {
-            return (GPARAM)MemberwiseClone();
+            var clone = new GPARAM();
+            clone.Version = Version;
+            clone.Unk0D = Unk0D;
+            clone.Count14 = Count14;
+            clone.Data30 = Data30;
+
+            clone.Unk50 = Unk50;
+            clone.WideStrings = WideStrings;
+            clone.HasComments = HasComments;
+
+            // Add clones within
+            clone.Params = new();
+            if (Params != null)
+            {
+                foreach (var entry in Params)
+                {
+                    var newEntry = entry.Clone();
+                    clone.Params.Add(newEntry);
+                }
+            }
+
+            clone.UnkParamExtras = new();
+            if (UnkParamExtras != null)
+            {
+                foreach (var entry in UnkParamExtras)
+                {
+                    var newEntry = entry.Clone();
+                    clone.UnkParamExtras.Add(newEntry);
+                }
+            }
+
+            return clone;
         }
 
         protected override bool Is(BinaryReaderEx br)
@@ -390,6 +422,278 @@ namespace SoulsFormats
                 Comments = new List<string>();
             }
 
+            public Param Clone()
+            {
+                var newParam = new Param();
+                newParam.Key = Key;
+                newParam.Name = Name;
+                newParam.Comments = new List<string>(Comments);
+
+                // Clone within
+                newParam.Fields = new();
+                foreach(var entry in Fields)
+                {
+                    if(entry is SbyteField sbyteField)
+                    {
+                        var newField = new SbyteField();
+                        newField.Key = sbyteField.Key;
+                        newField.Name = sbyteField.Name;
+                        newField.Capacity = sbyteField.Capacity;
+                        newField.Unk = sbyteField.Unk;
+                        newField.Values = new();
+                        foreach(var val in sbyteField.Values)
+                        {
+                            var newVal = val.Clone();
+                            newField.Values.Add(newVal);
+                        }
+
+                        newParam.Fields.Add(newField);
+                    }
+                    else if (entry is ShortField shortField)
+                    {
+                        var newField = new ShortField();
+                        newField.Key = shortField.Key;
+                        newField.Name = shortField.Name;
+                        newField.Capacity = shortField.Capacity;
+                        newField.Unk = shortField.Unk;
+                        newField.Values = new();
+                        foreach (var val in shortField.Values)
+                        {
+                            var newVal = val.Clone();
+                            newField.Values.Add(newVal);
+                        }
+
+                        newParam.Fields.Add(newField);
+                    }
+                    else if (entry is IntField intField)
+                    {
+                        var newField = new IntField();
+                        newField.Key = intField.Key;
+                        newField.Name = intField.Name;
+                        newField.Capacity = intField.Capacity;
+                        newField.Unk = intField.Unk;
+                        newField.Values = new();
+                        foreach (var val in intField.Values)
+                        {
+                            var newVal = val.Clone();
+                            newField.Values.Add(newVal);
+                        }
+
+                        newParam.Fields.Add(newField);
+                    }
+                    else if (entry is ByteField byteField)
+                    {
+                        var newField = new ByteField();
+                        newField.Key = byteField.Key;
+                        newField.Name = byteField.Name;
+                        newField.Capacity = byteField.Capacity;
+                        newField.Unk = byteField.Unk;
+                        newField.Values = new();
+                        foreach (var val in byteField.Values)
+                        {
+                            var newVal = val.Clone();
+                            newField.Values.Add(newVal);
+                        }
+
+                        newParam.Fields.Add(newField);
+                    }
+                    else if (entry is UintField uintField)
+                    {
+                        var newField = new UintField();
+                        newField.Key = uintField.Key;
+                        newField.Name = uintField.Name;
+                        newField.Capacity = uintField.Capacity;
+                        newField.Unk = uintField.Unk;
+                        newField.Values = new();
+                        foreach (var val in uintField.Values)
+                        {
+                            var newVal = val.Clone();
+                            newField.Values.Add(newVal);
+                        }
+
+                        newParam.Fields.Add(newField);
+                    }
+                    else if (entry is FloatField floatField)
+                    {
+                        var newField = new FloatField();
+                        newField.Key = floatField.Key;
+                        newField.Name = floatField.Name;
+                        newField.Capacity = floatField.Capacity;
+                        newField.Unk = floatField.Unk;
+                        newField.Values = new();
+                        foreach (var val in floatField.Values)
+                        {
+                            var newVal = val.Clone();
+                            newField.Values.Add(newVal);
+                        }
+
+                        newParam.Fields.Add(newField);
+                    }
+                    else if (entry is BoolField boolField)
+                    {
+                        var newField = new BoolField();
+                        newField.Key = boolField.Key;
+                        newField.Name = boolField.Name;
+                        newField.Capacity = boolField.Capacity;
+                        newField.Unk = boolField.Unk;
+                        newField.Values = new();
+                        foreach (var val in boolField.Values)
+                        {
+                            var newVal = val.Clone();
+                            newField.Values.Add(newVal);
+                        }
+
+                        newParam.Fields.Add(newField);
+                    }
+                    else if (entry is Vector2Field vec2Field)
+                    {
+                        var newField = new Vector2Field();
+                        newField.Key = vec2Field.Key;
+                        newField.Name = vec2Field.Name;
+                        newField.Capacity = vec2Field.Capacity;
+                        newField.Unk = vec2Field.Unk;
+                        newField.Values = new();
+                        foreach (var val in vec2Field.Values)
+                        {
+                            var newVal = val.Clone();
+                            newField.Values.Add(newVal);
+                        }
+
+                        newParam.Fields.Add(newField);
+                    }
+                    else if (entry is Vector3Field vec3Field)
+                    {
+                        var newField = new Vector3Field();
+                        newField.Key = vec3Field.Key;
+                        newField.Name = vec3Field.Name;
+                        newField.Capacity = vec3Field.Capacity;
+                        newField.Unk = vec3Field.Unk;
+                        newField.Values = new();
+                        foreach (var val in vec3Field.Values)
+                        {
+                            var newVal = val.Clone();
+                            newField.Values.Add(newVal);
+                        }
+
+                        newParam.Fields.Add(newField);
+                    }
+                    else if (entry is Vector4Field vec4Field)
+                    {
+                        var newField = new Vector4Field();
+                        newField.Key = vec4Field.Key;
+                        newField.Name = vec4Field.Name;
+                        newField.Capacity = vec4Field.Capacity;
+                        newField.Unk = vec4Field.Unk;
+                        newField.Values = new();
+                        foreach (var val in vec4Field.Values)
+                        {
+                            var newVal = val.Clone();
+                            newField.Values.Add(newVal);
+                        }
+
+                        newParam.Fields.Add(newField);
+                    }
+                    else if (entry is ColorField colorField)
+                    {
+                        var newField = new ColorField();
+                        newField.Key = colorField.Key;
+                        newField.Name = colorField.Name;
+                        newField.Capacity = colorField.Capacity;
+                        newField.Unk = colorField.Unk;
+                        newField.Values = new();
+                        foreach (var val in colorField.Values)
+                        {
+                            var newVal = val.Clone();
+                            newField.Values.Add(newVal);
+                        }
+
+                        newParam.Fields.Add(newField);
+                    }
+                    else if (entry is LongField longField)
+                    {
+                        var newField = new LongField();
+                        newField.Key = longField.Key;
+                        newField.Name = longField.Name;
+                        newField.Capacity = longField.Capacity;
+                        newField.Unk = longField.Unk;
+                        newField.Values = new();
+                        foreach (var val in longField.Values)
+                        {
+                            var newVal = val.Clone();
+                            newField.Values.Add(newVal);
+                        }
+
+                        newParam.Fields.Add(newField);
+                    }
+                    else if (entry is UshortField ushortField)
+                    {
+                        var newField = new UshortField();
+                        newField.Key = ushortField.Key;
+                        newField.Name = ushortField.Name;
+                        newField.Capacity = ushortField.Capacity;
+                        newField.Unk = ushortField.Unk;
+                        newField.Values = new();
+                        foreach (var val in ushortField.Values)
+                        {
+                            var newVal = val.Clone();
+                            newField.Values.Add(newVal);
+                        }
+
+                        newParam.Fields.Add(newField);
+                    }
+                    else if (entry is UlongField ulongField)
+                    {
+                        var newField = new UlongField();
+                        newField.Key = ulongField.Key;
+                        newField.Name = ulongField.Name;
+                        newField.Capacity = ulongField.Capacity;
+                        newField.Unk = ulongField.Unk;
+                        newField.Values = new();
+                        foreach (var val in ulongField.Values)
+                        {
+                            var newVal = val.Clone();
+                            newField.Values.Add(newVal);
+                        }
+
+                        newParam.Fields.Add(newField);
+                    }
+                    else if (entry is DoubleField doubleField)
+                    {
+                        var newField = new DoubleField();
+                        newField.Key = doubleField.Key;
+                        newField.Name = doubleField.Name;
+                        newField.Capacity = doubleField.Capacity;
+                        newField.Unk = doubleField.Unk;
+                        newField.Values = new();
+                        foreach (var val in doubleField.Values)
+                        {
+                            var newVal = val.Clone();
+                            newField.Values.Add(newVal);
+                        }
+
+                        newParam.Fields.Add(newField);
+                    }
+                    else if (entry is StringField stringField)
+                    {
+                        var newField = new StringField();
+                        newField.Key = stringField.Key;
+                        newField.Name = stringField.Name;
+                        newField.Capacity = stringField.Capacity;
+                        newField.Unk = stringField.Unk;
+                        newField.Values = new();
+                        foreach (var val in stringField.Values)
+                        {
+                            var newVal = val.Clone();
+                            newField.Values.Add(newVal);
+                        }
+
+                        newParam.Fields.Add(newField);
+                    }
+                }
+
+                return newParam;
+            }
+
             public override string ToString()
             {
                 return $"{Key} [{Fields.Count}]";
@@ -406,7 +710,7 @@ namespace SoulsFormats
                 if (version is GparamVersion.V2)
                 {
                     Key = br.ReadShiftJIS();
-                    Name = br.ReadShiftJIS();
+                    Name = Key;
                 }
                 else
                 {
@@ -436,8 +740,7 @@ namespace SoulsFormats
                     // String is padded to 8 bytes if it is 4 bytes
                     // String is padded to 16 bytes if it is 12 bytes
 
-                    bw.WriteShiftJIS(Key);
-                    bw.WriteShiftJIS(Name);
+                    bw.WriteShiftJIS(Key, true);
                 }
                 else
                 {
@@ -548,6 +851,16 @@ namespace SoulsFormats
                 Ids = Enumerable.ToList<int>(br.GetInt32s((baseOffsets.ParamExtraIds + num), count));
             }
 
+            public UnkParamExtra Clone()
+            {
+                var clone = new UnkParamExtra();
+                clone.GroupIndex = GroupIndex;
+                clone.Unk0c = Unk0c;
+                clone.Ids = [.. Ids];
+
+                return clone;
+            }
+
             internal void Write(BinaryWriterEx bw, 
                 GparamVersion version, int index)
             {
@@ -603,7 +916,24 @@ namespace SoulsFormats
         /// <summary>
         /// A field of a param.
         /// </summary>
-        public interface IField
+        [JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
+        [JsonDerivedType(typeof(GPARAM.SbyteField), "sbyte")]
+        [JsonDerivedType(typeof(GPARAM.ShortField), "short")]
+        [JsonDerivedType(typeof(GPARAM.IntField), "int")]
+        [JsonDerivedType(typeof(GPARAM.LongField), "long")]
+        [JsonDerivedType(typeof(GPARAM.ByteField), "byte")]
+        [JsonDerivedType(typeof(GPARAM.UshortField), "ushort")]
+        [JsonDerivedType(typeof(GPARAM.UintField), "uint")]
+        [JsonDerivedType(typeof(GPARAM.UlongField), "ulong")]
+        [JsonDerivedType(typeof(GPARAM.FloatField), "float")]
+        [JsonDerivedType(typeof(GPARAM.DoubleField), "double")]
+        [JsonDerivedType(typeof(GPARAM.BoolField), "bool")]
+        [JsonDerivedType(typeof(GPARAM.Vector2Field), "vec2")]
+        [JsonDerivedType(typeof(GPARAM.Vector3Field), "vec3")]
+        [JsonDerivedType(typeof(GPARAM.Vector4Field), "vec4")]
+        [JsonDerivedType(typeof(GPARAM.ColorField), "color")]
+        [JsonDerivedType(typeof(GPARAM.StringField), "string")]
+        public interface IField 
         {
             /// <summary>
             /// Key for this field.
@@ -618,7 +948,7 @@ namespace SoulsFormats
             /// <summary>
             /// A set of values this field has.
             /// </summary>
-            IReadOnlyList<IFieldValue> Values { get; }
+            IReadOnlyList<IFieldValue> Values { get; set; }
 
             internal static IField Read(BinaryReaderEx br,
               GparamVersion version,
@@ -671,7 +1001,6 @@ namespace SoulsFormats
                         return new StringField(br, version, baseOffsets);
                     default:
                         throw new NotImplementedException($"Unknown field type: {enum8}");
-                        break;
                 }
             }
         }
@@ -709,6 +1038,7 @@ namespace SoulsFormats
             /// <summary>
             /// A set of values this field has.
             /// </summary>
+            [JsonInclude]
             public List<FieldValue<T>> Values { get; set; }
 
             /// <summary>
@@ -721,9 +1051,11 @@ namespace SoulsFormats
             /// </summary>
             public short Unk { get; set; }
 
+            [JsonIgnore]
             IReadOnlyList<IFieldValue> IField.Values
             {
                 get => Values;
+                set => throw new NotImplementedException();
             }
 
             public Field()
@@ -753,8 +1085,8 @@ namespace SoulsFormats
                 if (version < GparamVersion.V6)
                 {
                     type = (int)br.AssertByte((byte)Type);
-                    Capacity = br.ReadSByte();
-                    Unk = br.AssertInt16(0);
+                    Capacity = br.ReadByte();
+                    Unk = br.ReadInt16();
 
                 }
                 else
@@ -769,7 +1101,6 @@ namespace SoulsFormats
                 if (version is GparamVersion.V2)
                 {
                     Key = br.ReadShiftJIS();
-                    Name = br.ReadShiftJIS();
                 }
                 else
                 {
@@ -786,7 +1117,7 @@ namespace SoulsFormats
                     objArray[index] = ReadValue(br, version);
                 }
 
-                br.Position =(baseOffsets.ValueIds + valueIdsOffset);
+                br.Position = (baseOffsets.ValueIds + valueIdsOffset);
 
                 Values = new List<FieldValue<T>>(capacity);
 
@@ -807,7 +1138,7 @@ namespace SoulsFormats
                 if (version < GparamVersion.V6)
                 {
                     bw.WriteByte((byte)Type);
-                    bw.WriteSByte((sbyte)Capacity);
+                    bw.WriteByte((byte)Capacity);
                     bw.WriteInt16(Unk);
                 }
                 else
@@ -823,8 +1154,7 @@ namespace SoulsFormats
                     // String is padded to 8 bytes if it is 4 bytes
                     // String is padded to 16 bytes if it is 12 bytes
 
-                    bw.WriteShiftJIS(Key);
-                    bw.WriteShiftJIS(Name);
+                    bw.WriteShiftJIS(Key, true);
                 }
                 else
                 {
@@ -1157,21 +1487,22 @@ namespace SoulsFormats
 
         public interface IFieldValue
         {
-            int Id { get; set; }
+            int ID { get; set; }
 
-            float Unk04 { get; set; }
+            float TimeOfDay { get; set; }
 
             object Value { get; set; }
         }
 
         public class FieldValue<T> : IFieldValue
         {
-            public int Id { get; set; }
+            public int ID { get; set; }
 
-            public float Unk04 { get; set; }
+            public float TimeOfDay { get; set; }
 
             public T Value { get; set; }
 
+            [JsonIgnore]
             object GPARAM.IFieldValue.Value
             {
                 get
@@ -1186,23 +1517,28 @@ namespace SoulsFormats
 
             public FieldValue() { }
 
+            public FieldValue<T> Clone()
+            {
+                return (FieldValue<T>)this.MemberwiseClone();
+            }
+
             public override string ToString()
             {
-                if ((double)Unk04 != 0.0)
+                if ((double)TimeOfDay != 0.0)
                 {
-                    return $"{Id} ({Unk04}) = {Value}";
+                    return $"{ID} ({TimeOfDay}) = {Value}";
                 }
 
-                return $"{Id} = {Value}";
+                return $"{ID} = {Value}";
             }
 
             internal FieldValue(BinaryReaderEx br, GparamVersion version, T value)
             {
-                Id = br.ReadInt32();
+                ID = br.ReadInt32();
 
                 if (version >= GparamVersion.V5)
                 {
-                    Unk04 = br.ReadSingle();
+                    TimeOfDay = br.ReadSingle();
                 }
 
                 Value = value;
@@ -1210,14 +1546,14 @@ namespace SoulsFormats
 
             internal void Write(BinaryWriterEx bw, GparamVersion version)
             {
-                bw.WriteInt32(Id);
+                bw.WriteInt32(ID);
 
                 if (version < GparamVersion.V5)
                 {
                     return;
                 }
 
-                bw.WriteSingle(Unk04);
+                bw.WriteSingle(TimeOfDay);
             }
         }
 
