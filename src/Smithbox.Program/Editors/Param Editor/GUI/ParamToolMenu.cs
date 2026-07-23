@@ -25,9 +25,13 @@ public class ParamToolMenu
     public ParamDataTransferTool DataConverterTool;
     public ParamSortTool SortTool;
     public ParamComparisonTool ParamComparisonTool;
+#if WINDOWS
     public ParamReloader ParamReloader;
+#endif
     public ParamMerger ParamMerger;
+#if WINDOWS
     public ItemGib ItemGib;
+#endif
     public ParamUpgrader ParamUpgrader;
     public ParamListCategories ParamListCategories;
     public ParamPinGroups PinGroups;
@@ -51,9 +55,13 @@ public class ParamToolMenu
         SortTool = new(view, project);
 
         ParamComparisonTool = new(view, project);
+#if WINDOWS
         ParamReloader = new(view, project);
+#endif
         ParamMerger = new(view, project);
+#if WINDOWS
         ItemGib = new(view, project);
+#endif
         ParamUpgrader = new(view, project);
         ParamListCategories = new(view, project);
         PinGroups = new(view, project);
@@ -95,8 +103,9 @@ public class ParamToolMenu
             // Memory
             if (ImGui.BeginMenu($"{LOC.Get("PARAM_Tools_Header_Memory")}##memoryMenuHeader"))
             {
+#if WINDOWS
                 ParamReloader.DisplayDropdown();
-
+#endif
                 ImGui.EndMenu();
             }
 
@@ -171,6 +180,7 @@ public class ParamToolMenu
                 GUI.ShowActiveStatus(CFG.Current.ParamEditor_Show_Tool_Param_Delta_Patcher);
 
                 // Param Reloader
+#if WINDOWS
                 if (ImGui.MenuItem($"{LOC.Get("PARAM_Tools_View_Param_Reloader")}##viewToggle_ParamReloader"))
                 {
                     CFG.Current.ParamEditor_Show_Tool_Param_Reloader = !CFG.Current.ParamEditor_Show_Tool_Param_Reloader;
@@ -183,6 +193,7 @@ public class ParamToolMenu
                     CFG.Current.ParamEditor_Show_Tool_Item_Gib = !CFG.Current.ParamEditor_Show_Tool_Item_Gib;
                 }
                 GUI.ShowActiveStatus(CFG.Current.ParamEditor_Show_Tool_Item_Gib);
+#endif
 
                 // Mass Edit
                 if (ImGui.MenuItem($"{LOC.Get("PARAM_Tools_View_Mass_Edit")}##viewToggle_MassEdit"))
@@ -258,12 +269,16 @@ public class ParamToolMenu
 
         if (CFG.Current.ParamEditor_Show_Tool_Param_Reloader)
         {
+#if WINDOWS
             ParamReloader.Display();
+#endif
         }
 
         if (CFG.Current.ParamEditor_Show_Tool_Item_Gib)
         {
+#if WINDOWS
             ItemGib.Display();
+#endif
         }
 
         if (CFG.Current.ParamEditor_Show_Tool_Param_List_Categories)

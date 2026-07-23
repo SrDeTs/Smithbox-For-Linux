@@ -259,8 +259,8 @@ public class ProjectUtils
                 else
                 {
                     var currentCompression = ParamSaveCompression.GetCurrentOverride();
-                    byte[] bytes = null;
-                    bytes = item.Write(currentCompression);
+                    byte[] bytes = item.Write(currentCompression);
+                    toFs.WriteFile(assetPath + ".temp", bytes);
                 }
             }
 
@@ -281,7 +281,7 @@ public class ProjectUtils
         }
         catch (Exception e)
         {
-            Smithbox.Log<ProjectUtils>(LOC.Get("PROJECT_Util_Failed_To_Save", $"{Path.GetFileName(assetPath)} - {e}"));
+            Smithbox.LogError<ProjectUtils>(LOC.Get("PROJECT_Util_Failed_To_Save", $"{Path.GetFileName(assetPath)} - {e}"));
         }
     }
 

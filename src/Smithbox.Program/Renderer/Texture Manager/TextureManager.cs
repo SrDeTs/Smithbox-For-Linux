@@ -1,5 +1,4 @@
 ﻿using Andre.Formats;
-using DirectXTexNet;
 using Hexa.NET.ImGui;
 using HKLib.hk2018.hkHashMapDetail;
 using Microsoft.AspNetCore.Components.Forms;

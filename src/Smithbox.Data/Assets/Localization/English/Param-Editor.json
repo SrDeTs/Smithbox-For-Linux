@@ -69,6 +69,10 @@
       "Text": "Params saved."
     },
     {
+      "Key": "PARAM_Params_Save_Failed",
+      "Text": "Failed to save params. Check the log for details."
+    },
+    {
       "Key": "PARAM_Param_Save_in_Progress",
       "Text": "Param saving already in progress."
     }

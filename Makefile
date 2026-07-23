@@ -20,18 +20,30 @@ export ARTIFACT_ROOT
 
 help:
 	@printf '%s\n' \
+		'Smithbox for Linux — build & packaging' \
+		'' \
 		'Targets:' \
 		'  make build            Build the full solution (default)' \
 		'  make restore          Restore NuGet packages' \
 		'  make run              Run Smithbox from src/Smithbox/Smithbox.csproj' \
 		'  make publish          Publish to ./linux-x64' \
-		'  make package          Build all Linux packages' \
-		'  make release          Create the GitHub release from packaged artifacts' \
+		'  make test             Run the unit tests' \
+		'  make package          Build all Linux packages (deb/rpm/pacman/appimage)' \
+		'  make package-deb      Build only the .deb package' \
+		'  make package-rpm      Build only the .rpm package' \
+		'  make package-pacman   Build only the pacman (Arch) package' \
+		'  make package-appimage Build only the AppImage' \
+		'  make release          Create the GitHub release bundle from packaged artifacts' \
+		'  make clean            Clean build outputs' \
+		'  make clobber          clean + remove publish/artifacts' \
 		'' \
 		'Variables:' \
-		'  CONFIG=Release-linux  Build configuration' \
+		'  CONFIG=Release-linux  Build configuration (Debug-linux | Release-linux)' \
 		'  PUBLISH_DIR=linux-x64  Publish output directory' \
-		'  ARTIFACT_ROOT=artifacts/package  Package output root'
+		'  ARTIFACT_ROOT=artifacts/package  Package output root' \
+		'' \
+		'Note: package/appimage targets require the corresponding tools to be installed' \
+		'(dpkg-deb, rpmbuild, makepkg, appimagetool).'
 
 restore:
 	$(DOTNET) restore "$(SOLUTION)"

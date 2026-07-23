@@ -7,16 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="NavGen.dll" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="NavGen.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="CjClutter.ObjLoader" Version="1.0.0" />
   </ItemGroup>
 

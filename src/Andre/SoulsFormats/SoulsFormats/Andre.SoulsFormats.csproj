@@ -8,7 +8,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <TargetFramework>net10.0</TargetFramework>
     <LangVersion>12</LangVersion>
-    <Configurations>Debug;Release;Debug-win;Release-win;Debug-linux;Release-linux;Debug-osx;Release-osx</Configurations>
+    <Configurations>Debug;Release;Debug-linux;Release-linux</Configurations>
   </PropertyGroup>
 
   <PropertyGroup Condition="$(Configuration.StartsWith('Debug'))">
@@ -21,16 +21,8 @@
     <DocumentationFile />
   </PropertyGroup>
 
-  <PropertyGroup Condition="$(Configuration.EndsWith('-win')) Or !$(Configuration.Contains('-'))">
-    <DefineConstants>$(DefineConstants);WINDOWS</DefineConstants>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="$(Configuration.EndsWith('-linux'))">
+  <PropertyGroup Condition="$(Configuration.EndsWith('-linux')) Or !$(Configuration.Contains('-'))">
     <DefineConstants>$(DefineConstants);LINUX</DefineConstants>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="$(Configuration.EndsWith('-osx'))">
-    <DefineConstants>$(DefineConstants);OSX</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup Condition="$(TargetFramework.StartsWith('netstandard'))">

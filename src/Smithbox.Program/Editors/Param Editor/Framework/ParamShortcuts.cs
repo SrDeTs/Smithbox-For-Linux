@@ -184,9 +184,11 @@ public class ParamShortcuts
         // Reload All Params
         if (InputManager.IsPressed(KeybindID.ParamEditor_Reload_All_Params))
         {
+#if WINDOWS
             Editor.ViewHandler.ActiveView.ToolMenu.ParamReloader.ReloadMemoryParams(
                 activeView.GetPrimaryBank(),
                 activeView.GetPrimaryBank().Params.Keys.ToArray());
+#endif
         }
 
         // Reload Current Param
@@ -194,9 +196,11 @@ public class ParamShortcuts
         {
             if (activeView.Selection.GetActiveParam() != null)
             {
+#if WINDOWS
                 Editor.ViewHandler.ActiveView.ToolMenu.ParamReloader.ReloadMemoryParam(
                     activeView.GetPrimaryBank(),
                     activeView.Selection.GetActiveParam());
+#endif
             }
         }
     }

@@ -4,10 +4,13 @@ using System.Runtime.InteropServices;
 namespace StudioCore.Utilities;
 
 /// <summary>
-///     Binding to Navgen recast based navmesh generation library
+///     Binding to Navgen recast based navmesh generation library.
+///     Only available on Windows (requires NavGen.dll, built from the MSVC NavGen project).
+///     On Linux the navmesh builder tool is disabled.
 /// </summary>
 internal static class NavGen
 {
+#if WINDOWS
     [DllImport("NavGen.dll")]
     public static extern bool SetNavmeshBuildParams(float cs, float ch, float slope, float aheight, float aclimb,
         float aradius, int minregionarea);
@@ -29,4 +32,5 @@ internal static class NavGen
 
     [DllImport("NavGen.dll")]
     public static extern void GetBoundingBox([In][Out] Vector3[] buffer);
+#endif
 }

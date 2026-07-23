@@ -1,5 +1,7 @@
 using Hexa.NET.ImGui;
+#if WINDOWS
 using Microsoft.Win32;
+#endif
 using SoulsFormats;
 using StudioCore.Application;
 using StudioCore.Editors.Common;

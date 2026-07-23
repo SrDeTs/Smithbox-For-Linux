@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
@@ -18,19 +18,17 @@
     <Content Include="imgui.default">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="SDL2.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Veldrid.ImGui.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="libveldrid-spirv.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="NavGen.dll">
+    <!-- Oodle texture decompression library for Nightreign (NR).
+         Copied next to the smithbox executable so ProjectEntry.SetupDLLs can find it. -->
+    <Content Include="liboo2corelinux64.so.9">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+
+  <!-- Linux native libraries are provided by the Hexa.NET.* NuGet packages (per-RID)
+       and by the prebuilt binaries under src/native/linux-x64. The Windows-only .dll
+       files (cimgui.dll, SDL2.dll, NavGen.dll, oo2core_*_win64.dll, etc.) are NOT
+       shipped on Linux and are intentionally excluded here. -->
 
   <PropertyGroup Condition="$(Configuration.StartsWith('Debug'))">
     <DefineConstants>DEBUG</DefineConstants>

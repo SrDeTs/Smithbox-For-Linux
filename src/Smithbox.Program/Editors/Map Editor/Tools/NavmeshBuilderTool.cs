@@ -128,9 +128,10 @@ public class NavmeshBuilderTool
                     }
 
 
+#if WINDOWS
                     NavGen.SetNavmeshBuildParams(Cellsize, Cellheight, SlopeAngle, AgentHeight, AgentClimb,
                         AgentRadius, MinRegionArea);
-
+#endif
                     var p = new hkaiNavMeshBuilder.BuildParams();
                     p.Cellsize = Cellsize;
                     p.Cellheight = Cellheight;

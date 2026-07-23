@@ -9,9 +9,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="TracyClient.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
+    <!-- TracyClient native library is NOT shipped by default on Linux.
+         To enable profiling, build TracyClient from source (cmake -DBUILD_SHARED_LIBS=ON
+         -DTRACY_FIBERS=ON -DTRACY_MANUAL_LIFETIME=ON -DTRACY_DELAYED_INIT=ON) and place the
+         resulting libTracyClient.so next to the Smithbox executable, then set SMITHBOX_PROFILER=1. -->
   </ItemGroup>
 
   <PropertyGroup Condition="$(Configuration.StartsWith('Debug'))">

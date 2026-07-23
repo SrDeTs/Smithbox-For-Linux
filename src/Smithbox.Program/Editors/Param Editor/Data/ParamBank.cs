@@ -62,6 +62,17 @@ public class ParamBank : IDisposable
 
     public ulong ParamVersion => _paramVersion;
 
+    /// <summary>
+    /// Extracts the param file name from a BND binder file name.
+    /// BND file names may contain Windows-style paths (e.g. "N:\GR\data\...\ActionButtonParam.param")
+    /// which Path.GetFileNameWithoutExtension does not handle on Linux (backslash is not a separator).
+    /// This normalizes backslashes to forward slashes first.
+    /// </summary>
+    private static string GetParamName(string binderFileName)
+    {
+        return Path.GetFileNameWithoutExtension(binderFileName.Replace('\\', '/'));
+    }
+
     public IReadOnlyDictionary<string, HashSet<int>> VanillaDiffCache
     {
         get
@@ -411,9 +422,9 @@ public class ParamBank : IDisposable
         // Replace params with edited ones
         foreach (BinderFile p in paramBnd.Files)
         {
-            if (Params.ContainsKey(Path.GetFileNameWithoutExtension(p.Name)))
+            if (Params.ContainsKey(GetParamName(p.Name)))
             {
-                p.Bytes = Params[Path.GetFileNameWithoutExtension(p.Name)].Write();
+                p.Bytes = Params[GetParamName(p.Name)].Write();
             }
         }
 
@@ -454,9 +465,9 @@ public class ParamBank : IDisposable
 
                 foreach (BinderFile p in drawParamBnd.Files)
                 {
-                    if (Params.ContainsKey(Path.GetFileNameWithoutExtension(p.Name)))
+                    if (Params.ContainsKey(GetParamName(p.Name)))
                     {
-                        p.Bytes = Params[Path.GetFileNameWithoutExtension(p.Name)].Write();
+                        p.Bytes = Params[GetParamName(p.Name)].Write();
                     }
                 }
 
@@ -593,9 +604,9 @@ public class ParamBank : IDisposable
 
         foreach (BinderFile p in paramBnd.Files)
         {
-            if (Params.ContainsKey(Path.GetFileNameWithoutExtension(p.Name)))
+            if (Params.ContainsKey(GetParamName(p.Name)))
             {
-                p.Bytes = Params[Path.GetFileNameWithoutExtension(p.Name)].Write();
+                p.Bytes = Params[GetParamName(p.Name)].Write();
             }
         }
 
@@ -608,9 +619,9 @@ public class ParamBank : IDisposable
                 using var drawParamBnd = BND3.Read(fs.GetFile(bnd).GetData());
                 foreach (BinderFile p in drawParamBnd.Files)
                 {
-                    if (Params.ContainsKey(Path.GetFileNameWithoutExtension(p.Name)))
+                    if (Params.ContainsKey(GetParamName(p.Name)))
                     {
-                        p.Bytes = Params[Path.GetFileNameWithoutExtension(p.Name)].Write();
+                        p.Bytes = Params[GetParamName(p.Name)].Write();
                     }
                 }
 
@@ -726,9 +737,9 @@ public class ParamBank : IDisposable
         // Replace params with edited ones
         foreach (BinderFile p in paramBnd.Files)
         {
-            if (Params.ContainsKey(Path.GetFileNameWithoutExtension(p.Name)))
+            if (Params.ContainsKey(GetParamName(p.Name)))
             {
-                p.Bytes = Params[Path.GetFileNameWithoutExtension(p.Name)].Write();
+                p.Bytes = Params[GetParamName(p.Name)].Write();
             }
         }
         ProjectUtils.WriteWithBackup(Project, fs, toFs, Path.Join("param", "GameParam", "GameParam.parambnd.dcx"), paramBnd);
@@ -741,9 +752,9 @@ public class ParamBank : IDisposable
                 using var drawParamBnd = BND3.Read(fs.GetFile(bnd).GetData());
                 foreach (BinderFile p in drawParamBnd.Files)
                 {
-                    if (Params.ContainsKey(Path.GetFileNameWithoutExtension(p.Name)))
+                    if (Params.ContainsKey(GetParamName(p.Name)))
                     {
-                        p.Bytes = Params[Path.GetFileNameWithoutExtension(p.Name)].Write();
+                        p.Bytes = Params[GetParamName(p.Name)].Write();
                     }
                 }
 
@@ -1105,7 +1116,7 @@ public class ParamBank : IDisposable
 
                 foreach (KeyValuePair<string, Param> p in Params)
                 {
-                    BinderFile bnd = paramBnd.Files.Find(e => Path.GetFileNameWithoutExtension(e.Name) == p.Key);
+                    BinderFile bnd = paramBnd.Files.Find(e => GetParamName(e.Name) == p.Key);
 
                     if (bnd != null)
                     {
@@ -1314,9 +1325,9 @@ public class ParamBank : IDisposable
         // Replace params with edited ones
         foreach (BinderFile p in paramBnd.Files)
         {
-            if (Params.ContainsKey(Path.GetFileNameWithoutExtension(p.Name)))
+            if (Params.ContainsKey(GetParamName(p.Name)))
             {
-                p.Bytes = Params[Path.GetFileNameWithoutExtension(p.Name)].Write();
+                p.Bytes = Params[GetParamName(p.Name)].Write();
             }
         }
 
@@ -1447,9 +1458,9 @@ public class ParamBank : IDisposable
         // Replace params with edited ones
         foreach (BinderFile p in paramBnd.Files)
         {
-            if (Params.ContainsKey(Path.GetFileNameWithoutExtension(p.Name)))
+            if (Params.ContainsKey(GetParamName(p.Name)))
             {
-                p.Bytes = Params[Path.GetFileNameWithoutExtension(p.Name)].Write();
+                p.Bytes = Params[GetParamName(p.Name)].Write();
             }
         }
 
@@ -1526,7 +1537,7 @@ public class ParamBank : IDisposable
         // Replace params with edited ones
         foreach (BinderFile p in paramBnd.Files)
         {
-            var paramName = Path.GetFileNameWithoutExtension(p.Name);
+            var paramName = GetParamName(p.Name);
             if (Params.TryGetValue(paramName, out Param paramFile))
             {
                 IReadOnlyList<Param.Row> backup = paramFile.Rows;
@@ -1628,9 +1639,10 @@ public class ParamBank : IDisposable
             // Replace params with edited ones
             foreach (BinderFile p in paramBnd.Files)
             {
-                if (Params.ContainsKey(Path.GetFileNameWithoutExtension(p.Name)))
+                var paramFileName = GetParamName(p.Name);
+                if (Params.ContainsKey(paramFileName))
                 {
-                    Param paramFile = Params[Path.GetFileNameWithoutExtension(p.Name)];
+                    Param paramFile = Params[paramFileName];
                     IReadOnlyList<Param.Row> backup = paramFile.Rows;
 
                     p.Bytes = paramFile.Write();
@@ -1825,7 +1837,7 @@ public class ParamBank : IDisposable
             // Replace params with edited ones
             foreach (BinderFile p in paramBnd.Files)
             {
-                var paramName = Path.GetFileNameWithoutExtension(p.Name);
+                var paramName = GetParamName(p.Name);
                 if (Params.TryGetValue(paramName, out Param paramFile))
                 {
                     IReadOnlyList<Param.Row> backup = paramFile.Rows;
@@ -2042,9 +2054,9 @@ public class ParamBank : IDisposable
             // Replace params with edited ones
             foreach (BinderFile p in paramBnd.Files)
             {
-                if (Params.ContainsKey(Path.GetFileNameWithoutExtension(p.Name)))
+                if (Params.ContainsKey(GetParamName(p.Name)))
                 {
-                    Param paramFile = Params[Path.GetFileNameWithoutExtension(p.Name)];
+                    Param paramFile = Params[GetParamName(p.Name)];
                     IReadOnlyList<Param.Row> backup = paramFile.Rows;
 
                     p.Bytes = paramFile.Write();

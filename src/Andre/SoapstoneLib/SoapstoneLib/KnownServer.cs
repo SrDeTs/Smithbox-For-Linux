@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 
@@ -68,8 +70,7 @@ namespace SoapstoneLib
             realPort = 0;
 
             // Make sure the server is at least running. This may throw an exception.
-            MIB_TCPROW_OWNER_PID[] rows = GetAllTcpConnections<MIB_TCPROW_OWNER_PID>();
-            MIB_TCP6ROW_OWNER_PID[] rows6 = GetAllTcpConnections<MIB_TCP6ROW_OWNER_PID>();
+            List<TcpRow> rows = GetAllTcpConnections();
 
             // If process is given, always try to use it, and fail if not present
             if (ProcessNames.Count > 0)
@@ -85,21 +86,12 @@ namespace SoapstoneLib
                 }
                 HashSet<int> processIds = new HashSet<int>(processes.Select(p => p.Id));
                 List<int> matchingPorts = new List<int>();
-                foreach (MIB_TCPROW_OWNER_PID row in rows)
+                foreach (TcpRow row in rows)
                 {
-                    if (processIds.Contains(row.owningPid) && row.state == MIB_TCP_STATE.MIB_TCP_STATE_LISTEN)
+                    if (processIds.Contains(row.OwningPid) && row.State == TcpState.Listen)
                     {
-                        matchingPorts.Add(ConvertPort(row.localPort));
+                        matchingPorts.Add(row.LocalPort);
                     }
-                    // if (row.state == MIB_TCP_STATE.MIB_TCP_STATE_LISTEN) Console.WriteLine($"local {row.localPort} remote {row.remotePort} pid {row.owningPid}");
-                }
-                foreach (MIB_TCP6ROW_OWNER_PID row in rows6)
-                {
-                    if (processIds.Contains(row.owningPid) && row.state == MIB_TCP_STATE.MIB_TCP_STATE_LISTEN)
-                    {
-                        matchingPorts.Add(ConvertPort(row.localPort));
-                    }
-                    // if (row.state == MIB_TCP_STATE.MIB_TCP_STATE_LISTEN) Console.WriteLine($"local6 {row.localPort} remote {row.remotePort} pid {row.owningPid}");
                 }
                 if (matchingPorts.Count > 0)
                 {
@@ -111,18 +103,9 @@ namespace SoapstoneLib
             }
 
             // Use port if process is not given. This will fail later on if there's not a gRPC service there.
-            int netPort = ConvertPort(PortHint);
-            foreach (MIB_TCPROW_OWNER_PID row in rows)
+            foreach (TcpRow row in rows)
             {
-                if (row.localPort == netPort && row.state == MIB_TCP_STATE.MIB_TCP_STATE_LISTEN)
-                {
-                    realPort = PortHint;
-                    return true;
-                }
-            }
-            foreach (MIB_TCP6ROW_OWNER_PID row in rows6)
-            {
-                if (row.localPort == netPort && row.state == MIB_TCP_STATE.MIB_TCP_STATE_LISTEN)
+                if (row.LocalPort == PortHint && row.State == TcpState.Listen)
                 {
                     realPort = PortHint;
                     return true;
@@ -140,14 +123,131 @@ namespace SoapstoneLib
             {
                 return false;
             }
-            MIB_TCPROW_OWNER_PID[] rows = GetAllTcpConnections<MIB_TCPROW_OWNER_PID>();
-            MIB_TCP6ROW_OWNER_PID[] rows6 = GetAllTcpConnections<MIB_TCP6ROW_OWNER_PID>();
-            int netPort = ConvertPort(PortHint);
-            return rows.Any(row => netPort == row.localPort && row.state == MIB_TCP_STATE.MIB_TCP_STATE_LISTEN)
-                || rows6.Any(row => netPort == row.localPort && row.state == MIB_TCP_STATE.MIB_TCP_STATE_LISTEN);
+            List<TcpRow> rows = GetAllTcpConnections();
+            return rows.Any(row => PortHint == row.LocalPort && row.State == TcpState.Listen);
         }
 
-        // Windows API
+        // ---- Cross-platform TCP table reading ----
+
+        private enum TcpState
+        {
+            Closed = 1,
+            Listen = 2,
+            SynSent = 3,
+            SynRcvd = 4,
+            Established = 5,
+            FinWait1 = 6,
+            FinWait2 = 7,
+            CloseWait = 8,
+            Closing = 9,
+            LastAck = 10,
+            TimeWait = 11,
+            DeleteTcb = 12,
+        }
+
+        private readonly struct TcpRow
+        {
+            public readonly int LocalPort;
+            public readonly int OwningPid;
+            public readonly TcpState State;
+
+            public TcpRow(int localPort, int owningPid, TcpState state)
+            {
+                LocalPort = localPort;
+                OwningPid = owningPid;
+                State = state;
+            }
+        }
+
+        private static List<TcpRow> GetAllTcpConnections()
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                return GetAllTcpConnectionsWindows();
+            }
+            if (OperatingSystem.IsLinux())
+            {
+                return GetAllTcpConnectionsLinux();
+            }
+            // macOS and others: return empty so the caller falls back to PortHint.
+            return new List<TcpRow>();
+        }
+
+        // ---- Linux: /proc/net/tcp and /proc/net/tcp6 ----
+        // Format (space-separated):
+        //   sl local_address rem_address st tx_queue rx_queue tr tm->when retrnsmt uid timeout inode
+        // local_address = "0100007F:5860" (hex IP:hex port)
+        // st = hex state (0A = LISTEN)
+        // There is no owning PID column; pid is inferred via /proc/*/fd/socket inode.
+        private static List<TcpRow> GetAllTcpConnectionsLinux()
+        {
+            var rows = new List<TcpRow>();
+            // Build inode -> pid map by scanning /proc/*/fd symlinks.
+            var inodeToPid = new Dictionary<ulong, int>();
+            try
+            {
+                foreach (var procDir in Directory.EnumerateDirectories("/proc"))
+                {
+                    var fdDir = Path.Combine(procDir, "fd");
+                    if (!Directory.Exists(fdDir))
+                        continue;
+                    var pidName = Path.GetFileName(procDir);
+                    if (!int.TryParse(pidName, out int pid))
+                        continue;
+                    try
+                    {
+                        foreach (var fd in Directory.EnumerateFileSystemEntries(fdDir))
+                        {
+                            string target = ReadLink(fd);
+                            if (target == null)
+                                continue;
+                            // target looks like: socket:[12345]
+                            if (!target.StartsWith("socket:[", StringComparison.Ordinal))
+                                continue;
+                            var numPart = target.Substring("socket:[".Length).TrimEnd(']');
+                            if (ulong.TryParse(numPart, out ulong inode))
+                            {
+                                inodeToPid[inode] = pid;
+                            }
+                        }
+                    }
+                    catch { /* permission denied on some procs */ }
+                }
+            }
+            catch { /* /proc not available */ }
+
+            ParseProcTcpFile("/proc/net/tcp", rows, inodeToPid);
+            ParseProcTcpFile("/proc/net/tcp6", rows, inodeToPid);
+            return rows;
+        }
+
+        private static void ParseProcTcpFile(string path, List<TcpRow> rows, Dictionary<ulong, int> inodeToPid)
+        {
+            string[] lines;
+            try { lines = File.ReadAllLines(path); }
+            catch { return; }
+            // Skip header
+            for (int i = 1; i < lines.Length; i++)
+            {
+                var parts = lines[i].Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length < 10)
+                    continue;
+                // parts[1] = local_address, parts[2] = rem_address, parts[3] = st, parts[9] = inode
+                var localAddr = parts[1].Split(':');
+                if (localAddr.Length != 2)
+                    continue;
+                if (!int.TryParse(localAddr[1], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out int localPort))
+                    continue;
+                if (!int.TryParse(parts[3], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out int stateInt))
+                    continue;
+                if (!ulong.TryParse(parts[9], out ulong inode))
+                    continue;
+                int pid = inodeToPid.TryGetValue(inode, out var p) ? p : 0;
+                rows.Add(new TcpRow(localPort, pid, (TcpState)stateInt));
+            }
+        }
+
+        // ---- Windows: iphlpapi.dll ----
         // https://docs.microsoft.com/en-us/windows/win32/api/iphlpapi/nf-iphlpapi-getextendedtcptable
         // C# marshalling example code
         // http://www.pinvoke.net/default.aspx/iphlpapi/GetExtendedTcpTable.html
@@ -228,25 +328,37 @@ namespace SoapstoneLib
             TCP_TABLE_CLASS tcpTableType,
             int reserved = 0);
 
-        private static TRow[] GetAllTcpConnections<TRow>()
+        // Linux readlink for resolving /proc/*/fd/* socket symlinks.
+        [DllImport("libc", SetLastError = true)]
+        private static extern IntPtr readlink(string path, byte[] buffer, IntPtr bufferSize);
+
+        private static string ReadLink(string path)
+        {
+            const int MaxLen = 4096;
+            var buf = new byte[MaxLen];
+            IntPtr n = readlink(path, buf, (IntPtr)MaxLen);
+            if ((long)n <= 0)
+                return null;
+            return System.Text.Encoding.UTF8.GetString(buf, 0, (int)n);
+        }
+
+        private static List<TcpRow> GetAllTcpConnectionsWindows()
+        {
+            var rows = new List<TcpRow>();
+            foreach (var entry in GetWindowsTcpRows<MIB_TCPROW_OWNER_PID>(ipVersion: 2))
+            {
+                rows.Add(new TcpRow(ConvertPort(entry.localPort), entry.owningPid, (TcpState)entry.state));
+            }
+            foreach (var entry in GetWindowsTcpRows<MIB_TCP6ROW_OWNER_PID>(ipVersion: 23))
+            {
+                rows.Add(new TcpRow(ConvertPort(entry.localPort), entry.owningPid, (TcpState)entry.state));
+            }
+            return rows;
+        }
+
+        private static TRow[] GetWindowsTcpRows<TRow>(int ipVersion)
         {
             TRow[] rows;
-            // 2 is IPv4, 23 is IPv6
-            int ipVersion;
-            if (typeof(TRow) == typeof(MIB_TCPROW_OWNER_PID))
-            {
-                // IPv4
-                ipVersion = 2;
-            }
-            else if (typeof(TRow) == typeof(MIB_TCP6ROW_OWNER_PID))
-            {
-                // IPv6
-                ipVersion = 23;
-            }
-            else
-            {
-                throw new Exception($"Internal error: unsupported GetExtendedTcpTable type {typeof(TRow).FullName}");
-            }
             int buffSize = 0;
 
             uint ret = GetExtendedTcpTable(

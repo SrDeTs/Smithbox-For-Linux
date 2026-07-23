@@ -826,6 +826,7 @@ public class SoapstoneService : SoapstoneServiceV1
                 return response;
             }
 
+#if WINDOWS
             var reloader = curProject.Handler.ParamEditor.ViewHandler.ActiveView.ToolMenu.ParamReloader;
 
             if (!reloader.CanReloadMemoryParams(activeView.GetPrimaryBank()))
@@ -867,6 +868,10 @@ public class SoapstoneService : SoapstoneServiceV1
                     TaskManager.WaitAll();
                 }
             }
+#else
+            // Live param reload (process memory injection) is only supported on Windows.
+            response.FailedParams.AddRange(paramNames ?? Array.Empty<string>());
+#endif
         }
         catch (Exception ex)
         {

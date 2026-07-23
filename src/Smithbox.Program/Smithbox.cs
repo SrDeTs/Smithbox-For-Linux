@@ -413,9 +413,11 @@ public class Smithbox
 
 
     //Unhappy with this being here
+#if WINDOWS
     [DllImport("user32.dll", EntryPoint = "ShowWindow")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool _user32_ShowWindow(IntPtr hWnd, int nCmdShow);
+#endif
 
     /// <summary>
     /// Called from Program.cs - Try to shutdown things gracefully on a crash
