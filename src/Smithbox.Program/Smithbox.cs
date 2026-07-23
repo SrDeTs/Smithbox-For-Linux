@@ -70,22 +70,6 @@ public class Smithbox
         // Hack to make sure dialogs work before the main window is created
         PlatformUtils.InitializeWindows(null);
 
-        // Initialize logging early so Setup() (which may call LogError) can use it
-        if (LogsProvider is null)
-        {
-            LogsProvider = new TaskLogsProvider();
-            SbLoggerFactory = LoggerFactory.Create(builder =>
-            {
-                builder.AddProvider(LogsProvider);
-#if DEBUG
-                builder.AddConsole();
-#endif
-            });
-            SbLogger = SbLoggerFactory.CreateLogger<Smithbox>();
-            SoulsFormats.Util.Logging.LoggerFactory = SbLoggerFactory;
-            Andre.Core.AndreLogging.LoggerFactory = SbLoggerFactory;
-        }
-
         Setup();
 
         if (CurrentBackend is RenderingBackend.OpenGL)
@@ -111,6 +95,22 @@ public class Smithbox
 
         // Set this so even if the user changes the CFG, the program won't suddenly switch its usage until a restart.
         CurrentBackend = Startup.Current.System_RenderingBackend;
+
+        //set up logging
+        if (LogsProvider is null)
+        {
+            LogsProvider = new TaskLogsProvider();
+            SbLoggerFactory = LoggerFactory.Create(builder =>
+            {
+                builder.AddProvider(LogsProvider);
+#if DEBUG
+                builder.AddConsole();
+#endif
+            });
+            SbLogger = SbLoggerFactory.CreateLogger<Smithbox>();
+            SoulsFormats.Util.Logging.LoggerFactory = SbLoggerFactory;
+            Andre.Core.AndreLogging.LoggerFactory = SbLoggerFactory;
+        }
 
         ActionLogger = new(
             "LOG_Action_Log",

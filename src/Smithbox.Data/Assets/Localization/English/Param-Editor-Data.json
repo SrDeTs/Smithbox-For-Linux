@@ -1,5 +1,256 @@
 {
   "Entries": [
-    
+    {
+      "Key": "PARAM_Data_Failed_Regulation_Load",
+      "Text": "Failed to get regulation version. Params might be corrupt."
+    },
+    {
+      "Key": "PARAM_Data_Missing_ParamDef",
+      "Text": "Couldn't find ParamDef for param {0} and no tentative ParamType exists."
+    },
+    {
+      "Key": "PARAM_Data_Missing_ParamType",
+      "Text": "Couldn't read ParamType for {0} and no tentative ParamType exists."
+    },
+    {
+      "Key": "PARAM_Data_Missing_ParamDef_ParamType",
+      "Text": "Couldn't find ParamDef for param {0} with ParamType '{1}'."
+    },
+    {
+      "Key": "PARAM_Data_Fixed_Up_Param",
+      "Text": "{0} fixed up."
+    },
+    {
+      "Key": "PARAM_Data_Param_Type_Null",
+      "Text": "Param type is unexpectedly null."
+    },
+    {
+      "Key": "PARAM_Data_Skipped_Param",
+      "Text": "Skipped this param: {0}"
+    },
+    {
+      "Key": "PARAM_Data_Failed_to_Apply_ParamDef",
+      "Text": "Could not apply ParamDef for {0}"
+    },
+    {
+      "Key": "PARAM_Data_Failed_to_Apply_ParamDef_Bank",
+      "Text": "Could not apply ParamDef for {0} in {1}"
+    },
+    {
+      "Key": "PARAM_Data_Failed_to_Find_Param_Path",
+      "Text": "Failed to find {0} for {1}"
+    },
+    {
+      "Key": "PARAM_Data_Failed_to_Load_GameParam",
+      "Text": "Failed to load game param for at {0} for {1}"
+    },
+    {
+      "Key": "PARAM_Data_Failed_to_Load_DrawParam",
+      "Text": "Failed to load draw param for at {0} for {1}"
+    },
+    {
+      "Key": "PARAM_Data_Failed_to_Locate_Param_Path",
+      "Text": "Cannot locate param files for {0}. Save failed."
+    },
+    {
+      "Key": "PARAM_Data_Failed_to_Load_Encrypted_GameParam",
+      "Text": "Failed to load encrypted game param for at {0} for {1}"
+    },
+    {
+      "Key": "PARAM_Data_Failed_to_Load_SystemParam",
+      "Text": "Failed to load system param for at {0} for {1}"
+    },
+    {
+      "Key": "PARAM_Data_Failed_to_Load_EventParam",
+      "Text": "Failed to load event param for at {0} for {1}"
+    },
+    {
+      "Key": "PARAM_Data_Failed_to_Load_GraphicsParam",
+      "Text": "Failed to load graphics param for at {0} for {1}"
+    },
+    {
+      "Key": "PARAM_Data_Failed_to_Locate_System_Param_Path",
+      "Text": "Cannot locate system param files for {0}. Save failed."
+    },
+    {
+      "Key": "PARAM_Data_Failed_to_Locate_Event_Param_Path",
+      "Text": "Cannot locate event param files for {0}. Save failed."
+    },
+    {
+      "Key": "PARAM_Data_Failed_to_Locate_Graphics_Param_Path",
+      "Text": "Cannot locate graphics param files for {0}. Save failed."
+    },
+    {
+      "Key": "PARAM_Data_GetParamDiff_Missing_Vanilla_Param",
+      "Text": "Missing vanilla param {0}"
+    },
+    {
+      "Key": "PARAM_Data_Failed_to_Find_StayParamContainer",
+      "Text": "Missing stay param container {0} for {1}"
+    },
+    {
+      "Key": "PARAM_Data_Failed_to_Load_StayParamContainer",
+      "Text": "Failed to load stay params at {0} for {1}"
+    },
+    {
+      "Key": "PARAM_Data_Failed_to_Load_StayParam",
+      "Text": "Failed to load stay param: {0}"
+    },
+    {
+      "Key": "PARAM_Data_Failed_to_Write_StayParam",
+      "Text": "Failed to write stay params: {0}"
+    },
+    {
+      "Key": "PARAM_Data_Setup_ParamDefs_PASS",
+      "Text": "Setup the PARAM definitions."
+    },
+    {
+      "Key": "PARAM_Data_Setup_ParamDefs_FAIL",
+      "Text": "Failed to setup the PARAM definitions."
+    },
+    {
+      "Key": "PARAM_Data_Setup_ParamMeta_PASS",
+      "Text": "Setup the PARAM meta."
+    },
+    {
+      "Key": "PARAM_Data_Setup_ParamMeta_FAIL",
+      "Text": "Failed to setup the PARAM meta."
+    },
+    {
+      "Key": "PARAM_Data_Setup_ParamAnnotations_PASS",
+      "Text": "Setup the PARAM annotations."
+    },
+    {
+      "Key": "PARAM_Data_Setup_ParamAnnotations_FAIL",
+      "Text": "Failed to setup the PARAM annotations."
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    },
+    {
+      "Key": "PARAM_Data_",
+      "Text": ""
+    }
   ]
 }

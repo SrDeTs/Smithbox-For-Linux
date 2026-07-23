@@ -16,7 +16,6 @@ using System.Threading.Tasks;
 
 namespace StudioCore.Editors.ParamEditor;
 
-
 public class ParamListWindow
 {
     public ParamEditorScreen Editor;
@@ -53,6 +52,18 @@ public class ParamListWindow
             DisplayPinnedParams();
         }
 
+        // Stay Params
+        if(Project.Descriptor.ProjectType is ProjectType.DS3)
+        {
+            if (CFG.Current.ParamEditor_Param_List_Display_StayParams)
+            {
+                if (Project.Handler.ParamData.PrimaryBank.StayParams.Count > 0)
+                {
+                    DisplayStayParams(doFocus, scrollTo);
+                }
+            }
+        }
+
         DisplayParams(doFocus, scrollTo);
 
         ImGui.EndChild();
@@ -60,16 +71,18 @@ public class ParamListWindow
 
     private void DisplayTitle()
     {
-        var paramListTitle = "Param List";
+        var paramListTitle = LOC.Get("PARAM_ParamWindow_Title");
 
         // Param Version
         if (Editor.Project.Handler.ParamData.PrimaryBank.ParamVersion != 0)
         {
-            paramListTitle = $"Param List - Version {ParamUtils.ParseParamVersion(Editor.Project.Handler.ParamData.PrimaryBank.ParamVersion)}";
+            var version = ParamUtils.ParseParamVersion(Editor.Project.Handler.ParamData.PrimaryBank.ParamVersion);
+
+            paramListTitle = LOC.Get("PARAM_ParamWindow_Title_Version", version);
 
             if (Editor.Project.Handler.ParamData.PrimaryBank.ParamVersion < Editor.Project.Handler.ParamData.VanillaBank.ParamVersion)
             {
-                paramListTitle = $"{paramListTitle} (out of date)";
+                paramListTitle = LOC.Get("PARAM_ParamWindow_Title_Version_Out_of_Date", version);
             }
         }
 
@@ -103,9 +116,8 @@ public class ParamListWindow
         }
 
         ImGui.AlignTextToFramePadding();
-        ImGui.InputTextWithHint($"##paramSearch", "Search...", ref currentParamSearchString, 256);
-
-        GUI.Tooltip($"Search <{InputManager.GetHint(KeybindID.ParamEditor_Focus_Searchbar)}>");
+        ImGui.InputTextWithHint($"##paramSearch", LOC.Get("PARAM_ParamWindow_Search_Hint"), ref currentParamSearchString, 256);
+        GUI.Tooltip(LOC.Get("PARAM_ParamWindow_Search_Hint_TT", InputManager.GetHint(KeybindID.ParamEditor_Focus_Searchbar)));
 
         if (!currentParamSearchString.Equals(lastParamSearch))
         {
@@ -123,11 +135,11 @@ public class ParamListWindow
                 CFG.Current.ParamEditor_Display_Table_List = !CFG.Current.ParamEditor_Display_Table_List;
             }
 
-            var tableGroupWindowVis = "Hidden";
+            var tableGroupWindowVis = LOC.Get("PARAM_ParamWindow_ToggleTableGroup_Hidden");
             if (!CFG.Current.ParamEditor_Display_Table_List)
-                tableGroupWindowVis = "Visible";
+                tableGroupWindowVis = LOC.Get("PARAM_ParamWindow_ToggleTableGroup_Visible");
 
-            GUI.Tooltip($"Toggle the display of the Table Group window.\nCurrent Mode: {tableGroupWindowVis}");
+            GUI.Tooltip(LOC.Get("PARAM_ParamWindow_ToggleTableGroup_Hint", tableGroupWindowVis));
         }
 
         // Toggle Param Community Names
@@ -138,11 +150,11 @@ public class ParamListWindow
             CFG.Current.ParamEditor_Param_List_Display_Community_Names = !CFG.Current.ParamEditor_Param_List_Display_Community_Names;
         }
 
-        var paramCommunityNamesVis = "Source";
+        var paramCommunityNamesVis = LOC.Get("PARAM_ParamWindow_ToggleCommunityNames_Source");
         if (CFG.Current.ParamEditor_Param_List_Display_Community_Names)
-            paramCommunityNamesVis = "Community";
+            paramCommunityNamesVis = LOC.Get("PARAM_ParamWindow_ToggleCommunityNames_Community");
 
-        GUI.Tooltip($"Toggle the display of community names for params.\nCurrent Mode: {paramCommunityNamesVis}");
+        GUI.Tooltip(LOC.Get("PARAM_ParamWindow_ToggleCommunityNames_Hint", paramCommunityNamesVis));
 
         // Toggle Param Categories
         ImGui.SameLine();
@@ -152,11 +164,28 @@ public class ParamListWindow
             CFG.Current.ParamEditor_Param_List_Display_Categories = !CFG.Current.ParamEditor_Param_List_Display_Categories;
         }
 
-        var paramCategoriesVis = "Hidden";
+        var paramCategoriesVis = LOC.Get("PARAM_ParamWindow_ToggleCategories_Hidden");
         if (CFG.Current.ParamEditor_Param_List_Display_Categories)
-            paramCategoriesVis = "Displayed";
+            paramCategoriesVis = LOC.Get("PARAM_ParamWindow_ToggleCategories_Visible");
 
-        GUI.Tooltip($"Toggle the display of param categories.\nCurrent Mode: {paramCategoriesVis}");
+        GUI.Tooltip(LOC.Get("PARAM_ParamWindow_ToggleCategories_Hint", paramCategoriesVis));
+
+        // Toggle Stay Params
+        if (Project.Descriptor.ProjectType is ProjectType.DS3)
+        {
+            ImGui.SameLine();
+
+            if (ImGui.Button($"{Icons.AddressBook}##stayParamToggle"))
+            {
+                CFG.Current.ParamEditor_Param_List_Display_StayParams = !CFG.Current.ParamEditor_Param_List_Display_StayParams;
+            }
+
+            var stayParamVis = LOC.Get("PARAM_ParamWindow_ToggleStayParams_Hidden");
+            if (CFG.Current.ParamEditor_Param_List_Display_StayParams)
+                stayParamVis = LOC.Get("PARAM_ParamWindow_ToggleStayParams_Visible");
+
+            GUI.Tooltip(LOC.Get("PARAM_ParamWindow_ToggleStayParams_Hint", stayParamVis));
+        }
 
         ImGui.EndChild();
     }
@@ -304,7 +333,8 @@ public class ParamListWindow
                 }
 
                 // General List
-                if (ImGui.CollapsingHeader($"General", ImGuiTreeNodeFlags.DefaultOpen))
+                if (ImGui.CollapsingHeader(
+                    $"{LOC.Get("PARAM_ParamWindow_Category_General")}##generalCategory", ImGuiTreeNodeFlags.DefaultOpen))
                 {
                     DisplayParamList(paramKeyList, generalParamList, doFocus, scrollTo);
                 }
@@ -444,16 +474,18 @@ public class ParamListWindow
         if (ImGui.BeginPopupContextItem($"{paramKey}"))
         {
             // Information
-            if(ImGui.BeginMenu("Information"))
+            if(ImGui.BeginMenu($"{LOC.Get("PARAM_ParamWindow_Context_Info_Header")}##infoMenuHeader"))
             {
-                ImGui.Text($"Param Type: {param.ParamType}");
+                ImGui.Text(LOC.Get("PARAM_ParamWindow_Context_ParamType", param.ParamType));
 
-                if (ImGui.Selectable("Copy Name"))
+                // Copy Name
+                if (ImGui.Selectable($"{LOC.Get("PARAM_ParamWindow_Context_Action_Copy_Name")}##copyNameAction"))
                 {
                     PlatformUtils.Instance.SetClipboardText(paramKey);
                 }
 
-                if (ImGui.Selectable("Copy Type"))
+                // Copy Type
+                if (ImGui.Selectable($"{LOC.Get("PARAM_ParamWindow_Context_Action_Copy_Type")}##copyTypeAction"))
                 {
                     PlatformUtils.Instance.SetClipboardText(param.ParamType);
                 }
@@ -462,11 +494,12 @@ public class ParamListWindow
             }
 
             // Pinning
-            if (ImGui.BeginMenu("Pinning"))
+            if (ImGui.BeginMenu($"{LOC.Get("PARAM_ParamWindow_Context_Pin_Header")}##pinMenuHeader"))
             {
                 if (!isPinnedEntry)
                 {
-                    if (ImGui.Selectable($"Pin"))
+                    // Pin
+                    if (ImGui.Selectable($"{LOC.Get("PARAM_ParamWindow_Context_Action_Pin")}##pinAction"))
                     {
                         List<string> pinned = Editor.Project.Descriptor.PinnedParams;
 
@@ -475,11 +508,12 @@ public class ParamListWindow
                             pinned.Add(paramKey);
                         }
                     }
-                    GUI.Tooltip($"Pin the current param selection to the top of the param list.");
+                    GUI.Tooltip(LOC.Get("PARAM_ParamWindow_Context_Action_Pin_TT"));
                 }
                 else if (isPinnedEntry)
                 {
-                    if (ImGui.Selectable($"Unpin"))
+                    // Unpin
+                    if (ImGui.Selectable($"{LOC.Get("PARAM_ParamWindow_Context_Action_Unpin")}##unpinAction"))
                     {
                         List<string> pinned = Editor.Project.Descriptor.PinnedParams;
 
@@ -488,20 +522,21 @@ public class ParamListWindow
                             pinned.Remove(paramKey);
                         }
                     }
-                    GUI.Tooltip($"Unpin the current param selection from the top of the param list.");
+                    GUI.Tooltip(LOC.Get("PARAM_ParamWindow_Context_Action_Unpin_TT"));
                 }
 
                 ImGui.EndMenu();
             }
 
             // Export
-            if (ImGui.BeginMenu("Export"))
+            if (ImGui.BeginMenu($"{LOC.Get("PARAM_ParamWindow_Context_Export_Header")}##exportMenuHeader"))
             {
-                if (ImGui.Selectable("Export Param as Loose File"))
+                // Export Loose Param as File
+                if (ImGui.Selectable($"{LOC.Get("PARAM_ParamWindow_Context_Action_Export_Loose_Param")}##exportLooseParamAction"))
                 {
                     ExportParam(paramKey);
                 }
-                GUI.Tooltip($"Extracts this param and saves it as a loose .PARAM file. ");
+                GUI.Tooltip(LOC.Get("PARAM_ParamWindow_Context_Action_Export_Loose_Param_TT"));
 
                 ImGui.EndMenu();
             }
@@ -509,19 +544,21 @@ public class ParamListWindow
             // Wiki
             if (CFG.Current.Developer_Enable_Tools)
             {
-                if (ImGui.BeginMenu("Wiki"))
+                if (ImGui.BeginMenu($"{LOC.Get("PARAM_ParamWindow_Context_Wiki_Header")}##wikiMenuHeader"))
                 {
-                    if (ImGui.Selectable("Copy Param List"))
+                    // Export Param List
+                    if (ImGui.Selectable($"{LOC.Get("PARAM_ParamWindow_Action_Copy_Param_List")}##copyParamListAction"))
                     {
                         ParamDebugTools.OutputParamTableInformation(Editor, Project);
                     }
-                    GUI.Tooltip($"Export the param list table for the SoulsModding wiki to the clipboard.");
+                    GUI.Tooltip(LOC.Get("PARAM_ParamWindow_Action_Copy_Param_TT"));
 
-                    if (ImGui.Selectable("Copy Param Field List"))
+                    // Export Field List
+                    if (ImGui.Selectable($"{LOC.Get("PARAM_ParamWindow_Action_Copy_Field_List")}##copyFieldListAction"))
                     {
                         ParamDebugTools.OutputParamInformation(Editor, Project, paramKey);
                     }
-                    GUI.Tooltip($"Export the param field list table for the SoulsModding wiki for this param to the clipboard.");
+                    GUI.Tooltip(LOC.Get("PARAM_ParamWindow_Action_Copy_Field_TT2"));
 
                     ImGui.EndMenu();
                 }
@@ -533,6 +570,8 @@ public class ParamListWindow
 
     private void SelectParam(string paramKey)
     {
+        ParentView.Selection.ActiveStayParam = null; // Clear this so we know to hide the StayParam Field window
+
         EditorCommandQueue.AddCommand($@"param/view/{ParentView.ViewIndex}/{paramKey}");
 
         ParentView.ParamTableWindow.UpdateTableSelection(paramKey);
@@ -544,13 +583,23 @@ public class ParamListWindow
         Smithbox.TextureManager.IconManager.PurgeCache();
     }
 
+    private void SelectStayParam(string paramKey)
+    {
+        ParentView.Selection.CleanAllSelectionState();
+        ParentView.Selection.ActiveStayParam = paramKey;
+
+        Smithbox.TextureManager.IconManager.PurgeCache();
+    }
+
     private void ExportParam(string paramKey)
     {
         var paramData = Editor.Project.Handler.ParamData.PrimaryBank.Params.GetValueOrDefault(paramKey);
 
         if(paramData == null)
         {
-            Smithbox.LogError<ParamListWindow>($"Failed to find valid param data for {paramKey}");
+            Smithbox.LogError<ParamListWindow>(
+                LOC.Get("PARAM_ParamWindow_ExportParam_Error_Invalid_ParamData", paramKey));
+
             return;
         }
 
@@ -566,6 +615,38 @@ public class ParamListWindow
 
         File.WriteAllBytes(savePath, saveData);
 
-        Smithbox.Log<ParamListWindow>($"Exported param to {savePath}");
+        Smithbox.Log<ParamListWindow>(LOC.Get("PARAM_ParamWindow_ExportParam_Log", savePath));
     }
+
+    #region Stay Params
+
+    private void DisplayStayParams(bool doFocus, float scrollTo)
+    {
+        ImGui.BeginChild("StayParamFileParamSection", new Vector2(0, 110) * DPI.UIScale(), ImGuiChildFlags.Borders);
+
+        foreach(var param in Project.Handler.ParamData.PrimaryBank.StayParams)
+        {
+            var paramKey = param.Key;
+            var meta = Editor.Project.Handler.ParamData.GetParamMeta(param.Value.Def);
+            var annotations = Editor.Project.Handler.ParamData.GetParamAnnotations(param.Value.Def.ParamType);
+
+            var Wiki = annotations?.Description;
+            if (Wiki != null)
+            {
+                EditorTableUtils.HelpIcon(paramKey + "wiki", ref Wiki, true);
+            }
+
+            ImGui.Indent(15.0f);
+            if (ImGui.Selectable($"{paramKey}##selectStayParam{paramKey}", paramKey == ParentView.Selection.ActiveStayParam))
+            {
+                SelectStayParam(paramKey);
+            }
+
+            ImGui.Unindent(15.0f);
+        }
+
+        ImGui.EndChild();
+    }
+
+    #endregion
 }

@@ -579,6 +579,7 @@ public class CFG
     public bool ParamEditor_Param_List_Sort_Alphabetically = true;
     public bool ParamEditor_Param_List_Display_Community_Names = false;
     public bool ParamEditor_Param_List_Display_Categories = true;
+    public bool ParamEditor_Param_List_Display_StayParams = true;
 
     // Table List
     public bool ParamEditor_Display_Table_List = true;
@@ -621,8 +622,6 @@ public class CFG
 
     // Mass Edit
     public bool ParamEditor_Show_Advanced_Mass_Edit_Commands = false;
-
-    public ParamFieldMassEditMode ParamEditor_Field_List_Context_Mass_Edit_Display_Mode = ParamFieldMassEditMode.AutoFill;
 
     public bool Param_PasteAfterSelection = false;
     public bool Param_PasteThenSelect = true;
@@ -713,6 +712,7 @@ public class CFG
     public bool ParamEditor_Show_Tool_Param_Upgrader = true;
     public bool ParamEditor_Show_Tool_Pin_Groups = true;
     public bool ParamEditor_Show_Tool_Param_Delta_Patcher = true;
+    public bool ParamEditor_Show_Tool_Row_Name_Manipulation = true;
 
     // Saving
     public bool Project_Automatic_Save_Include_Param_Editor = true;

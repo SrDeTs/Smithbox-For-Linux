@@ -39,15 +39,16 @@ public class MassEditToolMenu
         // Tabs
         if (ImGui.BeginTabBar("massEditTabs"))
         {
-            if (ImGui.BeginTabItem("Command Palette"))
+            // Command Palette
+            if (ImGui.BeginTabItem($"{LOC.Get("PARAM_MassEdit_Tab_Command_Palette")}##commandPaletteTab"))
             {
                 DisplayCommandPalette();
 
                 ImGui.EndTabItem();
             }
 
-
-            if (ImGui.BeginTabItem("Templates"))
+            // Templates
+            if (ImGui.BeginTabItem($"{LOC.Get("PARAM_MassEdit_Tab_Templates")}##templatesTab"))
             {
                 DisplayTemplateMenu();
 
@@ -60,34 +61,48 @@ public class MassEditToolMenu
 
     private void DisplayCommandPalette()
     {
-        var windowWidth = ImGui.GetWindowWidth();
-
         // Header
-        GUI.WrappedText("Write and execute mass edit commands here.");
+        GUI.WrappedText(LOC.Get("PARAM_MassEdit_Command_Palette_TT"));
 
         // Input
-        GUI.WrappedText("");
+        GUI.Spacer();
         MassEditUtils.MassEditHeader(Parent, 
-            "Input", "Type in the mass edit commands you wish to apply here.");
+            LOC.Get("PARAM_MassEdit_Header_Input"),
+            LOC.Get("PARAM_MassEdit_Header_Input_TT"));
 
         GUI.MultilineTextInput("massEditInput", ref Parent.State.CurrentMenuInput);
 
         GUI.MultiButtonInput("massEditActions", 
-            "massEditApply", "Apply", "Apply this script", ApplyMassEditAction, 
-            "massEditClear", "Clear", "Clear this script", ClearMassEditInputAction);
+            "massEditApply", 
+            LOC.Get("PARAM_MassEdit_Action_Apply_Script"),
+            LOC.Get("PARAM_MassEdit_Action_Apply_Script_TT"),
+            ApplyMassEditAction, 
+
+            "massEditClear", 
+            LOC.Get("PARAM_MassEdit_Action_Clear_Script"),
+            LOC.Get("PARAM_MassEdit_Action_Clear_Script_TT"),
+            ClearMassEditInputAction);
 
         // Templates
-        GUI.WrappedText("");
-        GUI.SimpleHeader("Templates", "");
+        GUI.Spacer();
+        GUI.SimpleHeader(
+            LOC.Get("PARAM_MassEdit_Header_Templates"),
+            LOC.Get("PARAM_MassEdit_Header_Templates_TT"));
 
-        MassEditUtils.TemplateComboBox("massEditScripts",ref CurrentTemplate, ScriptList);
+        MassEditUtils.TemplateComboBox("massEditScripts", ref CurrentTemplate, ScriptList);
 
         GUI.MultiButtonInput("massEditScriptActions",
-            "massEditScriptLoad", "Load", "Load this script", LoadMassEditTemplate);
+            "massEditScriptLoad", 
+            LOC.Get("PARAM_MassEdit_Action_Load_Script"),
+            LOC.Get("PARAM_MassEdit_Action_Load_Script_TT"),
+            LoadMassEditTemplate);
 
         // Output
-        GUI.WrappedText("");
-        GUI.SimpleHeader("Output", "Success state of the Mass Edit command that was previously used.\n\nRemember to handle clipboard state between edits with the 'clear' command");
+        GUI.Spacer();
+        GUI.SimpleHeader(
+            LOC.Get("PARAM_MassEdit_Header_Output"),
+            LOC.Get("PARAM_MassEdit_Header_Output_Command_Palette"));
+
         GUI.WrappedText($"{Parent.State.MassEditResult}");
     }
 
@@ -106,42 +121,66 @@ public class MassEditToolMenu
 
     private void DisplayTemplateMenu()
     {
-        var windowWidth = ImGui.GetWindowWidth();
-        var inputBoxSize = new Vector2(windowWidth * 0.725f, 32);
-
         // Header
-        GUI.WrappedText("Create and edit mass edit templates here.");
+        GUI.WrappedText(LOC.Get("PARAM_MassEdit_Template_Hint"));
 
         // Templates
-        GUI.WrappedText("");
-        GUI.SimpleHeader("Existing Templates", "");
+        GUI.Spacer();
+        GUI.SimpleHeader(
+            LOC.Get("PARAM_MassEdit_Template_Header_Existing"),
+            LOC.Get("PARAM_MassEdit_Template_Header_Existing_TT"));
 
         MassEditUtils.TemplateComboBox("massEditScripts", ref CurrentTemplate, ScriptList);
 
         GUI.MultiButtonInput("massEditScriptActions",
-            "massEditScriptEdit", "Edit", "Edit this script", EditMassEditTemplate,
-            "massEditScriptReload", "Update Template List", "", ReloadScripts,
-            "massEditOpenFolder", "Open Template Folder", "", OpenTemplateFolder);
+            "massEditScriptEdit", 
+            LOC.Get("PARAM_MassEdit_Action_Edit_Template_Script"),
+            LOC.Get("PARAM_MassEdit_Action_Edit_Template_Script_TT"),
+            EditMassEditTemplate,
+
+            "massEditScriptReload",
+            LOC.Get("PARAM_MassEdit_Action_Update_Template_List"),
+            LOC.Get("PARAM_MassEdit_Action_Update_Template_List_TT"),
+            ReloadScripts,
+
+            "massEditOpenFolder",
+            LOC.Get("PARAM_MassEdit_Action_Open_Template_Folder"),
+            LOC.Get("PARAM_MassEdit_Action_Open_Template_Folder_TT"),
+            OpenTemplateFolder);
 
         // Template Contents
-        GUI.WrappedText("");
-        GUI.SimpleHeader("Template Contents", "");
+        GUI.Spacer();
+        GUI.SimpleHeader(
+            LOC.Get("PARAM_MassEdit_Header_Template_Contents"),
+            LOC.Get("PARAM_MassEdit_Header_Template_Contents_TT"));
 
         GUI.MultilineTextInput("massEditContents", ref NewScriptContents);
 
         GUI.MultiButtonInput("massEditContentsActions",
-            "massEditScriptSave", "Save", "Save this script", SaveMassEditScript,
-            "massEditScriptClear", "Clear", "Clear this script", ClearMassEditContentsAction);
+            "massEditScriptSave", 
+            LOC.Get("PARAM_MassEdit_Action_Save_Script"),
+            LOC.Get("PARAM_MassEdit_Action_Save_Script_TT"),
+            SaveMassEditScript,
+
+            "massEditScriptClear", 
+            LOC.Get("PARAM_MassEdit_Action_Clear_Script"),
+            LOC.Get("PARAM_MassEdit_Action_Clear_Script_TT"),
+            ClearMassEditContentsAction);
 
         // New Template
-        GUI.WrappedText("");
-        GUI.SimpleHeader("New Template", "");
+        GUI.Spacer();
+        GUI.SimpleHeader(
+            LOC.Get("PARAM_MassEdit_Header_New_Template"),
+            LOC.Get("PARAM_MassEdit_Header_New_Template_TT"));
 
-        GUI.SinglelineTextInput("newTemplateName",ref NewScriptName, "Name");
-        GUI.Tooltip("The file name used for this template.");
+        GUI.SinglelineTextInput("newTemplateName", ref NewScriptName, LOC.Get("PARAM_MassEdit_Input_New_Template"));
+        GUI.Tooltip(LOC.Get("PARAM_MassEdit_Input_New_Template_TT"));
 
         GUI.MultiButtonInput("massEditTemplateActions",
-            "massEditScriptSave", "Save", "Save this script", SaveMassEditScript);
+            "massEditScriptSave",
+            LOC.Get("PARAM_MassEdit_Action_Save_Script"),
+            LOC.Get("PARAM_MassEdit_Action_Save_Script_TT"), 
+            SaveMassEditScript);
     }
 
     public void LoadMassEditTemplate()
@@ -193,7 +232,7 @@ public class MassEditToolMenu
     {
         if (NewScriptName == "")
         {
-            Smithbox.LogError(this, "Mass Edit Template name must not be empty.");
+            Smithbox.LogError(this, LOC.Get("PARAM_MassEdit_Log_Template_Name_Empty"));
             return;
         }
 
@@ -212,16 +251,16 @@ public class MassEditToolMenu
                 fs.Flush();
                 fs.Dispose();
 
-                Smithbox.Log(this, $"Mass Edit: saved mass edit template: {filename} at {scriptPath}.");
+                Smithbox.Log(this, LOC.Get("PARAM_MassEdit_Log_Saved_Template", filename, scriptPath));
             }
             catch (Exception ex)
             {
-                Smithbox.Log(this, $"Mass Edit: to save mass edit template: {filename} at {scriptPath}\n{ex}");
+                Smithbox.LogError(this, LOC.Get("PARAM_MassEdit_Log_Failed_Save_Template", filename, scriptPath), ex);
             }
         }
         else
         {
-            Smithbox.LogError(this, $"Mass Edit template with this name already exists: {NewScriptName}.");
+            Smithbox.LogError(this, LOC.Get("PARAM_MassEdit_Log_Template_Name_Exists", NewScriptName));
         }
 
         ReloadScripts();
@@ -269,8 +308,7 @@ public class MassEditToolMenu
                     }
                     catch (Exception e)
                     {
-                        Smithbox.Log(this, $"Error loading mass edit script {name}",
-                            LogLevel.Warning, LogPriority.Normal, e);
+                        Smithbox.LogError(this, LOC.Get("PARAM_MassEdit_Log_Failed_Template_Load", name), e);
                         return null;
                     }
                 }));
@@ -278,46 +316,7 @@ public class MassEditToolMenu
         }
         catch (Exception e)
         {
-            Smithbox.Log(this, $"Error loading mass edit scripts in {dir}",
-                LogLevel.Warning, LogPriority.Normal, e);
-        }
-    }
-
-    public void EditorScreenMenuItems(ref string _currentMEditRegexInput)
-    {
-        foreach (var script in ScriptList)
-        {
-            if (script == null)
-            {
-                continue;
-            }
-
-            if (ImGui.BeginMenu(script.name))
-            {
-                MenuItems(script);
-
-                if (ImGui.Selectable("Load"))
-                {
-                    _currentMEditRegexInput = GenerateMassedit(script);
-                    EditorCommandQueue.AddCommand(@"param/menu/massEditRegex");
-                }
-
-                ImGui.EndMenu();
-            }
-        }
-    }
-
-    public void MenuItems(MassEditTemplate template)
-    {
-        foreach (var s in template.preamble)
-        {
-            ImGui.TextUnformatted(s.Substring(2));
-        }
-
-        ImGui.Separator();
-        foreach (var arg in template.args)
-        {
-            ImGui.InputText(arg[0], ref arg[1], 128);
+            Smithbox.LogError(this, LOC.Get("PARAM_MassEdit_Log_Missing_Template_Dir", dir), e);
         }
     }
 
