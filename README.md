@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/icon.png" width="128" height="128" alt="Smithbox Logo" />
+  <img src="src/Smithbox/smithbox.png" width="128" height="128" alt="Smithbox Logo" />
 </p>
 
 <h1 align="center">Smithbox for Linux</h1>
