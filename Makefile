@@ -16,7 +16,7 @@ export PUBLISH_CONFIGURATION := $(CONFIG)
 export ARTIFACT_ROOT
 
 .PHONY: help restore build build-debug run publish publish-clean test clean clobber \
-	package package-deb package-rpm package-pacman package-appimage release
+	package package-deb package-rpm package-pacman package-appimage package-flatpak release
 
 help:
 	@printf '%s\n' \
@@ -28,11 +28,12 @@ help:
 		'  make run              Run Smithbox from src/Smithbox/Smithbox.csproj' \
 		'  make publish          Publish to ./linux-x64' \
 		'  make test             Run the unit tests' \
-		'  make package          Build all Linux packages (deb/rpm/pacman/appimage)' \
+		'  make package          Build all Linux packages (deb/rpm/pacman/appimage/flatpak)' \
 		'  make package-deb      Build only the .deb package' \
 		'  make package-rpm      Build only the .rpm package' \
 		'  make package-pacman   Build only the pacman (Arch) package' \
 		'  make package-appimage Build only the AppImage' \
+		'  make package-flatpak  Build only the Flatpak' \
 		'  make release          Create the GitHub release bundle from packaged artifacts' \
 		'  make clean            Clean build outputs' \
 		'  make clobber          clean + remove publish/artifacts' \
@@ -88,11 +89,15 @@ package-pacman:
 package-appimage:
 	PUBLISH_CONFIGURATION="$(CONFIG)" ARTIFACT_ROOT="$(ARTIFACT_ROOT)" bash "$(PACKAGING_DIR)/package-appimage.sh"
 
+package-flatpak:
+	PUBLISH_CONFIGURATION="$(CONFIG)" ARTIFACT_ROOT="$(ARTIFACT_ROOT)" bash "$(PACKAGING_DIR)/package-flatpak.sh"
+
 package:
 	$(MAKE) package-deb
 	$(MAKE) package-rpm
 	$(MAKE) package-pacman
 	$(MAKE) package-appimage
+	$(MAKE) package-flatpak
 
 release: package
 	bash "$(RELEASE_SCRIPT)"
