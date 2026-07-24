@@ -87,11 +87,12 @@ Some games use Oodle-compressed textures. To open projects for these games, copy
 Smithbox for Linux can be packaged into multiple formats:
 
 ```bash
-make package          # build deb + rpm + pacman + AppImage
+make package          # build deb + rpm + pacman + AppImage + Flatpak
 make package-deb      # only the .deb
 make package-rpm      # only the .rpm
 make package-pacman   # only the pacman (Arch) package
 make package-appimage # only the AppImage
+make package-flatpak  # only the Flatpak
 
 make release          # gather all artifacts + portable tarball + sha256sums
 ```
