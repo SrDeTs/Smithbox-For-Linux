@@ -133,3 +133,107 @@ make release          # gather all artifacts + portable tarball + sha256sums
 ```
 
 Artifacts land under `artifacts/package/<format>/`. The release bundle is assembled in `artifacts/package/release/smithbox-<version>/`.
+
+### Package contents
+
+Each package installs:
+- **Binary:** `/opt/smithbox/` (self-contained app)
+- **Symlink:** `/usr/local/bin/smithbox`
+- **Desktop entry:** `/usr/share/applications/smithbox.desktop`
+- **Icon:** `/usr/share/icons/hicolor/256x256/apps/smithbox.png`
+
+## Running the unit tests
+
+```bash
+make test
+```
+
+## Platform Notes
+
+### What works on Linux
+
+- ✅ All editors (Param, Map, Model, Texture, Material, Gparam, Text, File Browser)
+- ✅ Param Editor save/load (all games)
+- ✅ Soapstone gRPC server (interop with DSMapStudio)
+- ✅ Vulkan and OpenGL rendering backends
+- ✅ Native file dialogs (via NativeFileDialogSharp)
+- ✅ Steam game auto-detection (Linux paths)
+
+### What's disabled on Linux (Win32-only)
+
+- ❌ **Live param reload / ItemGib** — injects param changes into a running game process via `kernel32.dll` P/Invoke (Win32 process injection). This is fundamentally a Windows feature and is compiled out on Linux. All other param editor functionality (editing, saving, exporting) works normally.
+- ❌ **NavGen navmesh builder** — depends on `NavGen.dll`, a native C++ library built with MSVC. The source remains for future cross-platform compilation.
+
+### Optional: Tracy Profiler
+
+The Tracy profiler integration is optional and disabled by default. To enable it:
+
+1. Build `libTracyClient.so` from [Tracy](https://github.com/wolfpld/tracy):
+   ```bash
+   git clone https://github.com/wolfpld/tracy
+   cd tracy
+   cmake -S . -B build -DBUILD_SHARED_LIBS=ON -DTRACY_FIBERS=ON -DTRACY_MANUAL_LIFETIME=ON -DTRACY_DELAYED_INIT=ON
+   cmake --build build --config Release --target TracyClient
+   ```
+2. Copy the resulting `libTracyClient.so` next to `smithbox`
+3. Run with `SMITHBOX_PROFILER=1`
+
+## Troubleshooting
+
+### App won't start
+- Ensure you have Vulkan drivers installed: `vulkaninfo | head`
+- Try the OpenGL fallback: set `System_RenderingBackend` to `OpenGL` in the config
+- Check the crash log in `Crash Logs/` next to the executable
+
+### Params don't save
+- Make sure you have a **mod project path** set (not editing the game directory directly)
+- Check the in-app log for error messages
+- Ensure the project directory is writable
+
+### Textures show as missing/corrupted
+- Copy the correct `liboo2corelinux64.so.*` for your game into the `linux-x64/` directory
+- For Oodle 2.6 (DS3/ER/SDT/BB), build linoodle and copy `oo2core_6_win64.dll` from your game install
+
+## Issues
+
+For any issues or errors, please report to:
+- **This fork:** [github.com/SrDeTs/Smithbox-For-Linux/issues](https://github.com/SrDeTs/Smithbox-For-Linux/issues)
+- **upstream Smithbox:** [github.com/vawser/Smithbox](https://github.com/vawser/Smithbox?tab=contributing-ov-file)
+
+## Credits (Smithbox)
+* Vawser
+* ivi
+* nex3
+* gixxpunk
+* Strackeror
+* FireWolf700
+* GoogleBen
+* LordExelot
+* Pear0533
+* Metito
+* WarpZehpyr
+* twistedgwazi
+* FeeeeK
+* colaaaaaa123
+* alson041
+* gracenotes
+
+## Credits (DSMapStudio)
+* Katalash
+* philiquaz
+* george
+* thefifthmatt
+* TKGP
+* Nordgaren
+* [Pav](https://github.com/JohrnaJohrna)
+* [Meowmaritus](https://github.com/meowmaritus)
+* [PredatorCZ](https://github.com/PredatorCZ)
+* [Horkrux](https://github.com/horkrux)
+* Shadowth117
+
+---
+
+<p align="center">
+  <sub>Linux build maintained by <a href="https://github.com/SrDeTs">SrDeTs</a></sub><br>
+  <sub>upstream by <a href="https://github.com/vawser">Vawser</a> and contributors</sub>
+</p>
