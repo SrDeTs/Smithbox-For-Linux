@@ -86,7 +86,7 @@ public class FileExtractTool
         try
         {
             var data = Project.VFS.VanillaFS.ReadFile(fileEntry.Path);
-            var rawData = (Memory<byte>)data;
+            var rawData = data.Value;
 
             var unpackPath = ExtractionPath;
 
@@ -218,7 +218,7 @@ public class FileExtractTool
 
             try
             {
-                bhd = (Memory<byte>)Project.VFS.VanillaFS.ReadFile(targetBhdPath);
+                bhd = Project.VFS.VanillaFS.ReadFile(targetBhdPath).Value;
             }
             catch (Exception e)
             {
@@ -227,7 +227,7 @@ public class FileExtractTool
 
             try
             {
-                bdt = (Memory<byte>)Project.VFS.VanillaFS.ReadFile(targetBdtPath);
+                bdt = Project.VFS.VanillaFS.ReadFile(targetBdtPath).Value;
             }
             catch (Exception e)
             {
@@ -266,7 +266,7 @@ public class FileExtractTool
         if (extractData.Length > 0)
         {
             var extension = "";
-            var filename = Path.GetFileName(internalFile);
+            var filename = Path.GetFileName(internalFile.Replace('\\', '/'));
 
             var writePath = Path.Combine(ExtractionPath, filename);
 
@@ -416,7 +416,7 @@ public class FileExtractTool
 
             try
             {
-                bhd = (Memory<byte>)Project.VFS.VanillaFS.ReadFile(targetBhdPath);
+                bhd = Project.VFS.VanillaFS.ReadFile(targetBhdPath).Value;
             }
             catch (Exception e)
             {
@@ -425,7 +425,7 @@ public class FileExtractTool
 
             try
             {
-                bdt = (Memory<byte>)Project.VFS.VanillaFS.ReadFile(targetBdtPath);
+                bdt = Project.VFS.VanillaFS.ReadFile(targetBdtPath).Value;
             }
             catch (Exception e)
             {

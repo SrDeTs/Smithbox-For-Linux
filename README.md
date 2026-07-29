@@ -72,15 +72,50 @@ cd linux-x64
 
 ## Oodle Textures (DS3 / ER / AC6 / NR / SDT / BB)
 
-Some games use Oodle-compressed textures. To open projects for these games, copy the matching `liboo2corelinux64.so.*` from your **game install** into the `linux-x64/` directory (next to `smithbox`). Smithbox will pick it up automatically:
+Some games use Oodle-compressed textures. The approach differs by Oodle version:
 
-| Game(s) | File | Version |
-|---------|------|---------|
-| DS3, ER, SDT, BB | `liboo2corelinux64.so.6` | Oodle 2.6 |
-| AC6 | `liboo2corelinux64.so.8` | Oodle 2.8 |
-| NR (Nightreign) | `liboo2corelinux64.so.9` | Oodle 2.9 |
+### Oodle 2.9 (Nightreign)
 
-> **Note:** For Nightreign, `liboo2corelinux64.so.9` is already bundled in the build output — no manual copy needed.
+`liboo2corelinux64.so.9` is already bundled in the build output — no manual copy needed.
+
+### Oodle 2.8 (Armored Core VI)
+
+Copy `liboo2corelinux64.so.8` from your Armored Core VI game install into the `linux-x64/` directory.
+
+### Oodle 2.6 (DS3 / ER / SDT / BB) — linoodle
+
+Linux `.so` files for Oodle 2.6 are **not publicly available**. The solution is [linoodle](https://github.com/McSimp/linoodle) — a native Linux PE loader that wraps the Windows `oo2core_6_win64.dll`.
+
+**Setup:**
+
+1. Build linoodle (see below)
+2. Copy the built `liboo2corelinux64.so.6` into `linux-x64/`
+3. Copy `oo2core_6_win64.dll` from your game install into `linux-x64/`
+4. Both files must be side-by-side next to the `smithbox` binary
+
+**Building linoodle:**
+
+```bash
+git clone https://github.com/McSimp/linoodle.git /tmp/linoodle-src
+cd /tmp/linoodle-src
+git submodule update --init --recursive
+
+# Apply Smithbox modifications (see LINOODLE_CHANGES.md in repo root)
+
+mkdir build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_C_COMPILER=/usr/bin/gcc-15 \
+  -DCMAKE_CXX_COMPILER=/usr/bin/g++-15
+make -j$(nproc)
+```
+
+Then copy the wrapper:
+
+```bash
+cp liblinoodle.so /path/to/smithbox-linux/liboo2corelinux64.so.6
+```
+
+> **Note:** linoodle loads the Windows `oo2core_6_win64.dll` directly via mmap — no Wine dependency.
 
 ## Packaging
 
@@ -157,6 +192,7 @@ The Tracy profiler integration is optional and disabled by default. To enable it
 
 ### Textures show as missing/corrupted
 - Copy the correct `liboo2corelinux64.so.*` for your game into the `linux-x64/` directory
+- For Oodle 2.6 (DS3/ER/SDT/BB), build linoodle and copy `oo2core_6_win64.dll` from your game install
 
 ## Issues
 

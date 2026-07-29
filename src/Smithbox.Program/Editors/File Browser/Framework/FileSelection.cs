@@ -156,7 +156,7 @@ public class FileSelection
 
             try
             {
-                bhd = (Memory<byte>)Project.VFS.VanillaFS.ReadFile(targetBhdPath);
+                bhd = Project.VFS.VanillaFS.ReadFile(targetBhdPath).Value;
             }
             catch (Exception e)
             {
@@ -165,7 +165,7 @@ public class FileSelection
 
             try
             {
-                bdt = (Memory<byte>)Project.VFS.VanillaFS.ReadFile(targetBdtPath);
+                bdt = Project.VFS.VanillaFS.ReadFile(targetBdtPath).Value;
             }
             catch (Exception e)
             {
