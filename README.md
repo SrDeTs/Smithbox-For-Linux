@@ -27,7 +27,7 @@ All Windows- and macOS-specific code paths, native binaries and build configurat
 
 | Game | Project Type | Oodle Library |
 |------|-------------|---------------|
-| Elden Ring | `ER` | `liboo2corelinux64.so.6` |
+| Elden Ring | `ER` | `liboo2corelinux64.so.9` |
 | Dark Souls III | `DS3` | `liboo2corelinux64.so.6` |
 | Armored Core VI | `AC6` | `liboo2corelinux64.so.8` |
 | Nightreign | `NR` | `liboo2corelinux64.so.9` |
