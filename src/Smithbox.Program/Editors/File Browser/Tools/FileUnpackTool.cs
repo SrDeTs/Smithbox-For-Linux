@@ -284,7 +284,7 @@ public class FileUnpackTool
                     {
                         var unpackPath = UnpackDirectory != "" ? UnpackDirectory : Project.Descriptor.DataPath;
 
-                        var rawData = (Memory<byte>)data;
+                        var rawData = data.Value;
                         var absFolder = $@"{unpackPath}/{entry.Folder}";
                         var absPath = $@"{unpackPath}/{entry.Path}";
 

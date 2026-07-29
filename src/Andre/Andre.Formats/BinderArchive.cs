@@ -29,7 +29,7 @@ namespace Andre.Formats
         private BHD5 bhd;
         public FileStream? BdtStream { get; }
 
-        public MemoryMappedFile BdtMmf { get; }
+        public MemoryMappedFile? BdtMmf { get; }
 
         public bool BhdWasEncrypted { get; }
 
@@ -190,6 +190,15 @@ namespace Andre.Formats
         /// <param name="game"></param>
         public BinderArchive(string bhdPath, string bdtPath, Game game)
         {
+            var bdtInfo = new FileInfo(bdtPath);
+            if (!bdtInfo.Exists || bdtInfo.Length == 0)
+            {
+                AndreLogging.For(this).LogWarning("Skipping empty or missing BDT: {}", bdtPath);
+                BdtStream = null;
+                BdtMmf = null;
+                bhd = new BHD5(game.AsBhdGame() ?? BHD5.Game.EldenRing);
+                return;
+            }
 
             using var fs = new FileStream(bhdPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             using var mmf = MemoryMappedFile.CreateFromFile(fs, null, 0, MemoryMappedFileAccess.Read,
@@ -236,19 +245,21 @@ namespace Andre.Formats
         public List<BHD5.Bucket> Buckets => bhd.Buckets;
 
         public IEnumerable<BHD5.FileHeader> EnumerateFiles() =>
-            Buckets.Select(b => b.AsEnumerable()).Aggregate(Enumerable.Concat);
+            Buckets.Count == 0
+                ? Enumerable.Empty<BHD5.FileHeader>()
+                : Buckets.Select(b => b.AsEnumerable()).Aggregate(Enumerable.Concat);
 
         public void Dispose()
         {
             GC.SuppressFinalize(this);
-            BdtMmf.Dispose();
+            BdtMmf?.Dispose();
             BdtStream?.Dispose();
         }
 
         public async ValueTask DisposeAsync()
         {
             GC.SuppressFinalize(this);
-            BdtMmf.Dispose();
+            BdtMmf?.Dispose();
             if (BdtStream != null) await BdtStream.DisposeAsync();
         }
     }

@@ -61,8 +61,15 @@ public class ProjectVFS : IDisposable
             {
                 if (!Project.Descriptor.ProjectType.IsLooseGame())
                 {
-                    VanillaBinderFS = ArchiveBinderVirtualFileSystem.FromGameFolder(Project.Descriptor.DataPath, andreGame.Value);
-                    fileSystems.Add(VanillaBinderFS);
+                    try
+                    {
+                        VanillaBinderFS = ArchiveBinderVirtualFileSystem.FromGameFolder(Project.Descriptor.DataPath, andreGame.Value);
+                        fileSystems.Add(VanillaBinderFS);
+                    }
+                    catch (Exception e)
+                    {
+                        Smithbox.LogError(this, $"[VFS] Failed to load binder archives from {Project.Descriptor.DataPath} for game {andreGame.Value}. Extraction from binder files will not work.", e);
+                    }
                 }
 
                 VanillaFS = new CompundVirtualFileSystem([VanillaRealFS, VanillaBinderFS]);
