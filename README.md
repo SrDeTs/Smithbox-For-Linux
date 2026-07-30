@@ -86,36 +86,29 @@ Copy `liboo2corelinux64.so.8` from your Armored Core VI game install into the `l
 
 Linux `.so` files for Oodle 2.6 are **not publicly available**. The solution is [linoodle](https://github.com/McSimp/linoodle) — a native Linux PE loader that wraps the Windows `oo2core_6_win64.dll`.
 
-**Setup:**
+**Setup (automated):**
 
-1. Build linoodle (see below)
-2. Copy the built `liboo2corelinux64.so.6` into `linux-x64/`
+```bash
+cd /path/to/smithbox-linux
+./scripts/linoodle-setup.sh
+```
+
+The script will:
+1. Auto-detect Steam libraries (all drives)
+2. Find `oo2core_6_win64.dll` from your game install
+3. Build linoodle if wrapper not found
+4. Copy both files to the Smithbox directory
+
+**Manual setup (if needed):**
+
+1. Build linoodle (see `LINOODLE_CHANGES.md` in repo root)
+2. Copy `liboo2corelinux64.so.6` into `linux-x64/`
 3. Copy `oo2core_6_win64.dll` from your game install into `linux-x64/`
 4. Both files must be side-by-side next to the `smithbox` binary
 
-**Building linoodle:**
-
-```bash
-git clone https://github.com/McSimp/linoodle.git /tmp/linoodle-src
-cd /tmp/linoodle-src
-git submodule update --init --recursive
-
-# Apply Smithbox modifications (see LINOODLE_CHANGES.md in repo root)
-
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_C_COMPILER=/usr/bin/gcc-15 \
-  -DCMAKE_CXX_COMPILER=/usr/bin/g++-15
-make -j$(nproc)
-```
-
-Then copy the wrapper:
-
-```bash
-cp liblinoodle.so /path/to/smithbox-linux/liboo2corelinux64.so.6
-```
-
 > **Note:** linoodle loads the Windows `oo2core_6_win64.dll` directly via mmap — no Wine dependency.
+
+
 
 ## Packaging
 
